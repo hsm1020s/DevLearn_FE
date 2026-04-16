@@ -116,11 +116,11 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
         {/* 문서 관리 목록 */}
         <div>
           <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-            {purpose === 'cert' ? '교재' : '문서'} 관리 ({docs.length})
+            문서 관리 ({docs.length})
           </label>
           {docs.length === 0 ? (
             <p className="text-xs text-text-tertiary text-center py-3">
-              업로드된 {purpose === 'cert' ? '교재' : '문서'}가 없습니다
+              업로드된 문서가 없습니다
             </p>
           ) : (
             <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
