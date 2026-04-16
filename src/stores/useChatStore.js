@@ -61,6 +61,22 @@ const useChatStore = create(
 
       setStreaming: (isStreaming) => set({ isStreaming }),
 
+      /** 즐겨찾기 토글 */
+      toggleFavorite: (id) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, isFavorite: !c.isFavorite } : c
+          ),
+        })),
+
+      /** 대화 제목 변경 */
+      renameConversation: (id, title) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, title } : c
+          ),
+        })),
+
       /** 선택된 대화 ID 목록을 일괄 삭제 */
       deleteConversations: (ids) => {
         const idSet = new Set(ids);

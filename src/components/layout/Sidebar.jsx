@@ -3,7 +3,7 @@
  * LLM/모드 선택, 대화 목록, 마인드맵 토글, 설정 링크를 제공한다.
  * 접힌 상태(collapsed)에서는 아이콘만 표시한다.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PanelLeftClose,
@@ -15,6 +15,9 @@ import {
   MessageSquare,
   Trash2,
   X,
+  MoreHorizontal,
+  Pencil,
+  Star,
 } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useChatStore from '../../stores/useChatStore';
@@ -42,12 +45,64 @@ export default function Sidebar() {
   const setCurrentConversation = useChatStore((s) => s.setCurrentConversation);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const deleteConversations = useChatStore((s) => s.deleteConversations);
+  const renameConversation = useChatStore((s) => s.renameConversation);
+  const toggleFavorite = useChatStore((s) => s.toggleFavorite);
+
+  // 즐겨찾기 목록 (최대 3개)
+  const favorites = conversations.filter((c) => c.isFavorite).slice(0, 3);
 
   const collapsed = isSidebarCollapsed;
 
   // 삭제 모드 상태
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  // ··· 컨텍스트 메뉴 상태
+  const [menuOpenId, setMenuOpenId] = useState(null);
+  const menuRef = useRef(null);
+
+  // 인라인 편집 상태
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef(null);
+
+  // 메뉴 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpenId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpenId]);
+
+  // 편집 모드 진입 시 input 포커스
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  const handleStartRename = useCallback((conv) => {
+    setEditingId(conv.id);
+    setEditValue(conv.title);
+    setMenuOpenId(null);
+  }, []);
+
+  const handleConfirmRename = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && editingId) renameConversation(editingId, trimmed);
+    setEditingId(null);
+    setEditValue('');
+  }, [editingId, editValue, renameConversation]);
+
+  const handleDeleteSingle = useCallback((id) => {
+    setMenuOpenId(null);
+    if (window.confirm('이 대화를 삭제하시겠습니까?')) {
+      deleteConversations([id]);
+    }
+  }, [deleteConversations]);
 
   const toggleDeleteMode = useCallback(() => {
     setIsDeleteMode((prev) => !prev);
@@ -122,19 +177,6 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* New Conversation */}
-      <div className="px-3 py-3 border-b border-border-light">
-        <Button
-          variant="primary"
-          size="sm"
-          className="w-full"
-          onClick={handleNewConversation}
-        >
-          <Plus size={16} />
-          {!collapsed && <span>새 대화</span>}
-        </Button>
-      </div>
-
       {/* LLM / Mode / Toggle — hidden labels when collapsed */}
       {!collapsed && (
         <div className="flex flex-col gap-3 px-3 py-3 border-b border-border-light">
@@ -163,6 +205,19 @@ export default function Sidebar() {
         </div>
       )}
 
+      {/* New Conversation */}
+      <div className="px-3 py-3 border-b border-border-light">
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full"
+          onClick={handleNewConversation}
+        >
+          <Plus size={16} />
+          {!collapsed && <span>새 대화</span>}
+        </Button>
+      </div>
+
       {/* Collapsed: icon-only controls */}
       {collapsed && (
         <div className="flex flex-col items-center gap-3 px-1 py-3 border-b border-border-light">
@@ -172,6 +227,48 @@ export default function Sidebar() {
             onClick={toggleMindmap}
             title="마인드맵 토글"
           />
+        </div>
+      )}
+
+      {/* Favorites */}
+      {!collapsed && (
+        <div className="px-1 py-2 border-b border-border-light">
+          <div className="flex items-center gap-1 px-2 mb-2">
+            <Star size={14} className="text-yellow-500" />
+            <span className="text-xs font-medium text-text-secondary">즐겨찾기</span>
+          </div>
+          {favorites.length === 0 ? (
+            <p className="text-xs text-text-tertiary text-center py-1">대화 ··· 메뉴에서 추가</p>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {favorites.map((conv) => {
+                const Icon = getModeConfig(conv.mode).icon;
+                const isActive = conv.id === currentConversationId;
+                return (
+                  <li key={conv.id}>
+                    <button
+                      onClick={() => handleSelectConversation(conv.id)}
+                      className={`
+                        w-full flex items-center gap-2 px-2 py-1.5 rounded-md
+                        text-sm text-left transition-colors
+                        ${isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-text-primary hover:bg-bg-secondary'}
+                      `}
+                    >
+                      <Icon size={16} className="shrink-0" />
+                      <span className="truncate flex-1">{conv.title}</span>
+                      <Star
+                        size={12}
+                        className="shrink-0 text-yellow-500 fill-yellow-500 hover:opacity-60 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(conv.id); }}
+                      />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
 
@@ -232,34 +329,88 @@ export default function Sidebar() {
             const Icon = getModeConfig(conv.mode).icon;
             const isActive = conv.id === currentConversationId;
             const isSelected = selectedIds.has(conv.id);
+            const isEditing = editingId === conv.id;
             return (
-              <li key={conv.id}>
-                <button
-                  onClick={() => isDeleteMode ? toggleSelect(conv.id) : handleSelectConversation(conv.id)}
-                  className={`
-                    w-full flex items-center gap-2 px-2 py-1.5 rounded-md
-                    text-sm text-left transition-colors
-                    ${isDeleteMode && isSelected
-                      ? 'bg-danger/10 text-danger'
-                      : isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-text-primary hover:bg-bg-secondary'}
-                  `}
-                  title={collapsed ? conv.title : undefined}
-                >
-                  {isDeleteMode && !collapsed && (
+              <li key={conv.id} className="group relative">
+                {isEditing && !collapsed ? (
+                  <div className="flex items-center gap-1 px-2 py-1">
+                    <Icon size={16} className="shrink-0 text-primary" />
                     <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly
-                      className="shrink-0 accent-danger pointer-events-none"
+                      ref={editInputRef}
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleConfirmRename();
+                        if (e.key === 'Escape') { setEditingId(null); setEditValue(''); }
+                      }}
+                      onBlur={handleConfirmRename}
+                      className="flex-1 min-w-0 px-1.5 py-0.5 text-sm border border-primary rounded
+                                 bg-bg-primary text-text-primary focus:outline-none"
                     />
-                  )}
-                  <Icon size={16} className="shrink-0" />
-                  {!collapsed && (
-                    <span className="truncate">{conv.title}</span>
-                  )}
-                </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => isDeleteMode ? toggleSelect(conv.id) : handleSelectConversation(conv.id)}
+                    className={`
+                      w-full flex items-center gap-2 px-2 py-1.5 rounded-md
+                      text-sm text-left transition-colors
+                      ${isDeleteMode && isSelected
+                        ? 'bg-danger/10 text-danger'
+                        : isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-text-primary hover:bg-bg-secondary'}
+                    `}
+                    title={collapsed ? conv.title : undefined}
+                  >
+                    {isDeleteMode && !collapsed && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        readOnly
+                        className="shrink-0 accent-danger pointer-events-none"
+                      />
+                    )}
+                    <Icon size={16} className="shrink-0" />
+                    {!collapsed && (
+                      <span className="truncate flex-1">{conv.title}</span>
+                    )}
+                  </button>
+                )}
+                {/* ··· 더보기 메뉴 */}
+                {!collapsed && !isDeleteMode && !isEditing && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === conv.id ? null : conv.id); }}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded
+                               text-text-tertiary hover:text-text-primary hover:bg-bg-secondary
+                               opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                )}
+                {menuOpenId === conv.id && (
+                  <div ref={menuRef} className="absolute right-0 top-full z-50 bg-white border border-border-light rounded-lg shadow-lg py-1 min-w-[130px]">
+                    <button
+                      onClick={() => { toggleFavorite(conv.id); setMenuOpenId(null); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-bg-secondary transition-colors"
+                    >
+                      <Star size={12} className={conv.isFavorite ? 'text-yellow-500 fill-yellow-500' : ''} />
+                      {conv.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                    </button>
+                    <button
+                      onClick={() => handleStartRename(conv)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-bg-secondary transition-colors"
+                    >
+                      <Pencil size={12} /> 이름 변경
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSingle(conv.id)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-danger hover:bg-danger/10 transition-colors"
+                    >
+                      <Trash2 size={12} /> 삭제
+                    </button>
+                  </div>
+                )}
               </li>
             );
           })}
