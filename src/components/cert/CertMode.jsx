@@ -18,7 +18,6 @@ function QuizResult() {
   const setCertStep = useCertStore((s) => s.setCertStep);
   const setQuestionIndex = useCertStore((s) => s.setQuestionIndex);
   const resetQuiz = useCertStore((s) => s.resetQuiz);
-  const submitAnswer = useCertStore((s) => s.submitAnswer);
 
   const questions = currentQuiz?.questions || [];
   const total = questions.length;
@@ -27,12 +26,9 @@ function QuizResult() {
   ).length;
   const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
-  // 답변 초기화 후 첫 문제부터 다시 시작
+  // 답변 한번에 초기화 후 첫 문제부터 다시 시작
   const handleRetry = () => {
-    questions.forEach((q) => submitAnswer(q.id, undefined));
-    useCertStore.setState({ answers: {} });
-    setQuestionIndex(0);
-    setCertStep('quiz');
+    useCertStore.setState({ answers: {}, currentQuestionIndex: 0, certStep: 'quiz' });
   };
 
   return (

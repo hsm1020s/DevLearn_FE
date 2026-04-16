@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 
 /** 하드코딩된 계정 목록 — 추후 백엔드 연동 시 교체 */
 const HARDCODED_USERS = [
-  { email: 'test', password: '1234', name: '관리자' },
+  { email: 'test', password: '1234', name: '문희석' },
 ];
 
 const useAuthStore = create(

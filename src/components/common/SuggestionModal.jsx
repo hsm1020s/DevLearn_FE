@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import { useToastStore } from './Toast';
+import { generateId } from '../../utils/helpers';
 
 const CATEGORIES = [
   { value: 'ui', label: 'UI/UX' },
@@ -45,7 +46,7 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
 
     const suggestion = {
       ...form,
-      id: crypto.randomUUID(),
+      id: generateId(),
       createdAt: new Date().toISOString(),
     };
 

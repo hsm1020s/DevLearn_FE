@@ -2,9 +2,9 @@
  * @fileoverview RAG 문서 업로더 컴포넌트.
  * 드래그 앤 드롭 또는 클릭으로 PDF를 업로드하고, 업로드 상태를 실시간 표시한다.
  */
-import { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, Loader } from 'lucide-react';
+import { FileText, CheckCircle, Loader } from 'lucide-react';
 import Button from '../common/Button';
+import FileDropZone from '../common/FileDropZone';
 import useRagStore from '../../stores/useRagStore';
 import { uploadDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
@@ -12,11 +12,10 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** PDF 파일 드래그 앤 드롭/클릭 업로드 컴포넌트 */
 export default function RagUploader({ onDone }) {
-  const [dragging, setDragging] = useState(false);
-  const fileInputRef = useRef(null);
   const ragDocs = useRagStore((s) => s.ragDocs);
   const addDoc = useRagStore((s) => s.addDoc);
   const updateDocStatus = useRagStore((s) => s.updateDocStatus);
+  const updateDocInfo = useRagStore((s) => s.updateDocInfo);
 
   // PDF 파일 목록을 순회하며 업로드 후 스토어에 결과 반영
   const handleFiles = async (files) => {
@@ -26,12 +25,8 @@ export default function RagUploader({ onDone }) {
       try {
         const result = await uploadDocument(file);
         updateDocStatus(doc.id, 'completed', 100);
-        // 업로드 완료 후 페이지/청크 수를 직접 갱신
-        useRagStore.setState((state) => ({
-          ragDocs: state.ragDocs.map((d) =>
-            d.id === doc.id ? { ...d, pages: result.pages, chunks: result.chunks } : d
-          ),
-        }));
+        // 업로드 완료 후 페이지/청크 수를 action으로 갱신
+        updateDocInfo(doc.id, { pages: result.pages, chunks: result.chunks });
         showSuccess('문서가 업로드되었습니다');
       } catch {
         updateDocStatus(doc.id, 'error', 0);
@@ -40,48 +35,10 @@ export default function RagUploader({ onDone }) {
     }
   };
 
-  // 드래그 앤 드롭 이벤트 핸들러
-  const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
-  const onDragLeave = (e) => { e.preventDefault(); setDragging(false); };
-  const onDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    handleFiles(Array.from(e.dataTransfer.files));
-  };
-  // 파일 입력 변경 시 업로드 처리 후 input 초기화
-  const onFileChange = (e) => {
-    if (e.target.files.length) {
-      handleFiles(Array.from(e.target.files));
-      e.target.value = '';
-    }
-  };
-
   return (
     <div className="flex flex-col gap-5">
-      <div
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`
-          flex flex-col items-center justify-center gap-3 p-8
-          border-2 border-dashed rounded-xl cursor-pointer transition-colors
-          ${dragging ? 'border-primary bg-primary/5' : 'border-border-light hover:border-primary/50'}
-        `}
-      >
-        <Upload className="w-8 h-8 text-text-tertiary" />
-        <p className="text-sm text-text-secondary text-center">
-          PDF 파일을 드래그하거나 클릭하여 업로드
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          multiple
-          className="hidden"
-          onChange={onFileChange}
-        />
-      </div>
+      {/* 공통 드래그앤드롭 영역 */}
+      <FileDropZone onFiles={handleFiles} />
 
       {ragDocs.length > 0 && (
         <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">

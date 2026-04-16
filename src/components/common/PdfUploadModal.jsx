@@ -1,8 +1,8 @@
 /** @fileoverview 통합 PDF 업로드 모달 — 용도(퀴즈용/RAG용) 선택 후 드래그앤드롭으로 업로드한다. */
-import { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, BookOpen, CheckCircle, Loader, Briefcase } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { FileText, BookOpen, CheckCircle, Loader, Briefcase } from 'lucide-react';
 import Modal from './Modal';
-import Button from './Button';
+import FileDropZone from './FileDropZone';
 import useAppStore from '../../stores/useAppStore';
 import useCertStore from '../../stores/useCertStore';
 import useRagStore from '../../stores/useRagStore';
@@ -19,8 +19,6 @@ const PURPOSES = [
 export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const mainMode = useAppStore((s) => s.mainMode);
   const [purpose, setPurpose] = useState(mainMode === 'work' ? 'work' : 'cert');
-  const [dragging, setDragging] = useState(false);
-  const fileInputRef = useRef(null);
 
   // cert store
   const certDocs = useCertStore((s) => s.certDocs);
@@ -31,6 +29,7 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const ragDocs = useRagStore((s) => s.ragDocs);
   const addRagDoc = useRagStore((s) => s.addDoc);
   const updateRagStatus = useRagStore((s) => s.updateDocStatus);
+  const updateRagDocInfo = useRagStore((s) => s.updateDocInfo);
 
   const docs = purpose === 'cert' ? certDocs : ragDocs;
 
@@ -53,11 +52,8 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
         try {
           const result = await uploadDocument(file);
           updateRagStatus(doc.id, 'completed', 100);
-          useRagStore.setState((state) => ({
-            ragDocs: state.ragDocs.map((d) =>
-              d.id === doc.id ? { ...d, pages: result.pages, chunks: result.chunks } : d
-            ),
-          }));
+          // action을 통해 페이지/청크 수 갱신 (setState 직접 호출 제거)
+          updateRagDocInfo(doc.id, { pages: result.pages, chunks: result.chunks });
           showSuccess('문서가 업로드되었습니다');
         } catch {
           updateRagStatus(doc.id, 'error', 0);
@@ -65,21 +61,7 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
         }
       }
     }
-  }, [purpose, addCertDoc, updateCertStatus, addRagDoc, updateRagStatus]);
-
-  const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
-  const onDragLeave = (e) => { e.preventDefault(); setDragging(false); };
-  const onDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    handleFiles(Array.from(e.dataTransfer.files));
-  };
-  const onFileChange = (e) => {
-    if (e.target.files.length) {
-      handleFiles(Array.from(e.target.files));
-      e.target.value = '';
-    }
-  };
+  }, [purpose, addCertDoc, updateCertStatus, addRagDoc, updateRagStatus, updateRagDocInfo]);
 
   // 모달 열릴 때 현재 모드에 맞게 용도 초기화
   const handleClose = useCallback(() => {
@@ -110,29 +92,8 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
           </div>
         </div>
 
-        {/* 드래그앤드롭 영역 */}
-        <div
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex flex-col items-center justify-center gap-3 p-8
-            border-2 border-dashed rounded-xl cursor-pointer transition-colors
-            ${dragging ? 'border-primary bg-primary/5' : 'border-border-light hover:border-primary/50'}`}
-        >
-          <Upload className="w-8 h-8 text-text-tertiary" />
-          <p className="text-sm text-text-secondary text-center">
-            PDF 파일을 드래그하거나 클릭하여 업로드
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf"
-            multiple
-            className="hidden"
-            onChange={onFileChange}
-          />
-        </div>
+        {/* 공통 드래그앤드롭 영역 */}
+        <FileDropZone onFiles={handleFiles} />
 
         {/* 업로드된 파일 목록 */}
         {docs.length > 0 && (

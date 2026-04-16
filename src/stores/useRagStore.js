@@ -24,6 +24,14 @@ const useRagStore = create(
           ),
         })),
 
+      /** 문서의 부가 정보(페이지 수, 청크 수 등)를 업데이트 */
+      updateDocInfo: (id, info) =>
+        set((state) => ({
+          ragDocs: state.ragDocs.map((d) =>
+            d.id === id ? { ...d, ...info } : d
+          ),
+        })),
+
       // 문서 삭제
       removeDoc: (id) =>
         set((state) => ({

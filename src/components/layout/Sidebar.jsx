@@ -208,7 +208,7 @@ export default function Sidebar() {
           <div className="flex items-center gap-2 overflow-hidden">
             <BookOpen size={20} className="text-primary shrink-0" />
             <span className="text-sm font-bold text-text-primary whitespace-nowrap">
-              업무공부도구
+              DevLearn
             </span>
           </div>
         )}
@@ -308,8 +308,8 @@ export default function Sidebar() {
 
       {/* Recent Conversations */}
       {!collapsed && <div className="flex-1 overflow-y-auto px-1 py-2">
-        {!collapsed && (
-          <div className="flex items-center justify-between px-2 mb-2">
+        {/* 최근 대화 헤더 */}
+        <div className="flex items-center justify-between px-2 mb-2">
             <div className="flex items-center gap-1">
               <MessageSquare size={14} className="text-text-secondary" />
               <span className="text-xs font-medium text-text-secondary">최근 대화</span>
@@ -324,8 +324,7 @@ export default function Sidebar() {
               </button>
             )}
           </div>
-        )}
-        {isDeleteMode && !collapsed && (
+        {isDeleteMode && (
           <div className="flex items-center gap-1 px-2 py-1.5 mb-1">
             <button
               onClick={toggleSelectAll}
