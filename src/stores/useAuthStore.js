@@ -2,10 +2,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/** 하드코딩된 계정 목록 — 추후 백엔드 연동 시 교체 */
-const HARDCODED_USERS = [
-  { email: 'test', password: '1234', name: '문희석' },
-];
+/** 테스트 계정 — 개발 환경에서만 사용. 프로덕션 배포 시 빈 배열. */
+const HARDCODED_USERS = import.meta.env.DEV
+  ? [{ email: 'test', password: '1234', name: '문희석' }]
+  : [];
 
 const useAuthStore = create(
   persist(
@@ -33,7 +33,14 @@ const useAuthStore = create(
       /** 로그아웃 */
       logout: () => set({ user: null, isLoggedIn: false }),
     }),
-    { name: 'auth-storage' },
+    {
+      name: 'auth-storage',
+      // 로그인 상태만 저장, 민감 정보(email 등) 제외
+      partialize: (state) => ({
+        isLoggedIn: state.isLoggedIn,
+        user: state.user ? { name: state.user.name } : null,
+      }),
+    },
   ),
 );
 

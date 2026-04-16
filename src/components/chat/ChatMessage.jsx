@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { Copy, Check, Bot, User } from 'lucide-react';
 import SourceCard from './SourceCard';
 
@@ -44,7 +45,7 @@ export default function ChatMessage({ message, isStreaming }) {
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
           <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-li:my-0">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
               {message.content}
             </ReactMarkdown>
             {isStreaming && (

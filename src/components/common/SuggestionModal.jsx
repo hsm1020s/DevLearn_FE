@@ -60,9 +60,14 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
       createdAt: new Date().toISOString(),
     };
 
-    // 기존 제안 목록 앞에 새 제안 추가 (최신순 정렬)
-    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([suggestion, ...existing]));
+    // 기존 제안 목록 앞에 새 제안 추가 (최신순 정렬, 최대 100건)
+    let existing = [];
+    try {
+      existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+      existing = [];
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([suggestion, ...existing].slice(0, 100)));
 
     addToast('제안이 등록되었습니다.', 'success');
     setForm(initialForm);
@@ -113,6 +118,7 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
             type="text"
             value={form.title}
             onChange={(e) => updateField('title', e.target.value)}
+            maxLength={200}
             placeholder="제안 제목을 입력하세요"
             className="w-full px-3 py-2 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-tertiary
@@ -126,6 +132,7 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
           <textarea
             value={form.content}
             onChange={(e) => updateField('content', e.target.value)}
+            maxLength={2000}
             placeholder="구체적인 설명이나 재현 방법을 입력하세요"
             rows={5}
             className="w-full px-3 py-2 text-sm border border-border-light rounded-lg

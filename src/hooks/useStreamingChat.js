@@ -6,6 +6,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
 import { streamMessage } from '../services/chatApi';
+import { showError } from '../utils/errorHandler';
 
 /**
  * 스트리밍 채팅 훅
@@ -80,11 +81,11 @@ export default function useStreamingChat(mode) {
           },
         });
       } catch (err) {
-        // AbortError는 정상 중단이므로 무시
-        if (err.name !== 'AbortError') {
-          setStreamingContent('');
-          setStreaming(false);
-        }
+        if (err.name === 'AbortError') return; // 정상 중단
+        console.error('[useStreamingChat] Stream error:', err);
+        showError(err);
+        setStreamingContent('');
+        setStreaming(false);
       }
     },
     [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming],

@@ -67,7 +67,7 @@ export default function MindmapNode({ id, data, selected }) {
         <input
           ref={inputRef}
           value={label}
-          onChange={(e) => setLabel(e.target.value)}
+          onChange={(e) => setLabel(e.target.value.slice(0, 200))}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setLabel(data.label); setEditing(false); } }}
           className="bg-transparent outline-none text-sm w-full min-w-[60px]"

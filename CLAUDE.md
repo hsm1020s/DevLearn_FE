@@ -2,7 +2,7 @@
 
 ## 경로
 - 프론트엔드: `/Users/moon/DevLearn_FE`
-- 백엔드: `/Users/moon/IdeaProjects/workStudyTool`
+- 백엔드: `/Users/moon/IdeaProjects/DevLearn_BE`
 
 ## 작업 플로우
 1. **설계 먼저** — 구현 전에 반드시 설계를 제시하고, 사용자 확인 후 구현에 들어간다.

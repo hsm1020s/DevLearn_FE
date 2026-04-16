@@ -76,6 +76,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
             max-h-[140px]
           "
           rows={1}
+          maxLength={10000}
           placeholder="메시지를 입력하세요..."
           onChange={handleChange}
           onKeyDown={handleKeyDown}

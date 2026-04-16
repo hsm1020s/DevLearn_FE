@@ -255,8 +255,9 @@ export default function MindmapPanel() {
           <input
             type="text"
             value={nodeInput}
-            onChange={(e) => setNodeInput(e.target.value)}
+            onChange={(e) => setNodeInput(e.target.value.slice(0, 200))}
             onKeyDown={handleKeyDown}
+            maxLength={200}
             placeholder={selectedNode ? '하위 노드 이름' : '루트 노드 이름'}
             className="flex-1 px-3 py-1.5 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-secondary

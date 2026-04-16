@@ -21,11 +21,20 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const updateDocInfo = useDocStore((s) => s.updateDocInfo);
   const removeDoc = useDocStore((s) => s.removeDoc);
 
-  // 파일 업로드 처리
+  // 파일 업로드 처리 (타입/크기 검증 포함)
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
   const handleFiles = useCallback(async (files) => {
     for (const file of files) {
-      if (file.type !== 'application/pdf') continue;
-      const doc = addDoc({ fileName: file.name });
+      if (file.type !== 'application/pdf') {
+        showError(null, 'PDF 파일만 업로드 가능합니다');
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        showError(null, `파일 크기는 50MB 이하여야 합니다 (현재: ${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+        continue;
+      }
+      const doc = addDoc({ fileName: file.name.slice(0, 255) });
       try {
         const result = await uploadDocument(file);
         updateDocStatus(doc.id, 'completed', 100);
