@@ -3,6 +3,7 @@
  * LLM/모드 선택, 대화 목록, 마인드맵 토글, 설정 링크를 제공한다.
  * 접힌 상태(collapsed)에서는 아이콘만 표시한다.
  */
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PanelLeftClose,
@@ -12,6 +13,8 @@ import {
   BookOpen,
   Brain,
   MessageSquare,
+  Trash2,
+  X,
 } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useChatStore from '../../stores/useChatStore';
@@ -38,8 +41,46 @@ export default function Sidebar() {
   const createConversation = useChatStore((s) => s.createConversation);
   const setCurrentConversation = useChatStore((s) => s.setCurrentConversation);
   const clearMessages = useChatStore((s) => s.clearMessages);
+  const deleteConversations = useChatStore((s) => s.deleteConversations);
 
   const collapsed = isSidebarCollapsed;
+
+  // 삭제 모드 상태
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const toggleDeleteMode = useCallback(() => {
+    setIsDeleteMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`${selectedIds.size}개의 대화를 삭제하시겠습니까?`)) {
+      deleteConversations([...selectedIds]);
+      setIsDeleteMode(false);
+      setSelectedIds(new Set());
+    }
+  }, [selectedIds, deleteConversations]);
+
+  const isAllSelected = conversations.length > 0 && selectedIds.size === conversations.length;
+
+  const toggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(conversations.map((c) => c.id)));
+    }
+  }, [isAllSelected, conversations]);
 
   // 새 대화 생성 후 기존 메시지 초기화
   const handleNewConversation = () => {
@@ -59,7 +100,7 @@ export default function Sidebar() {
       className={`
         flex flex-col h-full border-r border-border-light
         bg-bg-primary transition-all duration-300 overflow-hidden
-        ${collapsed ? 'w-[60px]' : 'w-[200px]'}
+        ${collapsed ? 'w-[60px]' : 'w-[220px]'}
       `}
     >
       {/* Header: Logo + Collapse */}
@@ -137,28 +178,83 @@ export default function Sidebar() {
       {/* Recent Conversations */}
       <div className="flex-1 overflow-y-auto px-1 py-2">
         {!collapsed && (
-          <div className="flex items-center gap-1 px-2 mb-2">
-            <MessageSquare size={14} className="text-text-secondary" />
-            <span className="text-xs font-medium text-text-secondary">최근 대화</span>
+          <div className="flex items-center justify-between px-2 mb-2">
+            <div className="flex items-center gap-1">
+              <MessageSquare size={14} className="text-text-secondary" />
+              <span className="text-xs font-medium text-text-secondary">최근 대화</span>
+            </div>
+            {conversations.length > 0 && (
+              <button
+                onClick={toggleDeleteMode}
+                className="p-0.5 rounded hover:bg-bg-secondary text-text-tertiary hover:text-danger transition-colors"
+                title={isDeleteMode ? '취소' : '대화 정리'}
+              >
+                {isDeleteMode ? <X size={14} /> : <Trash2 size={14} />}
+              </button>
+            )}
+          </div>
+        )}
+        {isDeleteMode && !collapsed && (
+          <div className="flex items-center gap-1 px-2 py-1.5 mb-1">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 text-xs text-text-secondary hover:bg-bg-secondary rounded px-1.5 py-1 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                readOnly
+                className="shrink-0 accent-danger pointer-events-none"
+              />
+              <span>전체선택</span>
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={toggleDeleteMode}
+              className="text-xs px-2 py-1 rounded text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0}
+              className={`text-xs px-2 py-1 rounded transition-colors
+                ${selectedIds.size > 0
+                  ? 'bg-danger text-white hover:bg-danger/90'
+                  : 'bg-bg-secondary text-text-tertiary cursor-not-allowed'}`}
+            >
+              삭제({selectedIds.size})
+            </button>
           </div>
         )}
         <ul className="flex flex-col gap-0.5">
           {conversations.map((conv) => {
             const Icon = getModeConfig(conv.mode).icon;
             const isActive = conv.id === currentConversationId;
+            const isSelected = selectedIds.has(conv.id);
             return (
               <li key={conv.id}>
                 <button
-                  onClick={() => handleSelectConversation(conv.id)}
+                  onClick={() => isDeleteMode ? toggleSelect(conv.id) : handleSelectConversation(conv.id)}
                   className={`
                     w-full flex items-center gap-2 px-2 py-1.5 rounded-md
                     text-sm text-left transition-colors
-                    ${isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-text-primary hover:bg-bg-secondary'}
+                    ${isDeleteMode && isSelected
+                      ? 'bg-danger/10 text-danger'
+                      : isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-text-primary hover:bg-bg-secondary'}
                   `}
                   title={collapsed ? conv.title : undefined}
                 >
+                  {isDeleteMode && !collapsed && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      readOnly
+                      className="shrink-0 accent-danger pointer-events-none"
+                    />
+                  )}
                   <Icon size={16} className="shrink-0" />
                   {!collapsed && (
                     <span className="truncate">{conv.title}</span>

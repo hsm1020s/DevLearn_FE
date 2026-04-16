@@ -61,6 +61,18 @@ const useChatStore = create(
 
       setStreaming: (isStreaming) => set({ isStreaming }),
 
+      /** 선택된 대화 ID 목록을 일괄 삭제 */
+      deleteConversations: (ids) => {
+        const idSet = new Set(ids);
+        set((state) => ({
+          conversations: state.conversations.filter((c) => !idSet.has(c.id)),
+          currentConversationId: idSet.has(state.currentConversationId)
+            ? null
+            : state.currentConversationId,
+          messages: idSet.has(state.currentConversationId) ? [] : state.messages,
+        }));
+      },
+
       clearMessages: () => set({ messages: [], currentConversationId: null }),
     }),
     {
