@@ -97,17 +97,22 @@ const useChatStore = create(
       }),
       /** 이전 버전(messages가 전역 배열)에서 마이그레이션 */
       migrate: (persisted, version) => {
-        if (version < 2) {
-          const state = persisted;
-          // 기존 conversations에 messages 배열이 없으면 빈 배열 추가
-          if (state.conversations) {
-            state.conversations = state.conversations.map((c) => ({
-              ...c,
-              messages: c.messages || [],
-            }));
+        try {
+          if (version < 2) {
+            const state = persisted;
+            if (Array.isArray(state.conversations)) {
+              state.conversations = state.conversations.map((c) => ({
+                ...c,
+                messages: Array.isArray(c.messages) ? c.messages : [],
+              }));
+            } else {
+              state.conversations = [];
+            }
           }
+          return persisted;
+        } catch {
+          return { conversations: [], currentConversationId: null };
         }
-        return persisted;
       },
     },
   ),

@@ -2,7 +2,7 @@
  * @fileoverview SSE 기반 스트리밍 채팅 커스텀 훅.
  * 메시지 전송, 토큰 단위 스트리밍 수신, 중단 처리, 자동 스크롤을 관리한다.
  */
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
 import { streamMessage } from '../services/chatApi';
@@ -13,12 +13,13 @@ import { showError } from '../utils/errorHandler';
  * @param {string} mode - 채팅 모드 (general | cert | work)
  */
 export default function useStreamingChat(mode) {
-  const currentConvMessages = useChatStore((s) => {
-    const conv = s.conversations.find((c) => c.id === s.currentConversationId);
-    return conv?.messages || [];
-  });
-  const isStreaming = useChatStore((s) => s.isStreaming);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConvMessages = useMemo(() => {
+    const conv = conversations.find((c) => c.id === currentConversationId);
+    return conv?.messages || [];
+  }, [conversations, currentConversationId]);
+  const isStreaming = useChatStore((s) => s.isStreaming);
   const addMessage = useChatStore((s) => s.addMessage);
   const setStreaming = useChatStore((s) => s.setStreaming);
   const createConversation = useChatStore((s) => s.createConversation);

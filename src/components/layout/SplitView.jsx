@@ -14,51 +14,55 @@ import { useState } from 'react';
 export default function SplitView({ leftContent, rightContent, isRightVisible }) {
   const [mobileTab, setMobileTab] = useState('chat');
 
+  // 마인드맵 꺼진 상태 — 전체 너비로 좌측만 표시
+  if (!isRightVisible) {
+    return (
+      <div className="flex h-full">
+        <div className="h-full w-full overflow-y-auto">
+          {leftContent}
+        </div>
+      </div>
+    );
+  }
+
+  // 마인드맵 켜진 상태
   return (
     <div className="flex flex-col md:flex-row h-full">
-      {/* 모바일 탭 바 — 마인드맵 ON일 때만 표시 */}
-      {isRightVisible && (
-        <div className="flex border-b border-border-light md:hidden shrink-0">
-          <button
-            onClick={() => setMobileTab('chat')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors
-              ${mobileTab === 'chat'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-text-secondary'}`}
-          >
-            채팅
-          </button>
-          <button
-            onClick={() => setMobileTab('mindmap')}
-            className={`flex-1 py-2 text-sm font-medium transition-colors
-              ${mobileTab === 'mindmap'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-text-secondary'}`}
-          >
-            마인드맵
-          </button>
-        </div>
-      )}
+      {/* 모바일 탭 바 */}
+      <div className="flex border-b border-border-light md:hidden shrink-0">
+        <button
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 py-2 text-sm font-medium transition-colors
+            ${mobileTab === 'chat'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-text-secondary'}`}
+        >
+          채팅
+        </button>
+        <button
+          onClick={() => setMobileTab('mindmap')}
+          className={`flex-1 py-2 text-sm font-medium transition-colors
+            ${mobileTab === 'mindmap'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-text-secondary'}`}
+        >
+          마인드맵
+        </button>
+      </div>
 
-      {/* 데스크톱: 좌우 분할 / 모바일: 탭으로 전환 */}
-      <div
-        className={`h-full overflow-y-auto
-          ${isRightVisible ? 'md:w-1/2 md:border-r md:border-border-light' : 'w-full'}
-          ${isRightVisible && mobileTab !== 'chat' ? 'hidden md:block' : 'w-full md:w-auto flex-1 md:flex-none'}
-        `}
+      {/* 좌측: 채팅 */}
+      <div className={`h-full overflow-y-auto w-full md:w-1/2 md:border-r md:border-border-light
+        ${mobileTab !== 'chat' ? 'hidden md:block' : ''}`}
       >
         {leftContent}
       </div>
 
-      {isRightVisible && (
-        <div
-          className={`h-full overflow-y-auto md:w-1/2
-            ${mobileTab !== 'mindmap' ? 'hidden md:block' : 'w-full'}
-          `}
-        >
-          {rightContent}
-        </div>
-      )}
+      {/* 우측: 마인드맵 */}
+      <div className={`h-full overflow-y-auto w-full md:w-1/2
+        ${mobileTab !== 'mindmap' ? 'hidden md:block' : ''}`}
+      >
+        {rightContent}
+      </div>
     </div>
   );
 }

@@ -8,11 +8,11 @@ import ErrorPage from '../../pages/ErrorPage';
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -21,7 +21,11 @@ export default class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return <ErrorPage code={500} message="화면을 표시하는 중 오류가 발생했습니다." />;
+      // 개발 환경에서는 에러 상세 표시
+      const detail = import.meta.env.DEV && this.state.error
+        ? this.state.error.message
+        : undefined;
+      return <ErrorPage code={500} message={detail || '화면을 표시하는 중 오류가 발생했습니다.'} />;
     }
     return this.props.children;
   }
