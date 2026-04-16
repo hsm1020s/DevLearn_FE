@@ -1,13 +1,13 @@
 /** @fileoverview 통합 PDF 업로드 모달 — 용도(퀴즈용/RAG용) 선택 후 드래그앤드롭으로 업로드한다. */
 import { useState, useCallback } from 'react';
-import { FileText, BookOpen, CheckCircle, Loader, Briefcase } from 'lucide-react';
+import { FileText, BookOpen, CheckCircle, Loader, Briefcase, Trash2 } from 'lucide-react';
 import Modal from './Modal';
 import FileDropZone from './FileDropZone';
 import useAppStore from '../../stores/useAppStore';
 import useCertStore from '../../stores/useCertStore';
 import useRagStore from '../../stores/useRagStore';
 import { uploadPdf } from '../../services/certApi';
-import { uploadDocument } from '../../services/ragApi';
+import { uploadDocument, deleteDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
@@ -24,12 +24,14 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const certDocs = useCertStore((s) => s.certDocs);
   const addCertDoc = useCertStore((s) => s.addDoc);
   const updateCertStatus = useCertStore((s) => s.updateDocStatus);
+  const removeCertDoc = useCertStore((s) => s.removeDoc);
 
   // rag store
   const ragDocs = useRagStore((s) => s.ragDocs);
   const addRagDoc = useRagStore((s) => s.addDoc);
   const updateRagStatus = useRagStore((s) => s.updateDocStatus);
   const updateRagDocInfo = useRagStore((s) => s.updateDocInfo);
+  const removeRagDoc = useRagStore((s) => s.removeDoc);
 
   const docs = purpose === 'cert' ? certDocs : ragDocs;
 
@@ -63,7 +65,23 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
     }
   }, [purpose, addCertDoc, updateCertStatus, addRagDoc, updateRagStatus, updateRagDocInfo]);
 
-  // 모달 열릴 때 현재 모드에 맞게 용도 초기화
+  // 문서 삭제 핸들러
+  const handleDelete = useCallback(async (id) => {
+    if (purpose === 'cert') {
+      removeCertDoc(id);
+      showSuccess('교재가 삭제되었습니다');
+    } else {
+      try {
+        await deleteDocument(id);
+        removeRagDoc(id);
+        showSuccess('문서가 삭제되었습니다');
+      } catch {
+        showError(null, '문서 삭제에 실패했습니다');
+      }
+    }
+  }, [purpose, removeCertDoc, removeRagDoc]);
+
+  // 모달 닫기
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -95,26 +113,45 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
         {/* 공통 드래그앤드롭 영역 */}
         <FileDropZone onFiles={handleFiles} />
 
-        {/* 업로드된 파일 목록 */}
+        {/* 문서 관리 목록 */}
         {docs.length > 0 && (
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-              업로드된 {purpose === 'cert' ? '교재' : '문서'}
+              {purpose === 'cert' ? '교재' : '문서'} 관리 ({docs.length})
             </label>
-            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
               {docs.map((doc) => {
                 const status = DOC_STATUS[doc.status] || DOC_STATUS.processing;
                 return (
-                  <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-secondary">
+                  <div key={doc.id} className="group flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary">
                     <BookOpen className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-sm text-text-primary flex-1 truncate">{doc.fileName}</span>
-                    <span className={`flex items-center gap-1 text-xs ${status.color}`}>
-                      {doc.status === 'completed'
-                        ? <CheckCircle className="w-3.5 h-3.5" />
-                        : <Loader className="w-3.5 h-3.5 animate-spin" />}
-                      {status.label}
-                      {doc.status === 'processing' && ` ${doc.progress}%`}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-text-primary truncate">{doc.fileName}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`flex items-center gap-1 text-[10px] ${status.color}`}>
+                          {doc.status === 'completed'
+                            ? <CheckCircle className="w-3 h-3" />
+                            : <Loader className="w-3 h-3 animate-spin" />}
+                          {status.label}
+                          {doc.status === 'processing' && ` ${doc.progress}%`}
+                        </span>
+                        {/* RAG 문서 상세 정보 */}
+                        {purpose === 'work' && doc.pages > 0 && (
+                          <span className="text-[10px] text-text-tertiary">
+                            {doc.pages}p · {doc.chunks}청크
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* 삭제 버튼 — 호버 시 표시 */}
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="shrink-0 p-1 rounded text-text-tertiary hover:text-danger
+                                 opacity-0 group-hover:opacity-100 transition-all"
+                      aria-label={`${doc.fileName} 삭제`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 );
               })}

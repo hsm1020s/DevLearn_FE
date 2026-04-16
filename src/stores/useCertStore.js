@@ -34,6 +34,12 @@ const useCertStore = create(
           ),
         })),
 
+      /** 문서 삭제 */
+      removeDoc: (id) =>
+        set((state) => ({
+          certDocs: state.certDocs.filter((d) => d.id !== id),
+        })),
+
       // 퀴즈를 설정하고 진행 상태 초기화
       setQuiz: (quiz) => set({ currentQuiz: quiz, currentQuestionIndex: 0, answers: {} }),
 
