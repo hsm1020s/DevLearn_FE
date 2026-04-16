@@ -17,10 +17,8 @@ export default function SplitView({ leftContent, rightContent, isRightVisible })
   // 마인드맵 꺼진 상태 — 전체 너비로 좌측만 표시
   if (!isRightVisible) {
     return (
-      <div className="flex h-full">
-        <div className="h-full w-full overflow-y-auto">
-          {leftContent}
-        </div>
+      <div className="h-full w-full">
+        {leftContent}
       </div>
     );
   }
@@ -50,8 +48,8 @@ export default function SplitView({ leftContent, rightContent, isRightVisible })
         </button>
       </div>
 
-      {/* 좌측: 채팅 */}
-      <div className={`h-full overflow-y-auto w-full md:w-1/2 md:border-r md:border-border-light
+      {/* 좌측: 채팅 — 자체 스크롤 관리하므로 overflow 지정하지 않음 */}
+      <div className={`h-full w-full md:w-1/2 md:border-r md:border-border-light
         ${mobileTab !== 'chat' ? 'hidden md:block' : ''}`}
       >
         {leftContent}
