@@ -300,9 +300,9 @@ export default function Sidebar() {
                        focus:outline-none focus:border-primary transition-colors"
           />
           <Button
-            variant="primary"
+            variant="ghost"
             size="sm"
-            className="w-full"
+            className="w-full border border-border-light"
             onClick={handleNewConversation}
           >
             <Plus size={16} />

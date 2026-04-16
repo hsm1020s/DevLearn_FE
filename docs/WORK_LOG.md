@@ -56,3 +56,4 @@
   - border도 따뜻한 톤으로 통일, 텍스트/포인트 컬러는 유지
 - 하드코딩 bg-white → bg-bg-primary 일괄 교체 (Sidebar, Modal, MindmapNode, MindmapControls, NodeContextMenu)
 - tailwind.config.js 색상값을 하드코딩에서 CSS 변수 참조로 전환 (테마 변경이 실제 반영되지 않던 버그 수정)
+- 새 채팅 버튼을 ghost 스타일로 변경하여 배경과 동일한 톤으로 통일
