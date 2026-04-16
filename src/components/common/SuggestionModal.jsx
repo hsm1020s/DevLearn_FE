@@ -20,7 +20,7 @@ const initialForm = {
   content: '',
 };
 
-export default function SuggestionModal({ isOpen, onClose }) {
+export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
   const [form, setForm] = useState(initialForm);
   const addToast = useToastStore((s) => s.addToast);
 
@@ -65,7 +65,7 @@ export default function SuggestionModal({ isOpen, onClose }) {
   const isValid = form.categories.length > 0 && form.title.trim() && form.content.trim();
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="기능개선 제안">
+    <Modal isOpen={isOpen} onClose={handleClose} title="기능개선 제안" anchorRef={anchorRef}>
       <div className="flex flex-col gap-4">
         {/* 카테고리 (멀티체크) */}
         <div>

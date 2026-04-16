@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 
 /** 하드코딩된 계정 목록 — 추후 백엔드 연동 시 교체 */
 const HARDCODED_USERS = [
-  { email: 'admin@test.com', password: '1234', name: '관리자' },
+  { email: 'test', password: '1234', name: '관리자' },
 ];
 
 const useAuthStore = create(
@@ -27,7 +27,7 @@ const useAuthStore = create(
           set({ user: { email: found.email, name: found.name }, isLoggedIn: true });
           return { success: true };
         }
-        return { success: false, message: '이메일 또는 비밀번호가 일치하지 않습니다.' };
+        return { success: false, message: '아이디 또는 비밀번호가 일치하지 않습니다.' };
       },
 
       /** 로그아웃 */

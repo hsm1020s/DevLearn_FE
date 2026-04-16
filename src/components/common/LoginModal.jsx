@@ -5,7 +5,7 @@ import Button from './Button';
 import useAuthStore from '../../stores/useAuthStore';
 import { useToastStore } from './Toast';
 
-export default function LoginModal({ isOpen, onClose }) {
+export default function LoginModal({ isOpen, onClose, anchorRef }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useAuthStore((s) => s.login);
@@ -15,7 +15,7 @@ export default function LoginModal({ isOpen, onClose }) {
     (e) => {
       e.preventDefault();
       if (!email.trim() || !password) {
-        addToast('이메일과 비밀번호를 입력해주세요.', 'error');
+        addToast('아이디와 비밀번호를 입력해주세요.', 'error');
         return;
       }
       const result = login(email.trim(), password);
@@ -38,15 +38,15 @@ export default function LoginModal({ isOpen, onClose }) {
   }, [onClose]);
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="로그인">
+    <Modal isOpen={isOpen} onClose={handleClose} title="로그인" anchorRef={anchorRef}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="text-xs font-medium text-text-secondary mb-1 block">이메일</label>
+          <label className="text-xs font-medium text-text-secondary mb-1 block">아이디</label>
           <input
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일을 입력하세요"
+            placeholder="아이디를 입력하세요"
             className="w-full px-3 py-2 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-tertiary
                        focus:outline-none focus:border-primary transition-colors"

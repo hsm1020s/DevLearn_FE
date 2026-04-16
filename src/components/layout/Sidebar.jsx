@@ -3,7 +3,7 @@
  * LLM/모드 선택, 대화 목록, 마인드맵 토글, 설정 링크를 제공한다.
  * 접힌 상태(collapsed)에서는 아이콘만 표시한다.
  */
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PanelLeftClose,
@@ -22,6 +22,7 @@ import {
   Paperclip,
   User,
   LogOut,
+  ChevronUp,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
 import PdfUploadModal from '../common/PdfUploadModal';
@@ -71,6 +72,11 @@ export default function Sidebar() {
   const [showPdfUpload, setShowPdfUpload] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
+  // 로그아웃 드롭다운 상태
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+  const userBtnRef = useRef(null);
+
   // 삭제 모드 상태
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -79,10 +85,30 @@ export default function Sidebar() {
   const [menuOpenId, setMenuOpenId] = useState(null);
   const menuRef = useRef(null);
 
+  // 사이드바 하단 버튼 ref (팝오버 앵커용)
+  const pdfBtnRef = useRef(null);
+  const suggestionBtnRef = useRef(null);
+  const loginBtnRef = useRef(null);
+
   // 인라인 편집 상태
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const editInputRef = useRef(null);
+
+  // 유저 메뉴 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClick = (e) => {
+      if (
+        userMenuRef.current && !userMenuRef.current.contains(e.target) &&
+        userBtnRef.current && !userBtnRef.current.contains(e.target)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showUserMenu]);
 
   // 메뉴 바깥 클릭 시 닫기
   useEffect(() => {
@@ -429,6 +455,7 @@ export default function Sidebar() {
       {!collapsed && (
         <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
           <button
+            ref={pdfBtnRef}
             onClick={() => setShowPdfUpload(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
               text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
@@ -437,6 +464,7 @@ export default function Sidebar() {
             <span>PDF 업로드</span>
           </button>
           <button
+            ref={suggestionBtnRef}
             onClick={() => setShowSuggestion(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
               text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
@@ -444,25 +472,56 @@ export default function Sidebar() {
             <Lightbulb size={18} />
             <span>기능개선 제안</span>
           </button>
-          <button
-            onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
-              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
-          >
-            <Settings size={18} />
-            <span>설정</span>
-          </button>
           {isLoggedIn ? (
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
-                text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
-            >
-              <LogOut size={18} />
-              <span>{authUser?.name ?? '사용자'}</span>
-            </button>
+            <div className="relative">
+              <button
+                ref={userBtnRef}
+                onClick={() => setShowUserMenu((prev) => !prev)}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+                  text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+              >
+                <User size={18} />
+                <span className="flex-1 text-left truncate">{authUser?.name ?? '사용자'}</span>
+                <ChevronUp
+                  size={14}
+                  className={`shrink-0 transition-transform duration-200 ${showUserMenu ? '' : 'rotate-180'}`}
+                />
+              </button>
+              {/* 설정 + 로그아웃 드롭다운 — 버튼 위에 fixed로 표시 */}
+              {showUserMenu && userBtnRef.current && (() => {
+                const rect = userBtnRef.current.getBoundingClientRect();
+                return (
+                  <div
+                    ref={userMenuRef}
+                    className="fixed z-[999]
+                      bg-white border border-border-light rounded-lg shadow-lg py-1 min-w-[120px]
+                      animate-popover-in"
+                    style={{ bottom: window.innerHeight - rect.top, left: rect.left }}
+                  >
+                    <button
+                      onClick={() => { navigate('/admin'); setShowUserMenu(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm
+                        text-text-primary hover:bg-bg-secondary transition-colors"
+                    >
+                      <Settings size={16} />
+                      설정
+                    </button>
+                    <div className="border-t border-border-light my-1" />
+                    <button
+                      onClick={() => { logout(); setShowUserMenu(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm
+                        text-danger hover:bg-danger/10 transition-colors"
+                    >
+                      <LogOut size={16} />
+                      로그아웃
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <button
+              ref={loginBtnRef}
               onClick={() => setShowLogin(true)}
               className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
                 text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
@@ -474,9 +533,9 @@ export default function Sidebar() {
         </div>
       )}
 
-      <PdfUploadModal isOpen={showPdfUpload} onClose={() => setShowPdfUpload(false)} />
-      <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} />
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+      <PdfUploadModal isOpen={showPdfUpload} onClose={() => setShowPdfUpload(false)} anchorRef={pdfBtnRef} />
+      <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} anchorRef={loginBtnRef} />
     </aside>
   );
 }

@@ -16,7 +16,7 @@ const PURPOSES = [
   { value: 'work', label: 'RAG용', desc: '업무 문서 PDF', icon: Briefcase },
 ];
 
-export default function PdfUploadModal({ isOpen, onClose }) {
+export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const mainMode = useAppStore((s) => s.mainMode);
   const [purpose, setPurpose] = useState(mainMode === 'work' ? 'work' : 'cert');
   const [dragging, setDragging] = useState(false);
@@ -87,7 +87,7 @@ export default function PdfUploadModal({ isOpen, onClose }) {
   }, [onClose]);
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="PDF 업로드">
+    <Modal isOpen={isOpen} onClose={handleClose} title="PDF 업로드" anchorRef={anchorRef}>
       <div className="flex flex-col gap-4">
         {/* 용도 선택 카드 */}
         <div>
