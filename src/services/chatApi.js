@@ -24,6 +24,11 @@ export async function streamMessage(params) {
     body: JSON.stringify({ message, mode, llm, conversationId }),
     signal,
   });
+  // HTTP 에러 상태 시 에러 페이지로 이동
+  if (!response.ok) {
+    window.location.href = `/error/${response.status}`;
+    return;
+  }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
