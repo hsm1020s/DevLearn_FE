@@ -155,19 +155,19 @@ export default function Sidebar() {
       className={`
         flex flex-col h-full border-r border-border-light
         bg-bg-primary transition-all duration-300 overflow-hidden
-        ${collapsed ? 'w-[60px]' : 'w-[220px]'}
+        ${collapsed ? 'w-[40px]' : 'w-[220px]'}
       `}
     >
       {/* Header: Logo + Collapse */}
-      <div className="flex items-center justify-between px-3 py-4 border-b border-border-light">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <BookOpen size={20} className="text-primary shrink-0" />
-          {!collapsed && (
+      <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-4 border-b border-border-light`}>
+        {!collapsed && (
+          <div className="flex items-center gap-2 overflow-hidden">
+            <BookOpen size={20} className="text-primary shrink-0" />
             <span className="text-sm font-bold text-text-primary whitespace-nowrap">
               업무공부도구
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <button
           onClick={toggleSidebar}
           className="p-1 rounded hover:bg-bg-secondary text-text-secondary shrink-0"
@@ -206,27 +206,17 @@ export default function Sidebar() {
       )}
 
       {/* New Conversation */}
-      <div className="px-3 py-3 border-b border-border-light">
-        <Button
-          variant="primary"
-          size="sm"
-          className="w-full"
-          onClick={handleNewConversation}
-        >
-          <Plus size={16} />
-          {!collapsed && <span>새 대화</span>}
-        </Button>
-      </div>
-
-      {/* Collapsed: icon-only controls */}
-      {collapsed && (
-        <div className="flex flex-col items-center gap-3 px-1 py-3 border-b border-border-light">
-          <Brain
-            size={18}
-            className={`cursor-pointer ${isMindmapOn ? 'text-primary' : 'text-text-secondary'}`}
-            onClick={toggleMindmap}
-            title="마인드맵 토글"
-          />
+      {!collapsed && (
+        <div className="px-3 py-3 border-b border-border-light">
+          <Button
+            variant="primary"
+            size="sm"
+            className="w-full"
+            onClick={handleNewConversation}
+          >
+            <Plus size={16} />
+            <span>새 대화</span>
+          </Button>
         </div>
       )}
 
@@ -273,7 +263,7 @@ export default function Sidebar() {
       )}
 
       {/* Recent Conversations */}
-      <div className="flex-1 overflow-y-auto px-1 py-2">
+      {!collapsed && <div className="flex-1 overflow-y-auto px-1 py-2">
         {!collapsed && (
           <div className="flex items-center justify-between px-2 mb-2">
             <div className="flex items-center gap-1">
@@ -415,22 +405,21 @@ export default function Sidebar() {
             );
           })}
         </ul>
-      </div>
+      </div>}
 
       {/* Settings */}
-      <div className="border-t border-border-light px-3 py-3">
-        <button
-          onClick={() => navigate('/admin')}
-          className={`
-            flex items-center gap-2 w-full px-2 py-1.5 rounded-md
-            text-sm text-text-secondary hover:bg-bg-secondary transition-colors
-            ${collapsed ? 'justify-center' : ''}
-          `}
-        >
-          <Settings size={18} />
-          {!collapsed && <span>설정</span>}
-        </button>
-      </div>
+      {!collapsed && (
+        <div className="border-t border-border-light px-3 py-3">
+          <button
+            onClick={() => navigate('/admin')}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <Settings size={18} />
+            <span>설정</span>
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
