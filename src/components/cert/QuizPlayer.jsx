@@ -22,6 +22,9 @@ export default function QuizPlayer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const questions = currentQuiz?.questions || [];
+  const question = questions[index];
+
   const handleAddToMindmap = useCallback(() => {
     if (!question) return;
     const label = question.question.length > 40
@@ -30,9 +33,6 @@ export default function QuizPlayer() {
     addNode(null, label);
     if (!isMindmapOn) toggleMindmap();
   }, [question, addNode, isMindmapOn, toggleMindmap]);
-
-  const questions = currentQuiz?.questions || [];
-  const question = questions[index];
   const total = questions.length;
   const answered = answers[question?.id];
   const isAnswered = answered !== undefined || result !== null;
@@ -78,9 +78,9 @@ export default function QuizPlayer() {
         : `${base} border-border-light hover:border-primary/50 text-text-primary`;
     }
     const correct = result?.correctAnswer ?? answered?.correctAnswer;
-    if (optIdx === correct) return `${base} border-green-500 bg-green-50 text-green-800`;
+    if (optIdx === correct) return `${base} border-success bg-success/10 text-success`;
     if (optIdx === (result?.selected ?? selected) && optIdx !== correct) {
-      return `${base} border-red-500 bg-red-50 text-red-800`;
+      return `${base} border-danger bg-danger/10 text-danger`;
     }
     return `${base} border-border-light text-text-tertiary`;
   };

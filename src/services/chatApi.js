@@ -41,5 +41,8 @@ export async function streamMessage({ message, mode, llm, conversationId, onToke
   onDone?.({
     conversationId: conversationId || generateId(),
     content: accumulated,
+    sources: mode === 'work'
+      ? [{ docId: 'mock-1', docName: '샘플문서.pdf', page: 1, chunk: '관련 내용...', similarity: 0.92 }]
+      : undefined,
   });
 }

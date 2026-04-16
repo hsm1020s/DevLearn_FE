@@ -12,7 +12,7 @@ export default function SourcePanel({ sources }) {
           <div
             key={`${source.docId}-${source.page}-${idx}`}
             className="
-              bg-bg-secondary rounded-lg border border-border
+              bg-bg-secondary rounded-lg border border-border-light
               p-3 flex flex-col gap-2
             "
           >
