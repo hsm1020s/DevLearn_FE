@@ -54,3 +54,4 @@
 - 전체 배경색 크림/베이지 톤으로 변경 (클로드 스타일 눈 편한 색감)
   - bg-primary: #FFFFFF → #FAF9F5, bg-secondary: #F5F5F5 → #F1EFE7
   - border도 따뜻한 톤으로 통일, 텍스트/포인트 컬러는 유지
+- 하드코딩 bg-white → bg-bg-primary 일괄 교체 (Sidebar, Modal, MindmapNode, MindmapControls, NodeContextMenu)

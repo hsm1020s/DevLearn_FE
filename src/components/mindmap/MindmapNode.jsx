@@ -57,7 +57,7 @@ export default function MindmapNode({ id, data, selected }) {
     <div
       onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
       className={`
-        px-3 py-2 rounded-lg bg-white
+        px-3 py-2 rounded-lg bg-bg-primary
         text-sm font-medium text-text-primary transition-all
         ${selected ? `border-2 ${borderColor} bg-primary/5 shadow-md` : `border ${borderColor} shadow-sm`}
       `}

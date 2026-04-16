@@ -78,7 +78,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
       <div
         className={`
           ${isAnchored ? 'fixed' : 'relative'}
-          bg-white rounded-lg border border-border-light
+          bg-bg-primary rounded-lg border border-border-light
           ${isAnchored ? 'w-[380px]' : 'w-full max-w-lg mx-4'}
           max-h-[80vh] flex flex-col shadow-xl
           ${isAnchored ? 'animate-popover-in' : ''}

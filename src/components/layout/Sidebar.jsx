@@ -483,7 +483,7 @@ export default function Sidebar() {
                   </button>
                 )}
                 {menuOpenId === conv.id && (
-                  <div ref={menuRef} className="absolute right-0 top-full z-50 bg-white border border-border-light rounded-lg shadow-lg py-1 min-w-[130px]">
+                  <div ref={menuRef} className="absolute right-0 top-full z-50 bg-bg-primary border border-border-light rounded-lg shadow-lg py-1 min-w-[130px]">
                     <button
                       onClick={() => { toggleFavorite(conv.id); setMenuOpenId(null); }}
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-bg-secondary transition-colors"
@@ -554,7 +554,7 @@ export default function Sidebar() {
                   <div
                     ref={userMenuRef}
                     className="fixed z-[999]
-                      bg-white border border-border-light rounded-lg shadow-lg py-1 min-w-[120px]
+                      bg-bg-primary border border-border-light rounded-lg shadow-lg py-1 min-w-[120px]
                       animate-popover-in"
                     style={{ bottom: window.innerHeight - rect.top, left: rect.left }}
                   >
@@ -601,7 +601,7 @@ export default function Sidebar() {
       {deleteConfirm && (
         <div
           ref={deleteConfirmRef}
-          className="fixed z-[999] bg-white border border-border-light rounded-lg shadow-lg p-3 min-w-[160px] animate-popover-in"
+          className="fixed z-[999] bg-bg-primary border border-border-light rounded-lg shadow-lg p-3 min-w-[160px] animate-popover-in"
           style={{
             top: deleteConfirm.rect.top,
             left: deleteConfirm.rect.right + 6,

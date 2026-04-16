@@ -44,7 +44,7 @@ export default function NodeContextMenu({ nodeId, position, onClose }) {
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-white border border-border-light rounded-lg shadow-lg py-1 min-w-[160px]"
+      className="absolute z-50 bg-bg-primary border border-border-light rounded-lg shadow-lg py-1 min-w-[160px]"
       style={{ left: position.x, top: position.y }}
     >
       <button

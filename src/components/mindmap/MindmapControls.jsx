@@ -50,7 +50,7 @@ export default function MindmapControls() {
   ];
 
   return (
-    <div className="absolute bottom-4 right-4 z-10 flex flex-col bg-white border border-border-light rounded-lg shadow-sm overflow-hidden">
+    <div className="absolute bottom-4 right-4 z-10 flex flex-col bg-bg-primary border border-border-light rounded-lg shadow-sm overflow-hidden">
       {actions.map(({ icon: Icon, label, handler, spin, disabled }) => (
         <button
           key={label}
