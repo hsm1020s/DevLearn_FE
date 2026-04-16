@@ -24,8 +24,8 @@ export default function EmptyChatView({ icon: Icon, title, description, examples
   const toggleMindmap = useAppStore((s) => s.toggleMindmap);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4" style={{ marginTop: '-6%' }}>
-      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
+    <div className="flex-1 flex flex-col items-center justify-center px-3 md:px-4" style={{ marginTop: '-6%' }}>
+      <div className="w-full max-w-2xl flex flex-col items-center gap-4 md:gap-6">
         {/* 아이콘 */}
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Icon size={24} className="text-primary" />

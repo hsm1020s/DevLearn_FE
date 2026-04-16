@@ -43,10 +43,12 @@ export default function Sidebar() {
   const mainMode = useAppStore((s) => s.mainMode);
   const isMindmapOn = useAppStore((s) => s.isMindmapOn);
   const isSidebarCollapsed = useAppStore((s) => s.isSidebarCollapsed);
+  const isMobileSidebarOpen = useAppStore((s) => s.isMobileSidebarOpen);
   const setLLM = useAppStore((s) => s.setLLM);
   const setMainMode = useAppStore((s) => s.setMainMode);
   const toggleMindmap = useAppStore((s) => s.toggleMindmap);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
 
   const conversations = useChatStore((s) => s.conversations);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
@@ -217,11 +219,13 @@ export default function Sidebar() {
     createConversation(mainMode, selectedLLM, title);
     setNewConvTitle('');
     clearMessages();
+    setMobileSidebarOpen(false);
   };
 
-  // 대화 선택 시 해당 대화로 전환
+  // 대화 선택 시 해당 대화로 전환 (모바일에서는 사이드바 닫기)
   const handleSelectConversation = (id) => {
     setCurrentConversation(id);
+    setMobileSidebarOpen(false);
   };
 
   const modeOptions = MODE_LIST.map(({ value, label }) => ({ value, label }));
@@ -230,11 +234,22 @@ export default function Sidebar() {
   const llmLabelMap = Object.fromEntries(LLM_OPTIONS.map(({ value, label }) => [value, label]));
 
   return (
+    <>
+    {/* 모바일 백드롭 */}
+    {isMobileSidebarOpen && (
+      <div
+        className="fixed inset-0 z-40 bg-black/40 md:hidden"
+        onClick={() => setMobileSidebarOpen(false)}
+      />
+    )}
     <aside
       className={`
         flex flex-col h-full border-r border-border-light
         bg-bg-primary transition-all duration-300 overflow-hidden
         ${collapsed ? 'w-[40px]' : 'w-[220px]'}
+        max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[260px]
+        max-md:shadow-xl
+        ${isMobileSidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
       `}
     >
       {/* Header: Logo + Collapse */}
@@ -629,5 +644,6 @@ export default function Sidebar() {
         </div>
       )}
     </aside>
+    </>
   );
 }

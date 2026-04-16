@@ -59,12 +59,12 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
   );
 
   return (
-    <div className="border-t border-border-light bg-bg-primary px-4 py-3">
+    <div className="border-t border-border-light bg-bg-primary px-2 md:px-4 py-2 md:py-3">
       <div className="
-        flex items-end gap-2
+        flex items-end gap-1.5 md:gap-2
         bg-bg-secondary rounded-xl
         border border-border-light
-        px-3 py-2
+        px-2 md:px-3 py-2
       ">
         <textarea
           ref={textareaRef}

@@ -42,8 +42,8 @@ export default function ChatContainer() {
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto flex flex-col gap-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-4 py-4 md:py-6">
+        <div className="max-w-3xl mx-auto flex flex-col gap-3 md:gap-4">
           {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} />
           ))}

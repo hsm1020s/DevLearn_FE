@@ -11,6 +11,8 @@ const useAppStore = create((set) => ({
   isMindmapOn: false,
   // 사이드바 접힘 여부
   isSidebarCollapsed: false,
+  // 모바일 사이드바 열림 여부
+  isMobileSidebarOpen: false,
 
   setLLM: (llm) => set({ selectedLLM: llm }),
   setMainMode: (mode) => {
@@ -20,6 +22,7 @@ const useAppStore = create((set) => ({
   },
   toggleMindmap: () => set((state) => ({ isMindmapOn: !state.isMindmapOn })),
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+  setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
 
   // 현재 활성화된 모달 식별자
   activeModal: null,
