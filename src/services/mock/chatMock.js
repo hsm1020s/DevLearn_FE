@@ -31,7 +31,7 @@ export async function sendMessage({ message, mode, llm, conversationId }) {
 }
 
 /** 스트리밍 응답을 글자 단위로 시뮬레이션한다 */
-export async function streamMessage({ message, mode, llm, conversationId, onToken, onDone }) {
+export async function streamMessage({ message, mode, llm, conversationId, onToken, onDone, signal }) {
   const fullText = MOCK_RESPONSES[mode] ||
     `"${message}"에 대한 답변입니다.\n\n이것은 **Mock 스트리밍 응답**입니다.`;
 
@@ -39,11 +39,13 @@ export async function streamMessage({ message, mode, llm, conversationId, onToke
   let accumulated = '';
 
   for (const char of words) {
+    if (signal?.aborted) return;
     await new Promise((resolve) => setTimeout(resolve, 30));
     accumulated += char;
     onToken?.(accumulated);
   }
 
+  if (signal?.aborted) return;
   onDone?.({
     conversationId: conversationId || generateId(),
     content: accumulated,

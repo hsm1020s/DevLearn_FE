@@ -51,12 +51,13 @@ export default function AdminPage() {
   const conversations = useChatStore((s) => s.conversations);
   const answers = useCertStore((s) => s.answers);
   const docs = useDocStore((s) => s.docs);
-  const mindmapNodes = useMindmapStore((s) => s.nodes);
+  const maps = useMindmapStore((s) => s.maps);
+  const totalNodes = Object.values(maps).reduce((sum, m) => sum + m.nodes.length, 0);
 
   const stats = [
     { icon: MessageSquare, label: '총 대화', value: conversations.length, color: 'bg-primary' },
     { icon: BookOpen, label: '업로드 문서', value: docs.length, color: 'bg-success' },
-    { icon: Brain, label: '마인드맵 노드', value: mindmapNodes.length, color: 'bg-purple-500' },
+    { icon: Brain, label: '마인드맵 노드', value: totalNodes, color: 'bg-purple-500' },
     { icon: TrendingUp, label: '풀이한 문제', value: Object.keys(answers).length, color: 'bg-danger' },
   ];
 

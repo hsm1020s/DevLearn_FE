@@ -1,4 +1,4 @@
-/** @fileoverview 채팅 대화 및 메시지 상태 관리 스토어 (persist로 대화 목록 영속화) */
+/** @fileoverview 채팅 대화 및 메시지 상태 관리 스토어 (persist로 대화+메시지 영속화) */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/helpers';
@@ -6,12 +6,10 @@ import { generateId } from '../utils/helpers';
 const useChatStore = create(
   persist(
     (set, get) => ({
-      // 전체 대화 목록
+      // 전체 대화 목록 (각 대화가 messages 배열을 포함)
       conversations: [],
       // 현재 활성 대화 ID
       currentConversationId: null,
-      // 현재 대화의 메시지 배열
-      messages: [],
       // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
 
@@ -22,21 +20,22 @@ const useChatStore = create(
           id,
           title: title || '새 채팅',
           mode,
-          llm, // 대화 생성 시 선택된 LLM 모델
+          llm,
+          messages: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         set((state) => ({
           conversations: [conversation, ...state.conversations],
           currentConversationId: id,
-          messages: [],
         }));
         return id;
       },
 
+      /** 대화 전환 */
       setCurrentConversation: (id) => set({ currentConversationId: id }),
 
-      /** 메시지를 추가하고, 첫 사용자 메시지일 경우 대화 제목을 자동 설정 */
+      /** 메시지를 현재 대화에 추가하고, 첫 사용자 메시지일 경우 대화 제목을 자동 설정 */
       addMessage: (message) => {
         const msg = {
           id: generateId(),
@@ -44,18 +43,16 @@ const useChatStore = create(
           ...message,
         };
         set((state) => {
-          const updated = [...state.messages, msg];
-          const title = state.messages.length === 0 && message.role === 'user'
-            ? message.content.slice(0, 30)
-            : null;
-          const conversations = title
-            ? state.conversations.map((c) =>
-                c.id === state.currentConversationId
-                  ? { ...c, title, updatedAt: new Date().toISOString() }
-                  : c
-              )
-            : state.conversations;
-          return { messages: updated, conversations };
+          const conversations = state.conversations.map((c) => {
+            if (c.id !== state.currentConversationId) return c;
+            const updated = { ...c, messages: [...c.messages, msg], updatedAt: new Date().toISOString() };
+            // 첫 사용자 메시지면 대화 제목 자동 설정
+            if (c.messages.length === 0 && message.role === 'user') {
+              updated.title = message.content.slice(0, 30);
+            }
+            return updated;
+          });
+          return { conversations };
         });
         return msg;
       },
@@ -86,17 +83,32 @@ const useChatStore = create(
           currentConversationId: idSet.has(state.currentConversationId)
             ? null
             : state.currentConversationId,
-          messages: idSet.has(state.currentConversationId) ? [] : state.messages,
         }));
       },
 
-      clearMessages: () => set({ messages: [], currentConversationId: null }),
+      clearMessages: () => set({ currentConversationId: null }),
     }),
     {
       name: 'chat-store',
+      version: 2,
       partialize: (state) => ({
         conversations: state.conversations,
+        currentConversationId: state.currentConversationId,
       }),
+      /** 이전 버전(messages가 전역 배열)에서 마이그레이션 */
+      migrate: (persisted, version) => {
+        if (version < 2) {
+          const state = persisted;
+          // 기존 conversations에 messages 배열이 없으면 빈 배열 추가
+          if (state.conversations) {
+            state.conversations = state.conversations.map((c) => ({
+              ...c,
+              messages: c.messages || [],
+            }));
+          }
+        }
+        return persisted;
+      },
     },
   ),
 );

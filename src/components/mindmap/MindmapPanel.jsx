@@ -36,6 +36,7 @@ export default function MindmapPanel() {
   const [nodeInput, setNodeInput] = useState('');
   const [showList, setShowList] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
 
@@ -59,11 +60,11 @@ export default function MindmapPanel() {
     showSuccess('마인드맵이 삭제되었습니다');
   }, [deleteMap]);
 
-  /** 현재 맵의 모든 노드 삭제 */
+  /** 현재 맵의 모든 노드 삭제 (확인 후) */
   const handleClearNodes = useCallback(() => {
-    if (nodes.length === 0) return;
     clearAll();
-  }, [nodes.length, clearAll]);
+    setShowClearConfirm(false);
+  }, [clearAll]);
 
   /** 노드 추가 */
   const handleAddNode = useCallback(() => {
@@ -215,12 +216,29 @@ export default function MindmapPanel() {
           <div className="flex items-center justify-between text-xs text-text-tertiary">
             <span>{nodes.length}개 노드</span>
             {nodes.length > 0 && (
-              <button
-                onClick={handleClearNodes}
-                className="text-danger hover:text-danger/80 transition-colors"
-              >
-                전체 노드 삭제
-              </button>
+              showClearConfirm ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleClearNodes}
+                    className="px-2 py-0.5 text-xs text-white bg-danger rounded hover:bg-danger/80"
+                  >
+                    확인
+                  </button>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="text-text-tertiary hover:text-text-primary"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-danger hover:text-danger/80 transition-colors"
+                >
+                  전체 노드 삭제
+                </button>
+              )
             )}
           </div>
         )}
