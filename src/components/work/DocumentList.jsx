@@ -4,8 +4,7 @@
  */
 import { useCallback } from 'react';
 import { FileText, Trash2, FolderOpen } from 'lucide-react';
-import useRagStore from '../../stores/useRagStore';
-import { deleteDocument } from '../../services/ragApi';
+import useDocStore from '../../stores/useDocStore';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import Badge from '../common/Badge';
@@ -21,27 +20,22 @@ const STATUS_BADGE_COLOR = {
 
 /** RAG 문서 목록 패널 */
 export default function DocumentList({ onDone }) {
-  const ragDocs = useRagStore((s) => s.ragDocs);
-  const removeDoc = useRagStore((s) => s.removeDoc);
+  const docs = useDocStore((s) => s.docs);
+  const removeDoc = useDocStore((s) => s.removeDoc);
 
-  const completedDocs = ragDocs.filter((d) => d.status === 'completed');
+  const completedDocs = docs.filter((d) => d.status === 'completed');
   const totalChunks = completedDocs.reduce((sum, d) => sum + (d.chunks || 0), 0);
 
-  // 서버에서 문서를 삭제하고 스토어에서 제거
+  // 스토어에서 문서 제거
   const handleDelete = useCallback(
-    async (id) => {
-      try {
-        await deleteDocument(id);
-        removeDoc(id);
-        showSuccess('문서가 삭제되었습니다');
-      } catch (err) {
-        showError(null, '문서 삭제에 실패했습니다');
-      }
+    (id) => {
+      removeDoc(id);
+      showSuccess('문서가 삭제되었습니다');
     },
     [removeDoc],
   );
 
-  if (ragDocs.length === 0) {
+  if (docs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 text-center">
         <FolderOpen size={40} className="text-text-tertiary mb-3" />
@@ -62,7 +56,7 @@ export default function DocumentList({ onDone }) {
       </h3>
 
       <div className="flex-1 overflow-y-auto px-2 space-y-1">
-        {ragDocs.map((doc) => {
+        {docs.map((doc) => {
           const status = DOC_STATUS[doc.status] || DOC_STATUS.error;
           const badgeColor = STATUS_BADGE_COLOR[doc.status] || 'gray';
 

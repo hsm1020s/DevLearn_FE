@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import useChatStore from '../stores/useChatStore';
 import useCertStore from '../stores/useCertStore';
-import useRagStore from '../stores/useRagStore';
+import useDocStore from '../stores/useDocStore';
 import useMindmapStore from '../stores/useMindmapStore';
 
 /** 통계 수치를 아이콘과 함께 표시하는 카드 */
@@ -49,15 +49,13 @@ function RecentActivity({ conversations }) {
 export default function AdminPage() {
   const navigate = useNavigate();
   const conversations = useChatStore((s) => s.conversations);
-  const certDocs = useCertStore((s) => s.certDocs);
   const answers = useCertStore((s) => s.answers);
-  const ragDocs = useRagStore((s) => s.ragDocs);
+  const docs = useDocStore((s) => s.docs);
   const mindmapNodes = useMindmapStore((s) => s.nodes);
 
   const stats = [
     { icon: MessageSquare, label: '총 대화', value: conversations.length, color: 'bg-primary' },
-    { icon: FileText, label: '자격증 교재', value: certDocs.length, color: 'bg-success' },
-    { icon: BookOpen, label: 'RAG 문서', value: ragDocs.length, color: 'bg-warning' },
+    { icon: BookOpen, label: '업로드 문서', value: docs.length, color: 'bg-success' },
     { icon: Brain, label: '마인드맵 노드', value: mindmapNodes.length, color: 'bg-purple-500' },
     { icon: TrendingUp, label: '풀이한 문제', value: Object.keys(answers).length, color: 'bg-danger' },
   ];
@@ -95,17 +93,17 @@ export default function AdminPage() {
             </div>
           </section>
 
-          {/* RAG 문서 현황 */}
+          {/* 문서 현황 */}
           <section>
             <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-              RAG 문서 현황
+              문서 현황
             </h2>
             <div className="bg-bg-primary border border-border-light rounded-xl p-3">
-              {ragDocs.length === 0 ? (
+              {docs.length === 0 ? (
                 <p className="text-sm text-text-tertiary text-center py-6">업로드된 문서가 없습니다</p>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {ragDocs.map((doc) => (
+                  {docs.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-secondary">
                       <span className="text-sm text-text-primary truncate">{doc.fileName}</span>
                       <span className={`text-xs ${doc.status === 'completed' ? 'text-success' : 'text-warning'}`}>

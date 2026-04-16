@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Settings, ArrowLeft, Play } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
+import useDocStore from '../../stores/useDocStore';
 import useCertStore from '../../stores/useCertStore';
 import { generateQuiz } from '../../services/certApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
@@ -24,11 +25,11 @@ const MOCK_CHAPTERS = [
 
 /** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형을 선택한다. */
 export default function QuizSettings() {
-  const certDocs = useCertStore((s) => s.certDocs);
+  const docs = useDocStore((s) => s.docs);
   const setCertStep = useCertStore((s) => s.setCertStep);
   const setQuiz = useCertStore((s) => s.setQuiz);
 
-  const completedDocs = certDocs.filter((d) => d.status === 'completed');
+  const completedDocs = docs.filter((d) => d.status === 'completed');
   const docOptions = completedDocs.map((d) => ({ value: d.id, label: d.fileName }));
 
   const [settings, setSettings] = useState({

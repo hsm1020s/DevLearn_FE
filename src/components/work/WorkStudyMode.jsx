@@ -3,7 +3,7 @@
  * 좌측에 채팅 영역, 우측에 업로드된 문서 목록 패널을 배치한다.
  */
 import { Upload, BookOpen } from 'lucide-react';
-import useRagStore from '../../stores/useRagStore';
+import useDocStore from '../../stores/useDocStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
@@ -12,11 +12,11 @@ import SourcePanel from './SourcePanel';
 
 /** 업무학습 모드 메인 컴포넌트 */
 export default function WorkStudyMode() {
-  const ragDocs = useRagStore((s) => s.ragDocs);
+  const docs = useDocStore((s) => s.docs);
   const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
     useStreamingChat('work');
 
-  const hasDocuments = ragDocs.length > 0;
+  const hasDocuments = docs.length > 0;
 
   return (
     <div className="flex h-full">

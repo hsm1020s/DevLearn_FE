@@ -61,3 +61,8 @@
 - PDF 업로드 모달에 문서 관리 기능 추가
   - 문서 목록에 삭제 버튼(호버 시 표시), RAG 문서 페이지/청크 정보 표시
   - useCertStore에 removeDoc 액션 추가
+- 문서 스토어 통합 리팩토링: certDocs/ragDocs → useDocStore.docs 단일 경로
+  - useDocStore.js 신규 생성 (통합 문서 관리)
+  - PdfUploadModal: 용도 선택 UI 제거, 단일 업로드 경로로 단순화
+  - PdfUploader, RagUploader: 업로드 로직 제거, 문서 목록 표시만 담당
+  - QuizSettings, StudyStats, DocumentList, WorkStudyMode, AdminPage: useDocStore 참조로 전환

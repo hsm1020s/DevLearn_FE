@@ -4,14 +4,15 @@
  * 현재 학습 진행 상황을 요약하여 표시한다.
  */
 import { BarChart3, CheckCircle, XCircle, BookOpen } from 'lucide-react';
+import useDocStore from '../../stores/useDocStore';
 import useCertStore from '../../stores/useCertStore';
 import Button from '../common/Button';
 
-/** 학습 통계 요약 카드. 교재/문제/정답/오답 수와 정답률 프로그레스 바를 표시한다. */
+/** 학습 통계 요약 카드. 문서/문제/정답/오답 수와 정답률 프로그레스 바를 표시한다. */
 export default function StudyStats({ onDone }) {
   const currentQuiz = useCertStore((s) => s.currentQuiz);
   const answers = useCertStore((s) => s.answers);
-  const certDocs = useCertStore((s) => s.certDocs);
+  const docs = useDocStore((s) => s.docs);
 
   const questions = currentQuiz?.questions || [];
   const total = questions.length;
@@ -19,10 +20,10 @@ export default function StudyStats({ onDone }) {
   const correctCount = questions.filter((q) => answers[q.id]?.correct).length;
   const wrongCount = answeredCount - correctCount;
   const rate = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
-  const completedDocs = certDocs.filter((d) => d.status === 'completed');
+  const completedDocs = docs.filter((d) => d.status === 'completed');
 
   const stats = [
-    { icon: BookOpen, label: '업로드 교재', value: `${completedDocs.length}개`, color: 'text-primary' },
+    { icon: BookOpen, label: '업로드 문서', value: `${completedDocs.length}개`, color: 'text-primary' },
     { icon: BarChart3, label: '총 문제', value: `${total}문제`, color: 'text-text-primary' },
     { icon: CheckCircle, label: '정답', value: `${correctCount}개`, color: 'text-success' },
     { icon: XCircle, label: '오답', value: `${wrongCount}개`, color: 'text-danger' },

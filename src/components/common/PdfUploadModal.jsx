@@ -1,116 +1,47 @@
-/** @fileoverview 통합 PDF 업로드 모달 — 용도(퀴즈용/RAG용) 선택 후 드래그앤드롭으로 업로드한다. */
-import { useState, useCallback } from 'react';
-import { FileText, BookOpen, CheckCircle, Loader, Briefcase, Trash2 } from 'lucide-react';
+/** @fileoverview PDF 업로드 모달 — 용도 구분 없이 단일 경로로 업로드하고, 문서 목록을 관리한다. */
+import { useCallback } from 'react';
+import { BookOpen, CheckCircle, Loader, Trash2 } from 'lucide-react';
 import Modal from './Modal';
 import FileDropZone from './FileDropZone';
-import useAppStore from '../../stores/useAppStore';
-import useCertStore from '../../stores/useCertStore';
-import useRagStore from '../../stores/useRagStore';
-import { uploadPdf } from '../../services/certApi';
-import { uploadDocument, deleteDocument } from '../../services/ragApi';
+import useDocStore from '../../stores/useDocStore';
+import { uploadDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
-const PURPOSES = [
-  { value: 'cert', label: '퀴즈용', desc: '자격증 학습 PDF', icon: FileText },
-  { value: 'work', label: 'RAG용', desc: '업무 문서 PDF', icon: Briefcase },
-];
-
 export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
-  const mainMode = useAppStore((s) => s.mainMode);
-  const [purpose, setPurpose] = useState(mainMode === 'work' ? 'work' : 'cert');
+  const docs = useDocStore((s) => s.docs);
+  const addDoc = useDocStore((s) => s.addDoc);
+  const updateDocStatus = useDocStore((s) => s.updateDocStatus);
+  const updateDocInfo = useDocStore((s) => s.updateDocInfo);
+  const removeDoc = useDocStore((s) => s.removeDoc);
 
-  // cert store
-  const certDocs = useCertStore((s) => s.certDocs);
-  const addCertDoc = useCertStore((s) => s.addDoc);
-  const updateCertStatus = useCertStore((s) => s.updateDocStatus);
-  const removeCertDoc = useCertStore((s) => s.removeDoc);
-
-  // rag store
-  const ragDocs = useRagStore((s) => s.ragDocs);
-  const addRagDoc = useRagStore((s) => s.addDoc);
-  const updateRagStatus = useRagStore((s) => s.updateDocStatus);
-  const updateRagDocInfo = useRagStore((s) => s.updateDocInfo);
-  const removeRagDoc = useRagStore((s) => s.removeDoc);
-
-  const docs = purpose === 'cert' ? certDocs : ragDocs;
-
+  // 파일 업로드 처리
   const handleFiles = useCallback(async (files) => {
     for (const file of files) {
       if (file.type !== 'application/pdf') continue;
-
-      if (purpose === 'cert') {
-        const doc = addCertDoc({ fileName: file.name });
-        try {
-          await uploadPdf(file);
-          updateCertStatus(doc.id, 'completed', 100);
-          showSuccess('교재가 업로드되었습니다');
-        } catch {
-          updateCertStatus(doc.id, 'error', 0);
-          showError(null, 'PDF 업로드에 실패했습니다');
-        }
-      } else {
-        const doc = addRagDoc({ fileName: file.name, pages: 0, chunks: 0 });
-        try {
-          const result = await uploadDocument(file);
-          updateRagStatus(doc.id, 'completed', 100);
-          // action을 통해 페이지/청크 수 갱신 (setState 직접 호출 제거)
-          updateRagDocInfo(doc.id, { pages: result.pages, chunks: result.chunks });
-          showSuccess('문서가 업로드되었습니다');
-        } catch {
-          updateRagStatus(doc.id, 'error', 0);
-          showError(null, '문서 업로드에 실패했습니다');
-        }
-      }
-    }
-  }, [purpose, addCertDoc, updateCertStatus, addRagDoc, updateRagStatus, updateRagDocInfo]);
-
-  // 문서 삭제 핸들러
-  const handleDelete = useCallback(async (id) => {
-    if (purpose === 'cert') {
-      removeCertDoc(id);
-      showSuccess('교재가 삭제되었습니다');
-    } else {
+      const doc = addDoc({ fileName: file.name });
       try {
-        await deleteDocument(id);
-        removeRagDoc(id);
-        showSuccess('문서가 삭제되었습니다');
+        const result = await uploadDocument(file);
+        updateDocStatus(doc.id, 'completed', 100);
+        updateDocInfo(doc.id, { pages: result.pages, chunks: result.chunks });
+        showSuccess('문서가 업로드되었습니다');
       } catch {
-        showError(null, '문서 삭제에 실패했습니다');
+        updateDocStatus(doc.id, 'error', 0);
+        showError(null, '문서 업로드에 실패했습니다');
       }
     }
-  }, [purpose, removeCertDoc, removeRagDoc]);
+  }, [addDoc, updateDocStatus, updateDocInfo]);
 
-  // 모달 닫기
-  const handleClose = useCallback(() => {
-    onClose();
-  }, [onClose]);
+  // 문서 삭제 처리
+  const handleDelete = useCallback((id) => {
+    removeDoc(id);
+    showSuccess('문서가 삭제되었습니다');
+  }, [removeDoc]);
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="PDF 업로드" anchorRef={anchorRef}>
+    <Modal isOpen={isOpen} onClose={onClose} title="PDF 업로드" anchorRef={anchorRef}>
       <div className="flex flex-col gap-4">
-        {/* 용도 선택 카드 */}
-        <div>
-          <label className="text-xs font-medium text-text-secondary mb-1.5 block">용도 선택</label>
-          <div className="grid grid-cols-2 gap-2">
-            {PURPOSES.map(({ value, label, desc, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => setPurpose(value)}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors
-                  ${purpose === value
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border-light text-text-secondary hover:border-primary/30'}`}
-              >
-                <Icon size={24} />
-                <span className="text-sm font-medium">{label}</span>
-                <span className="text-xs text-text-tertiary">{desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 공통 드래그앤드롭 영역 */}
+        {/* 드래그앤드롭 업로드 영역 */}
         <FileDropZone onFiles={handleFiles} />
 
         {/* 문서 관리 목록 */}
@@ -139,8 +70,7 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
                           {status.label}
                           {doc.status === 'processing' && ` ${doc.progress}%`}
                         </span>
-                        {/* RAG 문서 상세 정보 */}
-                        {purpose === 'work' && doc.pages > 0 && (
+                        {doc.pages > 0 && (
                           <span className="text-[10px] text-text-tertiary">
                             {doc.pages}p · {doc.chunks}청크
                           </span>
