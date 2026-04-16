@@ -5,6 +5,7 @@
  */
 import { useRef, useEffect, useCallback } from 'react';
 import { Send, Square } from 'lucide-react';
+import ModeSwitcher from '../common/ModeSwitcher';
 
 /** 메시지 입력 영역. Enter로 전송, Shift+Enter로 줄바꿈. 스트리밍 중에는 중지 버튼 표시. */
 export default function ChatInput({ onSend, isStreaming, onStop }) {
@@ -59,6 +60,9 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
 
   return (
     <div className="border-t border-border-light bg-bg-primary px-4 py-3">
+      <div className="mb-2">
+        <ModeSwitcher />
+      </div>
       <div className="
         flex items-end gap-2
         bg-bg-secondary rounded-xl

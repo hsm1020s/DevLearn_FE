@@ -5,6 +5,7 @@
  */
 import { Trophy, RotateCcw, PlusCircle } from 'lucide-react';
 import Button from '../common/Button';
+import ModeSwitcher from '../common/ModeSwitcher';
 import useCertStore from '../../stores/useCertStore';
 import PdfUploader from './PdfUploader';
 import QuizSettings from './QuizSettings';
@@ -89,8 +90,13 @@ export default function CertMode() {
   const StepComponent = stepComponents[certStep] || PdfUploader;
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-2xl mx-auto">
-      <StepComponent />
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
+        <StepComponent />
+      </div>
+      <div className="border-t border-border-light bg-bg-primary px-4 py-3">
+        <ModeSwitcher />
+      </div>
     </div>
   );
 }

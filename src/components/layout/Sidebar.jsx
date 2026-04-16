@@ -18,7 +18,15 @@ import {
   MoreHorizontal,
   Pencil,
   Star,
+  Lightbulb,
+  Paperclip,
+  User,
+  LogOut,
 } from 'lucide-react';
+import SuggestionModal from '../common/SuggestionModal';
+import PdfUploadModal from '../common/PdfUploadModal';
+import LoginModal from '../common/LoginModal';
+import useAuthStore from '../../stores/useAuthStore';
 import useAppStore from '../../stores/useAppStore';
 import useChatStore from '../../stores/useChatStore';
 import Dropdown from '../common/Dropdown';
@@ -52,6 +60,16 @@ export default function Sidebar() {
   const favorites = conversations.filter((c) => c.isFavorite).slice(0, 3);
 
   const collapsed = isSidebarCollapsed;
+
+  // 인증 상태
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const authUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  // 모달 상태
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [showPdfUpload, setShowPdfUpload] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   // 삭제 모드 상태
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -407,9 +425,25 @@ export default function Sidebar() {
         </ul>
       </div>}
 
-      {/* Settings */}
+      {/* Suggestion & Settings */}
       {!collapsed && (
-        <div className="border-t border-border-light px-3 py-3">
+        <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
+          <button
+            onClick={() => setShowPdfUpload(true)}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <Paperclip size={18} />
+            <span>PDF 업로드</span>
+          </button>
+          <button
+            onClick={() => setShowSuggestion(true)}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <Lightbulb size={18} />
+            <span>기능개선 제안</span>
+          </button>
           <button
             onClick={() => navigate('/admin')}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
@@ -418,8 +452,31 @@ export default function Sidebar() {
             <Settings size={18} />
             <span>설정</span>
           </button>
+          {isLoggedIn ? (
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+                text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              <LogOut size={18} />
+              <span>{authUser?.name ?? '사용자'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowLogin(true)}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+                text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              <User size={18} />
+              <span>로그인</span>
+            </button>
+          )}
         </div>
       )}
+
+      <PdfUploadModal isOpen={showPdfUpload} onClose={() => setShowPdfUpload(false)} />
+      <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} />
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </aside>
   );
 }
