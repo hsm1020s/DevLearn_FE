@@ -1,3 +1,7 @@
+/**
+ * @fileoverview 업로드된 RAG 문서 목록 및 삭제 관리 컴포넌트.
+ * 문서 상태(처리중/완료/에러)를 뱃지로 표시하고, 하단에 문서·청크 수 요약을 제공한다.
+ */
 import { useCallback } from 'react';
 import { FileText, Trash2, FolderOpen } from 'lucide-react';
 import useRagStore from '../../stores/useRagStore';
@@ -7,6 +11,7 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 
+/** 문서 상태별 뱃지 색상 매핑 */
 const STATUS_BADGE_COLOR = {
   processing: 'yellow',
   indexing: 'yellow',
@@ -14,6 +19,7 @@ const STATUS_BADGE_COLOR = {
   error: 'red',
 };
 
+/** RAG 문서 목록 패널 */
 export default function DocumentList({ onDone }) {
   const ragDocs = useRagStore((s) => s.ragDocs);
   const removeDoc = useRagStore((s) => s.removeDoc);
@@ -21,6 +27,7 @@ export default function DocumentList({ onDone }) {
   const completedDocs = ragDocs.filter((d) => d.status === 'completed');
   const totalChunks = completedDocs.reduce((sum, d) => sum + (d.chunks || 0), 0);
 
+  // 서버에서 문서를 삭제하고 스토어에서 제거
   const handleDelete = useCallback(
     async (id) => {
       try {

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview 마인드맵 뷰포트를 이미지로 캡처하여 PDF 파일로 내보내는 유틸리티
+ */
+
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 

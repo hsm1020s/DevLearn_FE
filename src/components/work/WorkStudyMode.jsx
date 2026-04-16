@@ -1,3 +1,7 @@
+/**
+ * @fileoverview 업무학습 모드 — RAG 기반 문서 질의응답 채팅 화면.
+ * 좌측에 채팅 영역, 우측에 업로드된 문서 목록 패널을 배치한다.
+ */
 import { Upload, BookOpen } from 'lucide-react';
 import useRagStore from '../../stores/useRagStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
@@ -6,6 +10,7 @@ import ChatInput from '../chat/ChatInput';
 import DocumentList from './DocumentList';
 import SourcePanel from './SourcePanel';
 
+/** 업무학습 모드 메인 컴포넌트 */
 export default function WorkStudyMode() {
   const ragDocs = useRagStore((s) => s.ragDocs);
   const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
@@ -62,6 +67,7 @@ export default function WorkStudyMode() {
   );
 }
 
+/** 대화 없을 때 표시되는 안내 화면 (문서 유무에 따라 메시지 분기) */
 function EmptyState({ hasDocuments }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6">

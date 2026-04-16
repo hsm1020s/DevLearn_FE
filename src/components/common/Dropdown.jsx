@@ -1,3 +1,15 @@
+/**
+ * @fileoverview 공통 드롭다운(select) 컴포넌트
+ * 네이티브 select 요소를 커스텀 스타일로 감싼다.
+ */
+
+/**
+ * 드롭다운 셀렉트
+ * @param {string} label - 셀렉트 상단 라벨
+ * @param {Array<{value: string, label: string}>} options - 선택 옵션 목록
+ * @param {string} value - 현재 선택된 값
+ * @param {Function} onChange - 선택 변경 시 value를 전달하는 콜백
+ */
 export default function Dropdown({
   label,
   options = [],

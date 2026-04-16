@@ -1,7 +1,13 @@
+/**
+ * @fileoverview 학습 통계 컴포넌트
+ * 업로드된 교재 수, 총 문제 수, 정답/오답 수, 정답률 등
+ * 현재 학습 진행 상황을 요약하여 표시한다.
+ */
 import { BarChart3, CheckCircle, XCircle, BookOpen } from 'lucide-react';
 import useCertStore from '../../stores/useCertStore';
 import Button from '../common/Button';
 
+/** 학습 통계 요약 카드. 교재/문제/정답/오답 수와 정답률 프로그레스 바를 표시한다. */
 export default function StudyStats({ onDone }) {
   const currentQuiz = useCertStore((s) => s.currentQuiz);
   const answers = useCertStore((s) => s.answers);

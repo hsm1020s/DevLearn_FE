@@ -1,3 +1,8 @@
+/**
+ * @fileoverview PDF 업로드 컴포넌트
+ * 드래그 앤 드롭 또는 파일 선택으로 PDF를 업로드하고,
+ * 업로드된 문서 목록과 상태(처리 중/완료/오류)를 표시한다.
+ */
 import { useState, useRef } from 'react';
 import { FileText, Upload, BookOpen, CheckCircle, Loader } from 'lucide-react';
 import Button from '../common/Button';
@@ -6,6 +11,7 @@ import { uploadPdf } from '../../services/certApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError } from '../../utils/errorHandler';
 
+/** PDF 파일 업로드 및 문서 관리 화면. 완료된 문서가 있어야 다음 단계로 진행 가능. */
 export default function PdfUploader() {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -17,6 +23,7 @@ export default function PdfUploader() {
 
   const hasCompleted = certDocs.some((d) => d.status === 'completed');
 
+  // PDF 파일을 순차적으로 업로드하고 문서 상태를 갱신
   const handleFiles = async (files) => {
     for (const file of files) {
       if (file.type !== 'application/pdf') continue;

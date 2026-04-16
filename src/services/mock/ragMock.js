@@ -1,7 +1,11 @@
+/**
+ * @fileoverview RAG API Mock - 문서 업로드, 질의응답, 원문 조회, 삭제 시뮬레이션
+ */
 import { generateId } from '../../utils/helpers';
 
 const MOCK_DELAY = 500;
 
+/** 문서 업로드를 시뮬레이션하고 Mock 청크 분할 결과를 반환한다 */
 export async function uploadDocument(file) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return {
@@ -13,6 +17,7 @@ export async function uploadDocument(file) {
   };
 }
 
+/** RAG 질의를 시뮬레이션하고 Mock 답변과 출처를 반환한다 */
 export async function queryRag({ query, topK = 5 }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
   return {
@@ -36,6 +41,7 @@ export async function queryRag({ query, topK = 5 }) {
   };
 }
 
+/** 청크 ID로 원문 텍스트 조회를 시뮬레이션한다 */
 export async function getSource(chunkId) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return {
@@ -46,6 +52,7 @@ export async function getSource(chunkId) {
   };
 }
 
+/** 문서 삭제를 시뮬레이션한다 */
 export async function deleteDocument(docId) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return { success: true };

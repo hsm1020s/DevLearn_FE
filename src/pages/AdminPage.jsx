@@ -1,3 +1,7 @@
+/**
+ * @fileoverview 관리자 대시보드 페이지.
+ * 대화, 자격증, RAG 문서, 마인드맵 등 전체 사용 현황 통계를 표시한다.
+ */
 import { ArrowLeft, MessageSquare, FileText, Brain, Users, TrendingUp, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -6,6 +10,7 @@ import useCertStore from '../stores/useCertStore';
 import useRagStore from '../stores/useRagStore';
 import useMindmapStore from '../stores/useMindmapStore';
 
+/** 통계 수치를 아이콘과 함께 표시하는 카드 */
 function StatCard({ icon: Icon, label, value, color }) {
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl bg-bg-secondary">
@@ -20,6 +25,7 @@ function StatCard({ icon: Icon, label, value, color }) {
   );
 }
 
+/** 최근 대화 목록 (최대 8건) */
 function RecentActivity({ conversations }) {
   if (conversations.length === 0) {
     return <p className="text-sm text-text-tertiary text-center py-6">대화 기록이 없습니다</p>;
@@ -39,6 +45,7 @@ function RecentActivity({ conversations }) {
   );
 }
 
+/** 관리자 대시보드 페이지 */
 export default function AdminPage() {
   const navigate = useNavigate();
   const conversations = useChatStore((s) => s.conversations);

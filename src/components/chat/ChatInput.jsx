@@ -1,6 +1,12 @@
+/**
+ * @fileoverview 채팅 입력창 컴포넌트
+ * 자동 높이 조절 textarea와 전송/중지 버튼을 제공한다.
+ * 비제어(uncontrolled) 방식으로 입력값을 ref로 관리하여 리렌더링을 최소화한다.
+ */
 import { useRef, useEffect, useCallback } from 'react';
 import { Send, Square } from 'lucide-react';
 
+/** 메시지 입력 영역. Enter로 전송, Shift+Enter로 줄바꿈. 스트리밍 중에는 중지 버튼 표시. */
 export default function ChatInput({ onSend, isStreaming, onStop }) {
   const textareaRef = useRef(null);
   const valueRef = useRef('');
@@ -9,6 +15,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     textareaRef.current?.focus();
   }, []);
 
+  // textarea 높이를 내용에 맞게 자동 조절 (최대 140px)
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -16,6 +23,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, []);
 
+  // 메시지 전송 후 입력창 초기화
   const handleSend = useCallback(() => {
     const text = valueRef.current.trim();
     if (!text || isStreaming) return;
@@ -28,6 +36,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
     }
   }, [onSend, isStreaming]);
 
+  // Enter 키로 전송, Shift+Enter는 줄바꿈 허용
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {

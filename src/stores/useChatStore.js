@@ -1,3 +1,4 @@
+/** @fileoverview 채팅 대화 및 메시지 상태 관리 스토어 (persist로 대화 목록 영속화) */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/helpers';
@@ -5,11 +6,16 @@ import { generateId } from '../utils/helpers';
 const useChatStore = create(
   persist(
     (set, get) => ({
+      // 전체 대화 목록
       conversations: [],
+      // 현재 활성 대화 ID
       currentConversationId: null,
+      // 현재 대화의 메시지 배열
       messages: [],
+      // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
 
+      /** 새 대화를 생성하고 현재 대화로 설정 */
       createConversation: (mode) => {
         const id = generateId();
         const conversation = {
@@ -29,6 +35,7 @@ const useChatStore = create(
 
       setCurrentConversation: (id) => set({ currentConversationId: id }),
 
+      /** 메시지를 추가하고, 첫 사용자 메시지일 경우 대화 제목을 자동 설정 */
       addMessage: (message) => {
         const msg = {
           id: generateId(),

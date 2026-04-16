@@ -1,7 +1,11 @@
+/**
+ * @fileoverview 자격증 API Mock - PDF 업로드, 퀴즈 생성, 답안 채점 시뮬레이션
+ */
 import { generateId } from '../../utils/helpers';
 
 const MOCK_DELAY = 500;
 
+/** PDF 업로드를 시뮬레이션하고 Mock 문서 정보를 반환한다 */
 export async function uploadPdf(file) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return {
@@ -13,6 +17,7 @@ export async function uploadPdf(file) {
   };
 }
 
+/** 지정된 조건에 맞는 Mock 퀴즈 문제를 생성한다 */
 export async function generateQuiz({ docIds, chapters, count, difficulty, types }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
 
@@ -29,6 +34,7 @@ export async function generateQuiz({ docIds, chapters, count, difficulty, types 
   return { quizId: generateId(), questions };
 }
 
+/** 답안 제출을 시뮬레이션하고 랜덤 채점 결과를 반환한다 */
 export async function submitAnswer({ quizId, questionId, userAnswer }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   const correct = Math.random() > 0.4;

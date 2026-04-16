@@ -85,9 +85,12 @@ PDF 교재 업로드 → LLM 퀴즈 자동 생성 → 풀이 → 오답 분석.
 | 드래그 이동 | 노드 위치 자유 배치 |
 | 저장/불러오기 | 서버에 마인드맵 저장 및 목록 조회 |
 | 줌/팬 컨트롤 | ZoomIn, ZoomOut, FitView |
+| PDF 출력 | 마인드맵 캔버스를 PDF로 캡처하여 다운로드 (html-to-image + jsPDF) |
+| 자동저장 표시 | 노드 변경/서버 저장/PDF 다운로드 시 "N초 전 저장됨" 실시간 표시 |
+| 툴바 UI | 아이콘(20px) + 텍스트 라벨 + 커스텀 말풍선 툴팁 |
 
 **컴포넌트**: MindmapPanel, MindmapCanvas, MindmapNode, MindmapControls, NodeContextMenu  
-**스토어**: useMindmapStore (nodes, selectedNodeId)  
+**스토어**: useMindmapStore (nodes, selectedNodeId, lastSavedAt)  
 **API**: `POST /mindmap/save`, `GET /mindmap/list`, `GET /mindmap/{id}`
 
 ---

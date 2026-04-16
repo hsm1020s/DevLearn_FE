@@ -1,12 +1,17 @@
+/**
+ * @fileoverview 마인드맵 API Mock - 마인드맵 저장, 목록/개별 조회 시뮬레이션
+ */
 import { generateId } from '../../utils/helpers';
 
 const MOCK_DELAY = 300;
 
+/** 마인드맵 저장을 시뮬레이션하고 저장 결과를 반환한다 */
 export async function saveMindmap({ title, nodes }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return { id: generateId(), title, nodeCount: nodes.length, savedAt: new Date().toISOString() };
 }
 
+/** Mock 마인드맵 목록을 반환한다 */
 export async function getMindmapList() {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return [
@@ -15,6 +20,7 @@ export async function getMindmapList() {
   ];
 }
 
+/** ID로 특정 Mock 마인드맵 데이터를 반환한다 */
 export async function getMindmap(id) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return {

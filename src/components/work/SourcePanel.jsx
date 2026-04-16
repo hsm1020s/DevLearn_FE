@@ -1,5 +1,10 @@
+/**
+ * @fileoverview RAG 응답의 참고 출처(소스) 표시 패널.
+ * 문서명, 페이지, 유사도 점수, 청크 미리보기를 카드 형태로 나열한다.
+ */
 import { Paperclip } from 'lucide-react';
 
+/** AI 응답에 사용된 참고 출처 목록 표시 */
 export default function SourcePanel({ sources }) {
   if (!sources || sources.length === 0) return null;
 

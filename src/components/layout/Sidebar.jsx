@@ -1,3 +1,8 @@
+/**
+ * @fileoverview 좌측 사이드바 레이아웃 컴포넌트
+ * LLM/모드 선택, 대화 목록, 마인드맵 토글, 설정 링크를 제공한다.
+ * 접힌 상태(collapsed)에서는 아이콘만 표시한다.
+ */
 import { useNavigate } from 'react-router-dom';
 import {
   PanelLeftClose,
@@ -36,11 +41,13 @@ export default function Sidebar() {
 
   const collapsed = isSidebarCollapsed;
 
+  // 새 대화 생성 후 기존 메시지 초기화
   const handleNewConversation = () => {
     createConversation(mainMode);
     clearMessages();
   };
 
+  // 대화 선택 시 해당 대화로 전환
   const handleSelectConversation = (id) => {
     setCurrentConversation(id);
   };

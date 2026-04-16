@@ -1,3 +1,8 @@
+/**
+ * @fileoverview 채팅 컨테이너 컴포넌트
+ * 메시지 목록, 스트리밍 응답, 입력창을 통합 관리하며,
+ * 대화가 없을 때 환영 메시지와 예시 질문을 표시한다.
+ */
 import { MessageSquare } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
@@ -11,6 +16,7 @@ const EXAMPLE_QUESTIONS = [
   '사내 휴가 규정 알려줘',
 ];
 
+/** 채팅 화면의 최상위 레이아웃 컴포넌트. 메시지 영역과 입력 영역으로 구성된다. */
 export default function ChatContainer() {
   const mainMode = useAppStore((s) => s.mainMode);
   const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
@@ -52,7 +58,7 @@ export default function ChatContainer() {
   );
 }
 
-/* ---------- 환영 메시지 ---------- */
+/** 대화가 비어있을 때 표시되는 환영 화면. 예시 질문 클릭 시 바로 전송된다. */
 function WelcomeView({ modeLabel, onSelect }) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-6 max-w-lg mx-auto text-center">

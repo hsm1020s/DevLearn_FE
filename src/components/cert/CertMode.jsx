@@ -1,3 +1,8 @@
+/**
+ * @fileoverview 자격증 학습 모드 컴포넌트
+ * certStep 상태에 따라 PDF 업로드 -> 퀴즈 설정 -> 퀴즈 풀이 -> 결과 화면을
+ * 단계별로 전환하여 렌더링한다.
+ */
 import { Trophy, RotateCcw, PlusCircle } from 'lucide-react';
 import Button from '../common/Button';
 import useCertStore from '../../stores/useCertStore';
@@ -5,6 +10,7 @@ import PdfUploader from './PdfUploader';
 import QuizSettings from './QuizSettings';
 import QuizPlayer from './QuizPlayer';
 
+/** 퀴즈 완료 후 정답 수, 총 문제 수, 정답률을 보여주는 결과 화면 */
 function QuizResult() {
   const currentQuiz = useCertStore((s) => s.currentQuiz);
   const answers = useCertStore((s) => s.answers);
@@ -20,6 +26,7 @@ function QuizResult() {
   ).length;
   const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
+  // 답변 초기화 후 첫 문제부터 다시 시작
   const handleRetry = () => {
     questions.forEach((q) => submitAnswer(q.id, undefined));
     useCertStore.setState({ answers: {} });
@@ -68,6 +75,7 @@ function QuizResult() {
   );
 }
 
+/** 자격증 모드 최상위 컴포넌트. certStep에 따라 적절한 단계 컴포넌트를 렌더링한다. */
 export default function CertMode() {
   const certStep = useCertStore((s) => s.certStep);
 

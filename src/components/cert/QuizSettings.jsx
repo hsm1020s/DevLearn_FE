@@ -1,3 +1,8 @@
+/**
+ * @fileoverview 퀴즈 설정 컴포넌트
+ * 교재, 문제 수, 난이도, 출제 범위, 문제 유형을 선택하여
+ * 퀴즈 생성 요청을 보내는 설정 폼을 제공한다.
+ */
 import { useState } from 'react';
 import { Settings, ArrowLeft, Play } from 'lucide-react';
 import Button from '../common/Button';
@@ -17,6 +22,7 @@ const MOCK_CHAPTERS = [
   { value: 'ch5', label: '5장: 종합 문제' },
 ];
 
+/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형을 선택한다. */
 export default function QuizSettings() {
   const certDocs = useCertStore((s) => s.certDocs);
   const setCertStep = useCertStore((s) => s.setCertStep);
@@ -36,6 +42,7 @@ export default function QuizSettings() {
 
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
 
+  // 문제 유형 토글 (최소 1개는 유지)
   const toggleType = (typeValue) => {
     setSettings((prev) => {
       const exists = prev.types.includes(typeValue);
@@ -51,6 +58,7 @@ export default function QuizSettings() {
     });
   };
 
+  // 설정값으로 퀴즈 생성 API 호출 후 퀴즈 풀이 단계로 전환
   const handleGenerate = async () => {
     if (!settings.docIds || !settings.types.length) return;
     setLoading(true);

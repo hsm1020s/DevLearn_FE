@@ -1,15 +1,20 @@
+/**
+ * @fileoverview 채팅 API - 일반/자격증/업무 모드별 메시지 송수신 처리
+ */
 import { API_CONFIG } from './api.config';
 import * as mock from './mock/chatMock';
 import api from './api';
 
 /** @typedef {{ message: string, mode: string, llm: string, conversationId?: string }} ChatParams */
 
+/** 단일 메시지를 전송하고 응답을 반환한다 */
 export async function sendMessage(params) {
   if (API_CONFIG.useMock) return mock.sendMessage(params);
   const { data } = await api.post('/chat', params);
   return data;
 }
 
+/** SSE 기반 스트리밍으로 메시지를 전송하고 토큰 단위로 콜백을 호출한다 */
 export async function streamMessage(params) {
   if (API_CONFIG.useMock) return mock.streamMessage(params);
   const { message, mode, llm, conversationId, onToken, onDone } = params;

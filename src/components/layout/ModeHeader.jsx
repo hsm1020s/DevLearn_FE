@@ -1,3 +1,7 @@
+/**
+ * @fileoverview 모드 헤더 컴포넌트
+ * 현재 선택된 모드의 아이콘·이름·설명과 모드별 액션 버튼을 표시한다.
+ */
 import useAppStore from '../../stores/useAppStore';
 import useCertStore from '../../stores/useCertStore';
 import { getModeConfig } from '../../registry/modes';
@@ -12,6 +16,7 @@ export default function ModeHeader() {
   const IconComponent = modeConfig.icon;
   const actions = modeConfig.actions;
 
+  // 액션 버튼 클릭 처리 - certUpload는 별도 스텝 전환, 나머지는 모달 오픈
   const handleAction = (action) => {
     if (action === 'certUpload') {
       setCertStep('upload');

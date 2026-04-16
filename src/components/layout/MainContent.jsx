@@ -1,3 +1,9 @@
+/**
+ * @fileoverview 메인 콘텐츠 영역 컴포넌트
+ * 현재 모드에 해당하는 컴포넌트를 lazy 로딩하고,
+ * 마인드맵 패널과 SplitView로 좌우 분할 레이아웃을 구성한다.
+ * 모달(PDF 업로드, 문서 관리, 학습 현황)도 이곳에서 렌더링한다.
+ */
 import { lazy, Suspense, useMemo } from 'react';
 import useAppStore from '../../stores/useAppStore';
 import { getModeConfig } from '../../registry/modes';
@@ -30,6 +36,7 @@ export default function MainContent() {
   const activeModal = useAppStore((s) => s.activeModal);
   const closeModal = useAppStore((s) => s.closeModal);
 
+  // mainMode 변경 시에만 해당 모드 컴포넌트를 lazy 로딩
   const ModeComponent = useMemo(
     () => lazy(getModeConfig(mainMode).component),
     [mainMode],

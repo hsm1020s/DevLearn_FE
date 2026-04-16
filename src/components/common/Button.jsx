@@ -1,3 +1,9 @@
+/**
+ * @fileoverview 공통 버튼 컴포넌트
+ * variant(primary/secondary/ghost/danger)와 size(sm/md/lg)로 스타일을 제어한다.
+ */
+
+/** 버튼 스타일 variant별 Tailwind 클래스 매핑 */
 const variants = {
   primary: 'bg-primary text-white hover:bg-primary-hover',
   secondary: 'bg-bg-secondary text-text-primary hover:bg-bg-tertiary',
@@ -11,6 +17,14 @@ const sizes = {
   lg: 'px-6 py-3 text-base',
 };
 
+/**
+ * 재사용 가능한 버튼 컴포넌트
+ * @param {string} variant - 버튼 스타일 종류 (primary | secondary | ghost | danger)
+ * @param {string} size - 버튼 크기 (sm | md | lg)
+ * @param {boolean} disabled - 비활성화 여부
+ * @param {string} className - 추가 CSS 클래스
+ * @param {Function} onClick - 클릭 핸들러
+ */
 export default function Button({
   children,
   variant = 'primary',

@@ -1,5 +1,10 @@
+/**
+ * @fileoverview dagre 라이브러리를 활용한 마인드맵 노드 자동 레이아웃 계산 유틸리티
+ */
+
 import dagre from 'dagre';
 
+// 노드 기본 크기 (px)
 const NODE_WIDTH = 150;
 const NODE_HEIGHT = 40;
 

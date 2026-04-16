@@ -1,7 +1,13 @@
+/**
+ * @fileoverview 토스트 알림 시스템
+ * Zustand 스토어로 토스트 목록을 관리하고, 3초 후 자동 제거한다.
+ * ToastContainer를 앱 루트에 배치하여 사용한다.
+ */
 import { useEffect } from 'react';
 import { CheckCircle, AlertCircle, X } from 'lucide-react';
 import { create } from 'zustand';
 
+/** 토스트 상태 관리 스토어 - addToast로 메시지 추가, 3초 후 자동 삭제 */
 export const useToastStore = create((set) => ({
   toasts: [],
   addToast: (message, type = 'info') => {
@@ -21,6 +27,7 @@ const COLOR = {
   info: 'bg-primary text-white',
 };
 
+/** 개별 토스트 아이템 - 타입별 아이콘·색상을 적용하고 수동 닫기 지원 */
 function ToastItem({ toast }) {
   const removeToast = useToastStore((s) => s.removeToast);
   const Icon = ICON[toast.type] || ICON.info;
@@ -36,6 +43,7 @@ function ToastItem({ toast }) {
   );
 }
 
+/** 토스트 목록을 화면 우하단에 렌더링하는 컨테이너 */
 export default function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
 

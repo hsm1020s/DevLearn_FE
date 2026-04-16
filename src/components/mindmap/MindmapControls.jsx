@@ -1,3 +1,6 @@
+/**
+ * @fileoverview 마인드맵 캔버스 하단 우측 컨트롤 버튼 (줌인/줌아웃/전체보기/PDF 내보내기).
+ */
 import { useState, useCallback } from 'react';
 import { useReactFlow } from 'reactflow';
 import { ZoomIn, ZoomOut, Maximize2, Download, Loader2 } from 'lucide-react';
@@ -8,12 +11,15 @@ import useMindmapStore from '../../stores/useMindmapStore';
 const btnClass =
   'p-1.5 text-text-secondary hover:text-primary hover:bg-bg-secondary transition-colors';
 
+/** 마인드맵 줌/PDF 내보내기 컨트롤 */
 export default function MindmapControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const [exporting, setExporting] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
   const nodes = useMindmapStore((s) => s.nodes);
+  const markSaved = useMindmapStore((s) => s.markSaved);
 
+  // 캔버스를 fitView 후 DOM 캡처하여 PDF로 내보내기
   const handleExportPdf = useCallback(async () => {
     if (nodes.length === 0) {
       addToast('마인드맵이 비어있습니다.', 'error');
@@ -26,6 +32,7 @@ export default function MindmapControls() {
       const wrapper = document.querySelector('.react-flow');
       if (!wrapper) throw new Error('캔버스를 찾을 수 없습니다.');
       await exportMindmapToPdf(wrapper);
+      markSaved();
       addToast('PDF가 다운로드되었습니다.', 'success');
     } catch (err) {
       console.error(err);
@@ -33,7 +40,7 @@ export default function MindmapControls() {
     } finally {
       setExporting(false);
     }
-  }, [nodes, fitView, addToast]);
+  }, [nodes, fitView, addToast, markSaved]);
 
   const actions = [
     { icon: ZoomIn, label: '줌인', handler: () => zoomIn() },

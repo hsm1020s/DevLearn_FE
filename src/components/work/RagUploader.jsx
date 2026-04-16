@@ -1,3 +1,7 @@
+/**
+ * @fileoverview RAG 문서 업로더 컴포넌트.
+ * 드래그 앤 드롭 또는 클릭으로 PDF를 업로드하고, 업로드 상태를 실시간 표시한다.
+ */
 import { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, Loader } from 'lucide-react';
 import Button from '../common/Button';
@@ -6,6 +10,7 @@ import { uploadDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
+/** PDF 파일 드래그 앤 드롭/클릭 업로드 컴포넌트 */
 export default function RagUploader({ onDone }) {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -13,6 +18,7 @@ export default function RagUploader({ onDone }) {
   const addDoc = useRagStore((s) => s.addDoc);
   const updateDocStatus = useRagStore((s) => s.updateDocStatus);
 
+  // PDF 파일 목록을 순회하며 업로드 후 스토어에 결과 반영
   const handleFiles = async (files) => {
     for (const file of files) {
       if (file.type !== 'application/pdf') continue;
@@ -20,6 +26,7 @@ export default function RagUploader({ onDone }) {
       try {
         const result = await uploadDocument(file);
         updateDocStatus(doc.id, 'completed', 100);
+        // 업로드 완료 후 페이지/청크 수를 직접 갱신
         useRagStore.setState((state) => ({
           ragDocs: state.ragDocs.map((d) =>
             d.id === doc.id ? { ...d, pages: result.pages, chunks: result.chunks } : d
@@ -33,6 +40,7 @@ export default function RagUploader({ onDone }) {
     }
   };
 
+  // 드래그 앤 드롭 이벤트 핸들러
   const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
   const onDragLeave = (e) => { e.preventDefault(); setDragging(false); };
   const onDrop = (e) => {
@@ -40,6 +48,7 @@ export default function RagUploader({ onDone }) {
     setDragging(false);
     handleFiles(Array.from(e.dataTransfer.files));
   };
+  // 파일 입력 변경 시 업로드 처리 후 input 초기화
   const onFileChange = (e) => {
     if (e.target.files.length) {
       handleFiles(Array.from(e.target.files));

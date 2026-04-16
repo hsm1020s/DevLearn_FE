@@ -1,5 +1,9 @@
+/**
+ * @fileoverview Axios 인스턴스 생성 및 공통 인터셉터 설정
+ */
 import axios from 'axios';
 
+/** 기본 baseURL, 타임아웃, 헤더가 설정된 Axios 인스턴스 */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
   timeout: 30000,

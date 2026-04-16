@@ -1,3 +1,8 @@
+/**
+ * @fileoverview 퀴즈 풀이 컴포넌트
+ * 문제를 하나씩 표시하고, 선택지 클릭 시 채점 API를 호출하여
+ * 정답/오답 피드백과 해설을 보여준다. 마인드맵 추가 기능도 제공한다.
+ */
 import { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Brain, Lightbulb } from 'lucide-react';
 import Button from '../common/Button';
@@ -6,6 +11,7 @@ import useMindmapStore from '../../stores/useMindmapStore';
 import useAppStore from '../../stores/useAppStore';
 import { submitAnswer as apiSubmitAnswer } from '../../services/certApi';
 
+/** 퀴즈 풀이 화면. 문제 탐색, 답안 제출, 해설 확인, 마인드맵 연동을 담당한다. */
 export default function QuizPlayer() {
   const currentQuiz = useCertStore((s) => s.currentQuiz);
   const index = useCertStore((s) => s.currentQuestionIndex);
@@ -25,6 +31,7 @@ export default function QuizPlayer() {
   const questions = currentQuiz?.questions || [];
   const question = questions[index];
 
+  // 현재 문제를 마인드맵 노드로 추가하고, 마인드맵 패널이 닫혀있으면 열기
   const handleAddToMindmap = useCallback(() => {
     if (!question) return;
     const label = question.question.length > 40
@@ -37,6 +44,7 @@ export default function QuizPlayer() {
   const answered = answers[question?.id];
   const isAnswered = answered !== undefined || result !== null;
 
+  // 선택지 클릭 시 채점 API 호출 후 결과를 스토어에 저장
   const handleSelect = async (optIdx) => {
     if (isAnswered || loading) return;
     setSelected(optIdx);
@@ -54,6 +62,7 @@ export default function QuizPlayer() {
     }
   };
 
+  // 문제 이동. 마지막 문제 다음이면 결과 화면으로 전환
   const goTo = (nextIdx) => {
     if (nextIdx >= total) {
       setCertStep('result');
@@ -70,6 +79,7 @@ export default function QuizPlayer() {
     }
   };
 
+  // 선택지 상태(미선택/선택/정답/오답)에 따른 CSS 클래스 반환
   const optionClass = (optIdx) => {
     const base = 'flex items-center gap-3 px-4 py-3 rounded-lg border text-sm transition-colors cursor-pointer';
     if (!isAnswered) {

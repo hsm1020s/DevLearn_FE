@@ -1,5 +1,11 @@
+/**
+ * @fileoverview 출처 카드 컴포넌트
+ * 어시스턴트 응답에 포함된 참조 문서 목록을 표시한다.
+ * 문서명, 페이지 번호, 유사도 점수를 보여준다.
+ */
 import { Paperclip } from 'lucide-react';
 
+/** 응답 하단에 표시되는 참조 출처 목록 카드 */
 export default function SourceCard({ sources }) {
   if (!sources || sources.length === 0) return null;
 

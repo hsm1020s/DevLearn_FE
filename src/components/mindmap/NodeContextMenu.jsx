@@ -1,7 +1,12 @@
+/**
+ * @fileoverview 마인드맵 노드 우클릭 컨텍스트 메뉴.
+ * 노드 삭제 및 색상 변경 기능을 제공한다.
+ */
 import { Trash2, Palette } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import useMindmapStore from '../../stores/useMindmapStore';
 
+/** 선택 가능한 노드 색상 목록 */
 const COLORS = [
   { value: null, label: '기본', bg: 'bg-primary' },
   { value: 'blue', label: '파랑', bg: 'bg-blue-500' },
@@ -11,11 +16,13 @@ const COLORS = [
   { value: 'purple', label: '보라', bg: 'bg-purple-500' },
 ];
 
+/** 노드 컨텍스트 메뉴 (삭제/색상 변경) */
 export default function NodeContextMenu({ nodeId, position, onClose }) {
   const deleteNode = useMindmapStore((s) => s.deleteNode);
   const updateNode = useMindmapStore((s) => s.updateNode);
   const menuRef = useRef(null);
 
+  // 메뉴 외부 클릭 시 닫기
   useEffect(() => {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
