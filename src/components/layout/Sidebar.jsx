@@ -90,7 +90,7 @@ export default function Sidebar() {
   const suggestionBtnRef = useRef(null);
   const loginBtnRef = useRef(null);
 
-  // 새 대화명 입력 상태
+  // 새 채팅명 입력 상태
   const [newConvTitle, setNewConvTitle] = useState('');
 
   // 삭제 확인 팝오버 상태 ({ type: 'single'|'batch', id?, rect })
@@ -211,7 +211,7 @@ export default function Sidebar() {
     }
   }, [isAllSelected, conversations]);
 
-  // 새 대화 생성 후 기존 메시지 초기화 (선택된 LLM, 입력된 대화명 함께 저장)
+  // 새 채팅 생성 후 기존 메시지 초기화 (선택된 LLM, 입력된 채팅명 함께 저장)
   const handleNewConversation = () => {
     const title = newConvTitle.trim();
     createConversation(mainMode, selectedLLM, title);
@@ -294,7 +294,7 @@ export default function Sidebar() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleNewConversation();
             }}
-            placeholder="대화명 입력 (선택)"
+            placeholder="채팅명 입력 (선택)"
             className="w-full px-2.5 py-1.5 text-sm border border-border-light rounded-md
                        bg-bg-primary text-text-primary placeholder:text-text-tertiary
                        focus:outline-none focus:border-primary transition-colors"
@@ -306,7 +306,7 @@ export default function Sidebar() {
             onClick={handleNewConversation}
           >
             <Plus size={16} />
-            <span>새 대화</span>
+            <span>새 채팅</span>
           </Button>
         </div>
       )}
@@ -319,7 +319,7 @@ export default function Sidebar() {
             <span className="text-xs font-medium text-text-secondary">즐겨찾기</span>
           </div>
           {favorites.length === 0 ? (
-            <p className="text-xs text-text-tertiary text-center py-1">대화 ··· 메뉴에서 추가</p>
+            <p className="text-xs text-text-tertiary text-center py-1">채팅 ··· 메뉴에서 추가</p>
           ) : (
             <ul className="flex flex-col gap-0.5">
               {favorites.map((conv) => {
@@ -366,13 +366,13 @@ export default function Sidebar() {
         <div className="flex items-center justify-between px-2 mb-2">
             <div className="flex items-center gap-1">
               <MessageSquare size={14} className="text-text-secondary" />
-              <span className="text-xs font-medium text-text-secondary">최근 대화</span>
+              <span className="text-xs font-medium text-text-secondary">최근 채팅</span>
             </div>
             {conversations.length > 0 && (
               <button
                 onClick={toggleDeleteMode}
                 className="p-0.5 rounded hover:bg-bg-secondary text-text-tertiary hover:text-danger transition-colors"
-                title={isDeleteMode ? '취소' : '대화 정리'}
+                title={isDeleteMode ? '취소' : '채팅 정리'}
               >
                 {isDeleteMode ? <X size={14} /> : <Trash2 size={14} />}
               </button>
@@ -609,8 +609,8 @@ export default function Sidebar() {
         >
           <p className="text-xs text-text-primary mb-2.5">
             {deleteConfirm.type === 'single'
-              ? '이 대화를 삭제할까요?'
-              : `${selectedIds.size}개의 대화를 삭제할까요?`}
+              ? '이 채팅을 삭제할까요?'
+              : `${selectedIds.size}개의 채팅을 삭제할까요?`}
           </p>
           <div className="flex items-center justify-end gap-1.5">
             <button

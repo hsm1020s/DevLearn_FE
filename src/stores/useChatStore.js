@@ -20,7 +20,7 @@ const useChatStore = create(
         const id = generateId();
         const conversation = {
           id,
-          title: title || '새 대화',
+          title: title || '새 채팅',
           mode,
           llm, // 대화 생성 시 선택된 LLM 모델
           createdAt: new Date().toISOString(),
