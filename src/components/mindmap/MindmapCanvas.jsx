@@ -2,8 +2,8 @@
  * @fileoverview 마인드맵 캔버스 — ReactFlow 기반 노드/엣지 렌더링 및 상호작용 처리.
  * 스토어의 노드 데이터를 자동 레이아웃으로 변환하여 표시한다.
  */
-import { useCallback, useMemo, useEffect, useState } from 'react';
-import ReactFlow, { Background, useNodesState, useEdgesState } from 'reactflow';
+import { useCallback, useMemo, useEffect, useRef, useState } from 'react';
+import ReactFlow, { Background, useNodesState, useEdgesState, useReactFlow, ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -17,14 +17,20 @@ const nodeTypes = { mindmapNode: MindmapNode };
 
 const defaultEdgeStyle = { stroke: 'var(--color-primary)', strokeWidth: 2 };
 
-/** 마인드맵 캔버스 (ReactFlow 래퍼) */
-export default function MindmapCanvas() {
-  const nodes = useMindmapStore((s) => s.nodes);
+/** 마인드맵 캔버스 내부 (ReactFlowProvider 내부에서 useReactFlow 사용) */
+function MindmapCanvasInner() {
+  // 현재 활성 맵의 노드 목록 구독
+  const nodes = useMindmapStore((s) => {
+    const { activeMapId, maps } = s;
+    return activeMapId && maps[activeMapId] ? maps[activeMapId].nodes : [];
+  });
   const selectedNodeId = useMindmapStore((s) => s.selectedNodeId);
   const selectNode = useMindmapStore((s) => s.selectNode);
   const updateNode = useMindmapStore((s) => s.updateNode);
 
+  const { fitView } = useReactFlow();
   const [contextMenu, setContextMenu] = useState(null);
+  const prevNodeCount = useRef(nodes.length);
 
   // 노드 트리 구조로부터 자동 좌표 계산
   const positions = useMemo(() => computeLayout(nodes), [nodes]);
@@ -63,6 +69,17 @@ export default function MindmapCanvas() {
   // 스토어 변경 시 ReactFlow 내부 상태와 동기화
   useEffect(() => { setFlowNodes(rfNodes); }, [rfNodes, setFlowNodes]);
   useEffect(() => { setFlowEdges(rfEdges); }, [rfEdges, setFlowEdges]);
+
+  // 노드 추가/삭제 시 전체 뷰에 맞게 자동 줌 조절
+  useEffect(() => {
+    if (nodes.length !== prevNodeCount.current) {
+      prevNodeCount.current = nodes.length;
+      // ReactFlow 내부 렌더링 후 fitView 호출
+      requestAnimationFrame(() => {
+        fitView({ padding: 0.2, duration: 300 });
+      });
+    }
+  }, [nodes.length, fitView]);
 
   const onNodeClick = useCallback(
     (_event, node) => { selectNode(node.id); },
@@ -110,5 +127,14 @@ export default function MindmapCanvas() {
         />
       )}
     </div>
+  );
+}
+
+/** 마인드맵 캔버스 (ReactFlowProvider로 감싸서 useReactFlow 사용 가능하게) */
+export default function MindmapCanvas() {
+  return (
+    <ReactFlowProvider>
+      <MindmapCanvasInner />
+    </ReactFlowProvider>
   );
 }

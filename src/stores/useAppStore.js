@@ -1,5 +1,6 @@
 /** @fileoverview 앱 전역 UI 상태 관리 스토어 (LLM 선택, 모드, 사이드바, 모달) */
 import { create } from 'zustand';
+import useMindmapStore from './useMindmapStore';
 
 const useAppStore = create((set) => ({
   // 현재 선택된 LLM 모델
@@ -12,7 +13,11 @@ const useAppStore = create((set) => ({
   isSidebarCollapsed: false,
 
   setLLM: (llm) => set({ selectedLLM: llm }),
-  setMainMode: (mode) => set({ mainMode: mode }),
+  setMainMode: (mode) => {
+    set({ mainMode: mode });
+    // 모드 전환 시 해당 모드의 마지막 마인드맵 복원
+    useMindmapStore.getState().restoreForMode(mode);
+  },
   toggleMindmap: () => set((state) => ({ isMindmapOn: !state.isMindmapOn })),
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 

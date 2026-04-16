@@ -1,23 +1,15 @@
 /**
  * @fileoverview 모드 헤더 컴포넌트
- * 현재 선택된 모드의 아이콘·이름·설명과 모드별 액션 버튼을 표시한다.
+ * 현재 선택된 모드의 아이콘·이름·설명을 표시한다.
  */
 import useAppStore from '../../stores/useAppStore';
 import { getModeConfig } from '../../registry/modes';
-import Button from '../common/Button';
 
 export default function ModeHeader() {
   const mainMode = useAppStore((s) => s.mainMode);
-  const setActiveModal = useAppStore((s) => s.setActiveModal);
 
   const modeConfig = getModeConfig(mainMode);
   const IconComponent = modeConfig.icon;
-  const actions = modeConfig.actions;
-
-  // 액션 버튼 클릭 처리 — 모달 오픈
-  const handleAction = (action) => {
-    setActiveModal(action);
-  };
 
   return (
     <header className="flex items-center justify-between border-b border-border-light px-4 py-3">
@@ -27,22 +19,6 @@ export default function ModeHeader() {
         <span className="text-text-secondary">—</span>
         <span className="text-sm text-text-secondary">{modeConfig.description}</span>
       </div>
-
-      {actions.length > 0 && (
-        <div className="flex items-center gap-2">
-          {actions.map((action) => (
-            <Button
-              key={action.label}
-              variant="secondary"
-              size="sm"
-              onClick={() => handleAction(action.action)}
-            >
-              <action.icon className="h-4 w-4" />
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      )}
     </header>
   );
 }

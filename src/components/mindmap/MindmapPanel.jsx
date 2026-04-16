@@ -1,165 +1,232 @@
 /**
- * @fileoverview 마인드맵 패널 — 툴바(저장/불러오기/삭제), 노드 추가 입력, 캔버스를 포함하는 전체 레이아웃.
+ * @fileoverview 마인드맵 패널 — 모드별 마인드맵 목록 관리, 생성/선택/삭제, 노드 추가, 캔버스 표시.
+ * 현재 모드에 해당하는 마인드맵만 필터링하여 보여준다.
  */
-import { useState, useCallback, useEffect } from 'react';
-import { Save, Trash2, Plus, FolderOpen, Loader, CheckCircle } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, Trash2, ChevronDown, X, Edit3 } from 'lucide-react';
 
+import useAppStore from '../../stores/useAppStore';
 import useMindmapStore from '../../stores/useMindmapStore';
-import { saveMindmap, getMindmapList, getMindmap } from '../../services/mindmapApi';
-import { showError, showSuccess } from '../../utils/errorHandler';
+import { showSuccess } from '../../utils/errorHandler';
 import Button from '../common/Button';
 import MindmapCanvas from './MindmapCanvas';
 
-/** 마지막 저장 시각으로부터 경과 시간을 표시하는 인디케이터 */
-function AutoSaveIndicator() {
-  const lastSavedAt = useMindmapStore((s) => s.lastSavedAt);
-  const [elapsed, setElapsed] = useState(null);
-
-  // 저장 시각 변경 시 1초 간격으로 경과 시간 갱신
-  useEffect(() => {
-    if (!lastSavedAt) { setElapsed(null); return; }
-    setElapsed(0);
-    const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - lastSavedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [lastSavedAt]);
-
-  const label = elapsed === null ? '저장 대기' : elapsed === 0 ? '방금 저장됨' : `${elapsed}초 전 저장됨`;
-
-  return (
-    <span className="flex items-center gap-1 text-xs text-success whitespace-nowrap shrink-0">
-      <CheckCircle size={14} />
-      {label}
-    </span>
-  );
-}
-
-/** 툴바 버튼 (호버 시 툴팁 표시) */
-function ToolbarButton({ icon: Icon, label, tooltip, onClick, variant }) {
-  const base = 'group relative flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors';
-  const style = variant === 'danger'
-    ? 'text-danger hover:bg-danger/10'
-    : 'text-text-secondary hover:text-primary hover:bg-bg-secondary';
-
-  return (
-    <button className={`${base} ${style}`} onClick={onClick}>
-      <Icon size={20} />
-      <span>{label}</span>
-      <span className="pointer-events-none absolute left-0 top-full mt-2
-                        whitespace-nowrap rounded-md bg-gray-800 px-2.5 py-1.5 text-xs text-white
-                        opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-50">
-        {tooltip}
-      </span>
-    </button>
-  );
-}
-
 /** 마인드맵 패널 메인 컴포넌트 */
 export default function MindmapPanel() {
-  const [inputValue, setInputValue] = useState('');
-  const [savedList, setSavedList] = useState([]);
-  const [showList, setShowList] = useState(false);
-  const [listLoading, setListLoading] = useState(false);
+  const mainMode = useAppStore((s) => s.mainMode);
 
-  const nodes = useMindmapStore((s) => s.nodes);
+  const activeMapId = useMindmapStore((s) => s.activeMapId);
+  const maps = useMindmapStore((s) => s.maps);
   const selectedNodeId = useMindmapStore((s) => s.selectedNodeId);
+  const createMap = useMindmapStore((s) => s.createMap);
+  const deleteMap = useMindmapStore((s) => s.deleteMap);
+  const loadMap = useMindmapStore((s) => s.loadMap);
+  const renameMap = useMindmapStore((s) => s.renameMap);
   const addNode = useMindmapStore((s) => s.addNode);
   const clearAll = useMindmapStore((s) => s.clearAll);
-  const markSaved = useMindmapStore((s) => s.markSaved);
+  const getMapsByMode = useMindmapStore((s) => s.getMapsByMode);
 
+  const activeMap = activeMapId ? maps[activeMapId] : null;
+  const nodes = activeMap ? activeMap.nodes : [];
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
-  const handleSave = useCallback(async () => {
-    try {
-      await saveMindmap({ title: '마인드맵', nodes });
-      markSaved();
-      showSuccess('마인드맵이 저장되었습니다');
-    } catch {
-      showError(null, '마인드맵 저장에 실패했습니다');
-    }
-  }, [nodes, markSaved]);
+  // 현재 모드의 마인드맵 목록
+  const modeMapList = getMapsByMode(mainMode);
 
-  const handleClearAll = useCallback(() => {
+  const [nodeInput, setNodeInput] = useState('');
+  const [showList, setShowList] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+
+  /** 새 마인드맵 생성 */
+  const handleCreate = useCallback(() => {
+    createMap(mainMode);
+    setShowList(false);
+    showSuccess('새 마인드맵이 생성되었습니다');
+  }, [mainMode, createMap]);
+
+  /** 마인드맵 선택 */
+  const handleSelect = useCallback((mapId) => {
+    loadMap(mapId);
+    setShowList(false);
+  }, [loadMap]);
+
+  /** 마인드맵 삭제 (확인 후) */
+  const handleDelete = useCallback((mapId) => {
+    deleteMap(mapId);
+    setShowDeleteConfirm(null);
+    showSuccess('마인드맵이 삭제되었습니다');
+  }, [deleteMap]);
+
+  /** 현재 맵의 모든 노드 삭제 */
+  const handleClearNodes = useCallback(() => {
     if (nodes.length === 0) return;
-    if (window.confirm('모든 노드를 삭제하시겠습니까?')) clearAll();
+    clearAll();
   }, [nodes.length, clearAll]);
 
-  // 선택된 노드의 하위(또는 루트)에 새 노드 추가
+  /** 노드 추가 */
   const handleAddNode = useCallback(() => {
-    const label = inputValue.trim();
+    const label = nodeInput.trim();
     if (!label) return;
+    // 활성 맵이 없으면 자동 생성
+    if (!activeMapId) {
+      createMap(mainMode);
+    }
     addNode(selectedNodeId, label);
-    setInputValue('');
-  }, [inputValue, selectedNodeId, addNode]);
+    setNodeInput('');
+  }, [nodeInput, selectedNodeId, addNode, activeMapId, createMap, mainMode]);
 
-  // IME 조합 중이 아닐 때만 Enter로 노드 추가
+  /** IME 조합 중이 아닐 때만 Enter로 노드 추가 */
   const handleKeyDown = useCallback(
     (e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddNode(); },
     [handleAddNode],
   );
 
-  // 저장된 마인드맵 목록 토글 (열릴 때 서버에서 목록 조회)
-  const toggleList = useCallback(async () => {
-    if (showList) { setShowList(false); return; }
-    setListLoading(true);
-    try {
-      const list = await getMindmapList();
-      setSavedList(list);
-    } catch {
-      setSavedList([]);
-    }
-    setListLoading(false);
-    setShowList(true);
-  }, [showList]);
+  /** 제목 인라인 편집 시작 */
+  const startRename = useCallback(() => {
+    if (!activeMap) return;
+    setTitleInput(activeMap.title);
+    setEditingTitle(true);
+  }, [activeMap]);
 
-  // 선택한 마인드맵을 서버에서 불러와 스토어에 반영
-  const handleLoad = useCallback(async (id) => {
-    try {
-      const data = await getMindmap(id);
-      useMindmapStore.setState({ nodes: data.nodes, selectedNodeId: null });
-      setShowList(false);
-    } catch {
-      showError(null, '마인드맵 불러오기에 실패했습니다');
+  /** 제목 편집 완료 */
+  const commitRename = useCallback(() => {
+    const trimmed = titleInput.trim();
+    if (trimmed && activeMapId) {
+      renameMap(activeMapId, trimmed);
     }
-  }, []);
+    setEditingTitle(false);
+  }, [titleInput, activeMapId, renameMap]);
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
+      {/* 상단: 마인드맵 선택/생성 헤더 */}
       <div className="px-4 py-3 border-b border-border-light">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2 mb-3">
-          <span role="img" aria-label="brain">🧠</span> 마인드맵
-        </h2>
-        <div className="flex items-center gap-2">
-          <ToolbarButton icon={FolderOpen} label="불러오기" tooltip="저장된 마인드맵 목록에서 불러옵니다" onClick={toggleList} />
-          <ToolbarButton icon={Save} label="저장" tooltip="현재 마인드맵을 서버에 저장합니다" onClick={handleSave} />
-          <ToolbarButton icon={Trash2} label="삭제" tooltip="모든 노드를 삭제합니다" onClick={handleClearAll} variant="danger" />
-          <div className="flex-1" />
-          <AutoSaveIndicator />
+        <div className="flex items-center gap-2 mb-2">
+          <span role="img" aria-label="brain" className="text-base">🧠</span>
+
+          {/* 현재 맵 제목 또는 선택 안내 */}
+          {editingTitle ? (
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) commitRename();
+                if (e.key === 'Escape') setEditingTitle(false);
+              }}
+              autoFocus
+              className="flex-1 px-2 py-0.5 text-sm font-semibold border border-primary rounded
+                         bg-bg-primary text-text-primary focus:outline-none"
+            />
+          ) : (
+            <button
+              onClick={activeMap ? startRename : undefined}
+              className="flex-1 text-left text-sm font-semibold text-text-primary truncate
+                         hover:text-primary transition-colors"
+              title={activeMap ? '클릭하여 이름 변경' : undefined}
+            >
+              {activeMap ? activeMap.title : '마인드맵을 선택하세요'}
+            </button>
+          )}
+
+          {activeMap && !editingTitle && (
+            <button onClick={startRename} className="text-text-tertiary hover:text-primary transition-colors" title="이름 변경">
+              <Edit3 size={14} />
+            </button>
+          )}
+
+          {/* 목록 토글 */}
+          <button
+            onClick={() => setShowList((v) => !v)}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-text-secondary
+                       hover:text-primary hover:bg-bg-secondary rounded-lg transition-colors"
+          >
+            목록
+            <ChevronDown size={14} className={`transition-transform ${showList ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* 새 마인드맵 */}
+          <Button variant="primary" size="sm" onClick={handleCreate} title="새 마인드맵">
+            <Plus size={16} />
+          </Button>
         </div>
+
+        {/* 마인드맵 목록 드롭다운 */}
+        {showList && (
+          <div className="mb-2 border border-border-light rounded-lg bg-bg-secondary max-h-40 overflow-y-auto">
+            {modeMapList.length === 0 ? (
+              <p className="text-xs text-text-tertiary text-center py-3">
+                이 모드에 저장된 마인드맵이 없습니다
+              </p>
+            ) : (
+              modeMapList.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer
+                    hover:bg-bg-tertiary transition-colors
+                    ${m.id === activeMapId ? 'bg-primary/10 text-primary' : 'text-text-primary'}`}
+                >
+                  <button
+                    onClick={() => handleSelect(m.id)}
+                    className="flex-1 text-left truncate"
+                  >
+                    {m.title}
+                    <span className="ml-2 text-xs text-text-tertiary">{m.nodes.length}개 노드</span>
+                  </button>
+
+                  {/* 삭제 버튼 */}
+                  {showDeleteConfirm === m.id ? (
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        className="px-2 py-0.5 text-xs text-white bg-danger rounded hover:bg-danger/80"
+                      >
+                        확인
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(null)}
+                        className="text-text-tertiary hover:text-text-primary"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowDeleteConfirm(m.id)}
+                      className="text-text-tertiary hover:text-danger shrink-0 ml-2 opacity-0 group-hover:opacity-100
+                                 transition-opacity"
+                      style={{ opacity: 1 }}
+                      title="삭제"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 노드 수 + 전체 삭제 */}
+        {activeMap && (
+          <div className="flex items-center justify-between text-xs text-text-tertiary">
+            <span>{nodes.length}개 노드</span>
+            {nodes.length > 0 && (
+              <button
+                onClick={handleClearNodes}
+                className="text-danger hover:text-danger/80 transition-colors"
+              >
+                전체 노드 삭제
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {showList && (
-        <div className="px-3 py-2 border-b border-border-light bg-bg-secondary max-h-36 overflow-y-auto">
-          {listLoading ? (
-            <div className="flex justify-center py-2"><Loader size={16} className="animate-spin text-text-tertiary" /></div>
-          ) : savedList.length === 0 ? (
-            <p className="text-xs text-text-tertiary text-center py-2">저장된 마인드맵이 없습니다</p>
-          ) : (
-            savedList.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleLoad(item.id)}
-                className="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded hover:bg-bg-tertiary transition-colors"
-              >
-                <span className="text-text-primary truncate">{item.title}</span>
-                <span className="text-xs text-text-tertiary shrink-0 ml-2">{item.nodeCount}개</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-
+      {/* 노드 추가 입력 (활성 맵이 있거나, 입력하면 자동 생성) */}
       <div className="px-4 py-3 border-b border-border-light space-y-2">
         <p className="text-xs text-text-secondary">
           선택: <span className="font-medium text-text-primary">
@@ -169,22 +236,29 @@ export default function MindmapPanel() {
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            value={nodeInput}
+            onChange={(e) => setNodeInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={selectedNode ? '하위 노드 이름' : '루트 노드 이름'}
             className="flex-1 px-3 py-1.5 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-secondary
                        focus:outline-none focus:border-primary transition-colors"
           />
-          <Button variant="primary" size="sm" onClick={handleAddNode} disabled={!inputValue.trim()} title="노드 추가">
+          <Button variant="primary" size="sm" onClick={handleAddNode} disabled={!nodeInput.trim()} title="노드 추가">
             <Plus size={16} />
           </Button>
         </div>
       </div>
 
+      {/* 캔버스 */}
       <div className="flex-1 min-h-0">
-        <MindmapCanvas />
+        {activeMap ? (
+          <MindmapCanvas />
+        ) : (
+          <div className="flex items-center justify-center h-full text-sm text-text-tertiary">
+            마인드맵을 선택하거나 새로 만드세요
+          </div>
+        )}
       </div>
     </div>
   );

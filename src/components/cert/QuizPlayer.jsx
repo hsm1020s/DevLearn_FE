@@ -21,6 +21,8 @@ export default function QuizPlayer() {
   const setCertStep = useCertStore((s) => s.setCertStep);
 
   const addNode = useMindmapStore((s) => s.addNode);
+  const activeMapId = useMindmapStore((s) => s.activeMapId);
+  const createMap = useMindmapStore((s) => s.createMap);
   const isMindmapOn = useAppStore((s) => s.isMindmapOn);
   const toggleMindmap = useAppStore((s) => s.toggleMindmap);
 
@@ -34,12 +36,14 @@ export default function QuizPlayer() {
   // 현재 문제를 마인드맵 노드로 추가하고, 마인드맵 패널이 닫혀있으면 열기
   const handleAddToMindmap = useCallback(() => {
     if (!question) return;
+    // 활성 맵이 없으면 자격증 모드로 자동 생성
+    if (!activeMapId) createMap('cert');
     const label = question.question.length > 40
       ? question.question.slice(0, 40) + '...'
       : question.question;
     addNode(null, label);
     if (!isMindmapOn) toggleMindmap();
-  }, [question, addNode, isMindmapOn, toggleMindmap]);
+  }, [question, addNode, activeMapId, createMap, isMindmapOn, toggleMindmap]);
   const total = questions.length;
   const answered = answers[question?.id];
   const isAnswered = answered !== undefined || result !== null;
