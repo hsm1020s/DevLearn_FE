@@ -8,7 +8,7 @@ import MainContent from '../components/layout/MainContent';
 /** 메인 페이지 레이아웃 (사이드바 + 콘텐츠) */
 export default function MainPage() {
   return (
-    <div className="flex h-screen">
+    <div className="flex h-full">
       <Sidebar />
       <main className="flex-1 overflow-hidden w-full">
         <MainContent />

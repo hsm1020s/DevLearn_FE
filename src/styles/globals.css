@@ -49,6 +49,11 @@
   box-sizing: border-box;
 }
 
+/* 모바일 가상 키보드 대응: dvh(dynamic viewport height) 사용 */
+html, body, #root {
+  height: 100dvh;
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
