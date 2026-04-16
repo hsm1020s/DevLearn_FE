@@ -41,3 +41,7 @@
   - 다중 삭제(삭제 모드): 삭제(N) 버튼 옆에 확인 팝오버 표시
   - 바깥 클릭 시 자동 닫힘, animate-popover-in 애니메이션 적용
 - 수정 파일: Sidebar.jsx, 빌드 성공
+- 대화 목록에 LLM 모델명 뱃지 표시 기능 추가
+  - useChatStore: createConversation에 llm 파라미터 추가
+  - Sidebar: 즐겨찾기 및 최근 대화 목록에 모델명(GPT-4o, Claude 3.5 등) 뱃지 표시
+  - 수정 파일: useChatStore.js, Sidebar.jsx, 빌드 성공
