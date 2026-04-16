@@ -7,6 +7,25 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 import Button from '../common/Button';
 import MindmapCanvas from './MindmapCanvas';
 
+function ToolbarButton({ icon: Icon, label, tooltip, onClick, variant }) {
+  const base = 'group relative flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors';
+  const style = variant === 'danger'
+    ? 'text-danger hover:bg-danger/10'
+    : 'text-text-secondary hover:text-primary hover:bg-bg-secondary';
+
+  return (
+    <button className={`${base} ${style}`} onClick={onClick}>
+      <Icon size={20} />
+      <span>{label}</span>
+      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2
+                        whitespace-nowrap rounded-md bg-gray-800 px-2.5 py-1.5 text-xs text-white
+                        opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-50">
+        {tooltip}
+      </span>
+    </button>
+  );
+}
+
 export default function MindmapPanel() {
   const [inputValue, setInputValue] = useState('');
   const [savedList, setSavedList] = useState([]);
@@ -71,20 +90,14 @@ export default function MindmapPanel() {
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border-light">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-border-light">
+        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2 mb-3">
           <span role="img" aria-label="brain">🧠</span> 마인드맵
         </h2>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={toggleList} title="불러오기">
-            <FolderOpen size={16} />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleSave} title="저장">
-            <Save size={16} />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleClearAll} title="전체삭제">
-            <Trash2 size={16} />
-          </Button>
+        <div className="flex items-center gap-2">
+          <ToolbarButton icon={FolderOpen} label="불러오기" tooltip="저장된 마인드맵 목록에서 불러옵니다" onClick={toggleList} />
+          <ToolbarButton icon={Save} label="저장" tooltip="현재 마인드맵을 서버에 저장합니다" onClick={handleSave} />
+          <ToolbarButton icon={Trash2} label="삭제" tooltip="모든 노드를 삭제합니다" onClick={handleClearAll} variant="danger" />
         </div>
       </div>
 
