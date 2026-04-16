@@ -8,14 +8,14 @@
   --color-success: #1D9E75;
   --color-warning: #BA7517;
   --color-danger: #DC3545;
-  --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #F5F5F5;
-  --color-bg-tertiary: #EEEEEE;
+  --color-bg-primary: #FAF9F5;
+  --color-bg-secondary: #F1EFE7;
+  --color-bg-tertiary: #E8E5DB;
   --color-text-primary: #1A1A1A;
   --color-text-secondary: #666666;
   --color-text-tertiary: #999999;
-  --color-border-light: #E5E5E5;
-  --color-border-medium: #CCCCCC;
+  --color-border-light: #DDD9CE;
+  --color-border-medium: #C5C0B4;
 }
 
 [data-theme="dark"] {
