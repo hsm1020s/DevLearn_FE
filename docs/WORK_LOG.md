@@ -66,3 +66,7 @@
   - PdfUploadModal: 용도 선택 UI 제거, 단일 업로드 경로로 단순화
   - PdfUploader, RagUploader: 업로드 로직 제거, 문서 목록 표시만 담당
   - QuizSettings, StudyStats, DocumentList, WorkStudyMode, AdminPage: useDocStore 참조로 전환
+- 모드명 '일반검색' → '일반'으로 변경
+- 일반 모드 채팅 UI를 클로드 스타일로 개선
+  - 빈 상태: 입력창이 화면 중앙에 위치 + 예시 질문 하단 배치
+  - 대화 시작 후: 입력창이 하단으로 이동, 메시지 영역 상단에 표시

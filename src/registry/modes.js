@@ -8,7 +8,7 @@ import { Search, FileText, Briefcase, BarChart3, BookOpen } from 'lucide-react';
 export const MODES = {
   general: {
     value: 'general',
-    label: '일반검색',
+    label: '일반',
     icon: Search,
     description: '자유로운 질의응답',
     component: () => import('../components/chat/ChatContainer'),
