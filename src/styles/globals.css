@@ -1,7 +1,14 @@
+/**
+ * @fileoverview 전역 스타일 시트
+ * CSS 변수 기반 디자인 토큰 정의, 라이트/다크 테마, 스크롤바, 애니메이션을 포함한다.
+ * tailwind.config.js에서 이 변수들을 참조하여 유틸리티 클래스로 사용한다.
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ── 라이트 테마 디자인 토큰 (크림/베이지 톤, 눈에 편한 색감) ── */
 :root {
   --color-primary: #378ADD;
   --color-primary-hover: #2A6FBB;
@@ -18,6 +25,7 @@
   --color-border-medium: #C5C0B4;
 }
 
+/* ── 다크 테마 디자인 토큰 (data-theme="dark" 속성으로 활성화) ── */
 [data-theme="dark"] {
   --color-primary: #5BA3E6;
   --color-primary-hover: #4A8FD4;
@@ -34,6 +42,7 @@
   --color-border-medium: #505050;
 }
 
+/* ── 글로벌 리셋 및 기본 스타일 ── */
 * {
   margin: 0;
   padding: 0;

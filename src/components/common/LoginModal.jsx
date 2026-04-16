@@ -1,16 +1,26 @@
-/** @fileoverview 로그인 모달 — 이메일/비밀번호 입력 후 하드코딩 계정으로 인증한다. */
+/**
+ * @fileoverview 로그인 모달 — 이메일/비밀번호 입력 후 하드코딩 계정으로 인증한다.
+ * 추후 백엔드 연동 시 useAuthStore.login()을 실제 API 호출로 교체할 예정.
+ */
 import { useState, useCallback } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import useAuthStore from '../../stores/useAuthStore';
 import { useToastStore } from './Toast';
 
+/**
+ * 로그인 모달 컴포넌트
+ * @param {boolean} isOpen - 모달 열림 여부
+ * @param {Function} onClose - 모달 닫기 핸들러
+ * @param {React.RefObject} [anchorRef] - 팝오버 앵커 위치 참조
+ */
 export default function LoginModal({ isOpen, onClose, anchorRef }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useAuthStore((s) => s.login);
   const addToast = useToastStore((s) => s.addToast);
 
+  // 폼 제출 — 빈 입력 검증 후 스토어 login 호출, 성공 시 모달 닫기
   const handleSubmit = useCallback(
     (e) => {
       e.preventDefault();
@@ -31,6 +41,7 @@ export default function LoginModal({ isOpen, onClose, anchorRef }) {
     [email, password, login, addToast, onClose],
   );
 
+  // 모달 닫기 — 입력 필드 초기화 후 닫기
   const handleClose = useCallback(() => {
     setEmail('');
     setPassword('');

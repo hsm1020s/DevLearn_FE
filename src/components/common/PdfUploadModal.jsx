@@ -8,6 +8,12 @@ import { uploadDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
+/**
+ * PDF 업로드 및 문서 관리 모달
+ * @param {boolean} isOpen - 모달 열림 여부
+ * @param {Function} onClose - 모달 닫기 핸들러
+ * @param {React.RefObject} [anchorRef] - 팝오버 앵커 위치 참조
+ */
 export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const docs = useDocStore((s) => s.docs);
   const addDoc = useDocStore((s) => s.addDoc);

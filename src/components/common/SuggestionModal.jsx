@@ -5,6 +5,7 @@ import Button from './Button';
 import { useToastStore } from './Toast';
 import { generateId } from '../../utils/helpers';
 
+/** 제안 카테고리 선택지 목록 */
 const CATEGORIES = [
   { value: 'ui', label: 'UI/UX' },
   { value: 'feature', label: '새 기능' },
@@ -13,14 +14,22 @@ const CATEGORIES = [
   { value: 'etc', label: '기타' },
 ];
 
+/** localStorage 저장 키 — 추후 백엔드 연동 시 API 호출로 교체 */
 const STORAGE_KEY = 'suggestions';
 
+/** 폼 초기 상태 */
 const initialForm = {
   categories: [],
   title: '',
   content: '',
 };
 
+/**
+ * 기능개선 제안 모달 — 카테고리 복수 선택, 제목, 상세 내용 입력
+ * @param {boolean} isOpen - 모달 열림 여부
+ * @param {Function} onClose - 모달 닫기 핸들러
+ * @param {React.RefObject} [anchorRef] - 팝오버 앵커 위치 참조
+ */
 export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
   const [form, setForm] = useState(initialForm);
   const addToast = useToastStore((s) => s.addToast);
@@ -38,6 +47,7 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
     }));
   }, []);
 
+  // 제출 — 유효성 검증 후 localStorage에 제안 데이터 추가 저장
   const handleSubmit = useCallback(() => {
     if (form.categories.length === 0 || !form.title.trim() || !form.content.trim()) {
       addToast('카테고리, 제목, 상세 내용을 모두 입력해주세요.', 'error');
@@ -50,6 +60,7 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
       createdAt: new Date().toISOString(),
     };
 
+    // 기존 제안 목록 앞에 새 제안 추가 (최신순 정렬)
     const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     localStorage.setItem(STORAGE_KEY, JSON.stringify([suggestion, ...existing]));
 
