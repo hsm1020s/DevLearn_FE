@@ -1,13 +1,13 @@
 /**
  * @fileoverview 업무학습 모드 — RAG 기반 문서 질의응답 채팅 화면.
- * 빈 상태에서는 입력창이 중앙에 위치하고, 대화 시작 후 하단으로 이동한다.
- * 우측에 업로드된 문서 목록 패널을 배치한다.
+ * EmptyChatView로 빈 상태를 공통 처리하고, 우측에 문서 패널을 배치한다.
  */
-import { Upload, BookOpen } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import useDocStore from '../../stores/useDocStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
+import EmptyChatView from '../chat/EmptyChatView';
 import DocumentList from './DocumentList';
 import SourcePanel from './SourcePanel';
 
@@ -25,38 +25,17 @@ export default function WorkStudyMode() {
       {/* 좌측: 채팅 영역 */}
       <div className="flex-1 flex flex-col min-w-0">
         {isEmpty ? (
-          /* 빈 상태 — 입력창이 화면 중앙에 위치 */
-          <div className="flex-1 flex flex-col items-center justify-center px-4" style={{ marginTop: '-16%' }}>
-            <div className="w-full max-w-2xl flex flex-col items-center gap-6">
-              {/* 환영 메시지 */}
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                {hasDocuments
-                  ? <BookOpen size={24} className="text-primary" />
-                  : <Upload size={24} className="text-primary" />}
-              </div>
-              <div className="text-center">
-                <h2 className="text-lg font-semibold text-text-primary">
-                  업무학습 모드
-                </h2>
-                <p className="text-sm text-text-secondary mt-1">
-                  {hasDocuments
-                    ? '업로드된 문서를 기반으로 질문해보세요'
-                    : '사이드바에서 PDF를 업로드하고 질문해보세요'}
-                </p>
-              </div>
-
-              {/* 중앙 입력창 */}
-              <div className="w-full">
-                <ChatInput
-                  onSend={handleSend}
-                  isStreaming={isStreaming}
-                  onStop={handleStop}
-                />
-              </div>
-            </div>
-          </div>
+          <EmptyChatView
+            icon={BookOpen}
+            title="업무학습 모드"
+            description={hasDocuments
+              ? '업로드된 문서를 기반으로 질문해보세요'
+              : '사이드바에서 PDF를 업로드하고 질문해보세요'}
+            onSend={handleSend}
+            isStreaming={isStreaming}
+            onStop={handleStop}
+          />
         ) : (
-          /* 대화 진행 중 — 메시지 목록 + 하단 입력창 */
           <>
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
               <div className="max-w-3xl mx-auto flex flex-col gap-4">
@@ -78,13 +57,8 @@ export default function WorkStudyMode() {
                 )}
               </div>
             </div>
-
             <div className="max-w-3xl mx-auto w-full">
-              <ChatInput
-                onSend={handleSend}
-                isStreaming={isStreaming}
-                onStop={handleStop}
-              />
+              <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
             </div>
           </>
         )}
