@@ -28,7 +28,7 @@ export default function ChatContainer() {
   // 빈 상태 — 입력창이 화면 중앙에 위치
   if (isEmpty) {
     return (
-      <div className="flex flex-col h-full items-center justify-center px-4" style={{ marginTop: '-10%' }}>
+      <div className="flex flex-col h-full items-center justify-center px-4" style={{ marginTop: '-7%' }}>
         <div className="w-full max-w-2xl flex flex-col items-center gap-6">
           {/* 환영 메시지 */}
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
