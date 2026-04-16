@@ -1,7 +1,7 @@
 # 프로젝트 규칙
 
 ## 경로
-- 프론트엔드: `/Users/moon/studytools`
+- 프론트엔드: `/Users/moon/DevLearn_FE`
 - 백엔드: `/Users/moon/IdeaProjects/workStudyTool`
 
 ## 작업 플로우
