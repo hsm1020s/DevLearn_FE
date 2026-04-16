@@ -90,14 +90,16 @@ export default function WorkStudyMode() {
         )}
       </div>
 
-      {/* 우측: 문서 패널 */}
-      <div className="
-        w-[240px] shrink-0
-        border-l border-border-light bg-bg-primary
-        hidden md:flex flex-col
-      ">
-        <DocumentList />
-      </div>
+      {/* 우측: 문서 패널 — 문서가 있을 때만 표시 */}
+      {hasDocuments && (
+        <div className="
+          w-[240px] shrink-0
+          border-l border-border-light bg-bg-primary
+          hidden md:flex flex-col
+        ">
+          <DocumentList />
+        </div>
+      )}
     </div>
   );
 }
