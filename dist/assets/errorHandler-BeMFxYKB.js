@@ -1,0 +1,1 @@
+import{t as s}from"./index-BfqQxFot.js";const e={DEFAULT:"요청에 실패했습니다"};function a(r){return e.DEFAULT}function n(r,t){const o=t||a();s.getState().addToast(o,"error")}function u(r){s.getState().addToast(r,"success")}export{n as a,u as s};
