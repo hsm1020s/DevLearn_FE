@@ -112,6 +112,7 @@ PDF 교재 업로드 → LLM 퀴즈 자동 생성 → 풀이 → 오답 분석.
 | 기능 | 설명 |
 |------|------|
 | 사이드바 접기/펼치기 | 200px ↔ 60px |
+| 삭제 확인 팝오버 | 대화 삭제 시 버튼 옆에 커스텀 확인 팝오버 표시 (브라우저 alert 미사용) |
 | Toast 알림 | success/error/info, 3초 자동 제거 |
 | 모달 시스템 | ragUpload, docManage, studyStats |
 | 코드 스플리팅 | React.lazy + Suspense (모드별 청크 분리) |

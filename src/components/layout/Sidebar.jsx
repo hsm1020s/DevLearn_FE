@@ -90,6 +90,10 @@ export default function Sidebar() {
   const suggestionBtnRef = useRef(null);
   const loginBtnRef = useRef(null);
 
+  // 삭제 확인 팝오버 상태 ({ type: 'single'|'batch', id?, rect })
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const deleteConfirmRef = useRef(null);
+
   // 인라인 편집 상태
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -120,6 +124,18 @@ export default function Sidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpenId]);
 
+  // 삭제 확인 팝오버 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!deleteConfirm) return;
+    const handleClickOutside = (e) => {
+      if (deleteConfirmRef.current && !deleteConfirmRef.current.contains(e.target)) {
+        setDeleteConfirm(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [deleteConfirm]);
+
   // 편집 모드 진입 시 input 포커스
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -141,12 +157,12 @@ export default function Sidebar() {
     setEditValue('');
   }, [editingId, editValue, renameConversation]);
 
-  const handleDeleteSingle = useCallback((id) => {
+  // 개별 삭제 — 삭제 버튼 위치에 확인 팝오버 표시
+  const handleDeleteSingle = useCallback((id, e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
     setMenuOpenId(null);
-    if (window.confirm('이 대화를 삭제하시겠습니까?')) {
-      deleteConversations([id]);
-    }
-  }, [deleteConversations]);
+    setDeleteConfirm({ type: 'single', id, rect });
+  }, []);
 
   const toggleDeleteMode = useCallback(() => {
     setIsDeleteMode((prev) => !prev);
@@ -162,14 +178,25 @@ export default function Sidebar() {
     });
   }, []);
 
-  const handleDeleteSelected = useCallback(() => {
+  // 다중 삭제 — 삭제 버튼 위치에 확인 팝오버 표시
+  const handleDeleteSelected = useCallback((e) => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`${selectedIds.size}개의 대화를 삭제하시겠습니까?`)) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDeleteConfirm({ type: 'batch', rect });
+  }, [selectedIds]);
+
+  // 삭제 확인 팝오버에서 "삭제" 클릭 시 실제 삭제 수행
+  const confirmDelete = useCallback(() => {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.type === 'single') {
+      deleteConversations([deleteConfirm.id]);
+    } else {
       deleteConversations([...selectedIds]);
       setIsDeleteMode(false);
       setSelectedIds(new Set());
     }
-  }, [selectedIds, deleteConversations]);
+    setDeleteConfirm(null);
+  }, [deleteConfirm, deleteConversations, selectedIds]);
 
   const isAllSelected = conversations.length > 0 && selectedIds.size === conversations.length;
 
@@ -437,7 +464,7 @@ export default function Sidebar() {
                       <Pencil size={12} /> 이름 변경
                     </button>
                     <button
-                      onClick={() => handleDeleteSingle(conv.id)}
+                      onClick={(e) => handleDeleteSingle(conv.id, e)}
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-danger hover:bg-danger/10 transition-colors"
                     >
                       <Trash2 size={12} /> 삭제
@@ -535,6 +562,38 @@ export default function Sidebar() {
       <PdfUploadModal isOpen={showPdfUpload} onClose={() => setShowPdfUpload(false)} anchorRef={pdfBtnRef} />
       <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} anchorRef={loginBtnRef} />
+
+      {/* 삭제 확인 팝오버 — 삭제 버튼 바로 옆에 fixed로 표시 */}
+      {deleteConfirm && (
+        <div
+          ref={deleteConfirmRef}
+          className="fixed z-[999] bg-white border border-border-light rounded-lg shadow-lg p-3 min-w-[160px] animate-popover-in"
+          style={{
+            top: deleteConfirm.rect.top,
+            left: deleteConfirm.rect.right + 6,
+          }}
+        >
+          <p className="text-xs text-text-primary mb-2.5">
+            {deleteConfirm.type === 'single'
+              ? '이 대화를 삭제할까요?'
+              : `${selectedIds.size}개의 대화를 삭제할까요?`}
+          </p>
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              onClick={() => setDeleteConfirm(null)}
+              className="text-xs px-2.5 py-1 rounded text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="text-xs px-2.5 py-1 rounded bg-danger text-white hover:bg-danger/90 transition-colors"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
