@@ -13,7 +13,7 @@ export default function SplitView({ leftContent, rightContent, isRightVisible })
   return (
     <div className="flex h-full">
       <div
-        className={`overflow-y-auto ${
+        className={`h-full overflow-y-auto ${
           isRightVisible ? 'w-1/2 border-r border-border-light' : 'w-full'
         }`}
       >
