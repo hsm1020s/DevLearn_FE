@@ -16,11 +16,11 @@ const useChatStore = create(
       isStreaming: false,
 
       /** 새 대화를 생성하고 현재 대화로 설정 */
-      createConversation: (mode, llm) => {
+      createConversation: (mode, llm, title) => {
         const id = generateId();
         const conversation = {
           id,
-          title: '새 대화',
+          title: title || '새 대화',
           mode,
           llm, // 대화 생성 시 선택된 LLM 모델
           createdAt: new Date().toISOString(),

@@ -90,6 +90,9 @@ export default function Sidebar() {
   const suggestionBtnRef = useRef(null);
   const loginBtnRef = useRef(null);
 
+  // 새 대화명 입력 상태
+  const [newConvTitle, setNewConvTitle] = useState('');
+
   // 삭제 확인 팝오버 상태 ({ type: 'single'|'batch', id?, rect })
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const deleteConfirmRef = useRef(null);
@@ -208,9 +211,11 @@ export default function Sidebar() {
     }
   }, [isAllSelected, conversations]);
 
-  // 새 대화 생성 후 기존 메시지 초기화 (선택된 LLM도 함께 저장)
+  // 새 대화 생성 후 기존 메시지 초기화 (선택된 LLM, 입력된 대화명 함께 저장)
   const handleNewConversation = () => {
-    createConversation(mainMode, selectedLLM);
+    const title = newConvTitle.trim();
+    createConversation(mainMode, selectedLLM, title);
+    setNewConvTitle('');
     clearMessages();
   };
 
@@ -279,9 +284,21 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* New Conversation */}
+      {/* New Conversation — 대화명 입력 + 생성 버튼 */}
       {!collapsed && (
-        <div className="px-3 py-3 border-b border-border-light">
+        <div className="px-3 py-3 border-b border-border-light flex flex-col gap-2">
+          <input
+            type="text"
+            value={newConvTitle}
+            onChange={(e) => setNewConvTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleNewConversation();
+            }}
+            placeholder="대화명 입력 (선택)"
+            className="w-full px-2.5 py-1.5 text-sm border border-border-light rounded-md
+                       bg-bg-primary text-text-primary placeholder:text-text-tertiary
+                       focus:outline-none focus:border-primary transition-colors"
+          />
           <Button
             variant="primary"
             size="sm"
