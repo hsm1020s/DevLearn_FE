@@ -45,3 +45,4 @@
   - useChatStore: createConversation에 llm 파라미터 추가
   - Sidebar: 즐겨찾기 및 최근 대화 목록에 모델명(GPT-4o, Claude 3.5 등) 뱃지 표시
   - 수정 파일: useChatStore.js, Sidebar.jsx, 빌드 성공
+- LLM 모델명 뱃지를 제목 아래(왼쪽)로 이동하여 ··· 메뉴 버튼과 겹침 해소

@@ -320,13 +320,15 @@ export default function Sidebar() {
                           : 'text-text-primary hover:bg-bg-secondary'}
                       `}
                     >
-                      <Icon size={16} className="shrink-0" />
-                      <span className="truncate flex-1">{conv.title}</span>
-                      {conv.llm && (
-                        <span className="shrink-0 text-[10px] text-text-tertiary bg-bg-secondary rounded px-1 py-0.5">
-                          {llmLabelMap[conv.llm] ?? conv.llm}
-                        </span>
-                      )}
+                      <Icon size={16} className="shrink-0 mt-0.5" />
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="truncate">{conv.title}</span>
+                        {conv.llm && (
+                          <span className="text-[10px] text-text-tertiary leading-tight">
+                            {llmLabelMap[conv.llm] ?? conv.llm}
+                          </span>
+                        )}
+                      </div>
                       <Star
                         size={12}
                         className="shrink-0 text-yellow-500 fill-yellow-500 hover:opacity-60 transition-opacity"
@@ -439,16 +441,16 @@ export default function Sidebar() {
                         className="shrink-0 accent-danger pointer-events-none"
                       />
                     )}
-                    <Icon size={16} className="shrink-0" />
+                    <Icon size={16} className="shrink-0 mt-0.5" />
                     {!collapsed && (
-                      <>
-                        <span className="truncate flex-1">{conv.title}</span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="truncate">{conv.title}</span>
                         {conv.llm && (
-                          <span className="shrink-0 text-[10px] text-text-tertiary bg-bg-secondary rounded px-1 py-0.5">
+                          <span className="text-[10px] text-text-tertiary leading-tight">
                             {llmLabelMap[conv.llm] ?? conv.llm}
                           </span>
                         )}
-                      </>
+                      </div>
                     )}
                   </button>
                 )}
