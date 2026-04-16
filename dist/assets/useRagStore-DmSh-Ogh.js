@@ -1,0 +1,1 @@
+import{o as t,h as g}from"./index-BycaATuy.js";const i=t(s=>({ragDocs:[],addDoc:r=>{const o={id:g(),status:"indexing",progress:0,...r};return s(a=>({ragDocs:[...a.ragDocs,o]})),o},updateDocStatus:(r,o,a)=>s(e=>({ragDocs:e.ragDocs.map(c=>c.id===r?{...c,status:o,progress:a}:c)})),removeDoc:r=>s(o=>({ragDocs:o.ragDocs.filter(a=>a.id!==r)}))}));export{i as u};

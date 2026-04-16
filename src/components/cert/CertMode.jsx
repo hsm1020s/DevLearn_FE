@@ -1,0 +1,88 @@
+import { Trophy, RotateCcw, PlusCircle } from 'lucide-react';
+import Button from '../common/Button';
+import useCertStore from '../../stores/useCertStore';
+import PdfUploader from './PdfUploader';
+import QuizSettings from './QuizSettings';
+import QuizPlayer from './QuizPlayer';
+
+function QuizResult() {
+  const currentQuiz = useCertStore((s) => s.currentQuiz);
+  const answers = useCertStore((s) => s.answers);
+  const setCertStep = useCertStore((s) => s.setCertStep);
+  const setQuestionIndex = useCertStore((s) => s.setQuestionIndex);
+  const resetQuiz = useCertStore((s) => s.resetQuiz);
+  const submitAnswer = useCertStore((s) => s.submitAnswer);
+
+  const questions = currentQuiz?.questions || [];
+  const total = questions.length;
+  const correctCount = questions.filter(
+    (q) => answers[q.id]?.correct
+  ).length;
+  const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+  const handleRetry = () => {
+    questions.forEach((q) => submitAnswer(q.id, undefined));
+    useCertStore.setState({ answers: {} });
+    setQuestionIndex(0);
+    setCertStep('quiz');
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-6 py-8">
+      <Trophy className="w-12 h-12 text-warning" />
+      <h2 className="text-xl font-bold text-text-primary">퀴즈 결과</h2>
+
+      <div className="flex gap-8 text-center">
+        <div>
+          <p className="text-3xl font-bold text-primary">{correctCount}</p>
+          <p className="text-xs text-text-secondary mt-1">정답</p>
+        </div>
+        <div>
+          <p className="text-3xl font-bold text-text-primary">{total}</p>
+          <p className="text-xs text-text-secondary mt-1">총 문제</p>
+        </div>
+        <div>
+          <p className="text-3xl font-bold text-text-primary">{rate}%</p>
+          <p className="text-xs text-text-secondary mt-1">정답률</p>
+        </div>
+      </div>
+
+      <div className="w-full max-w-xs h-2 rounded bg-bg-secondary">
+        <div
+          className="h-full rounded bg-primary transition-all"
+          style={{ width: `${rate}%` }}
+        />
+      </div>
+
+      <div className="flex gap-3 mt-4">
+        <Button variant="secondary" onClick={handleRetry}>
+          <RotateCcw className="w-4 h-4" />
+          다시 풀기
+        </Button>
+        <Button onClick={resetQuiz}>
+          <PlusCircle className="w-4 h-4" />
+          새 퀴즈
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function CertMode() {
+  const certStep = useCertStore((s) => s.certStep);
+
+  const stepComponents = {
+    upload: PdfUploader,
+    settings: QuizSettings,
+    quiz: QuizPlayer,
+    result: QuizResult,
+  };
+
+  const StepComponent = stepComponents[certStep] || PdfUploader;
+
+  return (
+    <div className="flex flex-col gap-4 p-4 max-w-2xl mx-auto">
+      <StepComponent />
+    </div>
+  );
+}

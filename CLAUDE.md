@@ -1,0 +1,10 @@
+# 프로젝트 규칙
+
+## 경로
+- 프론트엔드: /Users/moon/studytools
+- 백엔드: /Users/moon/IdeaProjects/workStudyTool
+
+## 작업 원칙
+- 구현하기 전에 반드시 설계를 먼저 한다. 설계 확인 후 구현에 들어간다. 구현하기 전에 반드시 물어본다.
+- 매 작업 완료 후 docs/WORK_LOG.md에 날짜별로 요약을 기록한다.
+- 규모가 큰 구현 작업 시 git worktree를 생성하여 기능별로 브랜치를 분리하고, 에이전트를 병렬로 실행한 뒤 완료 후 master에 머지한다.
