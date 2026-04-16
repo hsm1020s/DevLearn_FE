@@ -1,92 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, BookOpen } from 'lucide-react';
-import useChatStore from '../../stores/useChatStore';
-import useAppStore from '../../stores/useAppStore';
 import useRagStore from '../../stores/useRagStore';
-import { streamMessage } from '../../services/chatApi';
+import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
 import DocumentList from './DocumentList';
 import SourcePanel from './SourcePanel';
 
 export default function WorkStudyMode() {
-  const messages = useChatStore((s) => s.messages);
-  const isStreaming = useChatStore((s) => s.isStreaming);
-  const currentConversationId = useChatStore((s) => s.currentConversationId);
-  const addMessage = useChatStore((s) => s.addMessage);
-  const setStreaming = useChatStore((s) => s.setStreaming);
-  const createConversation = useChatStore((s) => s.createConversation);
-  const selectedLLM = useAppStore((s) => s.selectedLLM);
   const ragDocs = useRagStore((s) => s.ragDocs);
-
-  const [streamingContent, setStreamingContent] = useState('');
-  const scrollRef = useRef(null);
-  const abortRef = useRef(false);
-
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingContent, scrollToBottom]);
-
-  const handleSend = useCallback(
-    async (content) => {
-      let convId = currentConversationId;
-      if (!convId) {
-        convId = createConversation('work');
-      }
-
-      addMessage({ role: 'user', content });
-      setStreaming(true);
-      setStreamingContent('');
-      abortRef.current = false;
-
-      try {
-        await streamMessage({
-          message: content,
-          mode: 'work',
-          llm: selectedLLM,
-          conversationId: convId,
-          onToken: (accumulated) => {
-            if (!abortRef.current) {
-              setStreamingContent(accumulated);
-            }
-          },
-          onDone: (result) => {
-            if (!abortRef.current) {
-              addMessage({
-                role: 'assistant',
-                content: result.content,
-                sources: result.sources,
-              });
-            }
-            setStreamingContent('');
-            setStreaming(false);
-          },
-        });
-      } catch {
-        setStreamingContent('');
-        setStreaming(false);
-      }
-    },
-    [currentConversationId, createConversation, addMessage, setStreaming, selectedLLM],
-  );
-
-  const handleStop = useCallback(() => {
-    abortRef.current = true;
-    if (streamingContent) {
-      addMessage({ role: 'assistant', content: streamingContent });
-    }
-    setStreamingContent('');
-    setStreaming(false);
-  }, [streamingContent, addMessage, setStreaming]);
+  const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
+    useStreamingChat('work');
 
   const hasDocuments = ragDocs.length > 0;
 

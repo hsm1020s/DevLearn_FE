@@ -1,1 +1,0 @@
-import{h as a}from"./index-BycaATuy.js";const o=500;async function s(t){return await new Promise(e=>setTimeout(e,o)),{docId:a(),fileName:t.name,pages:Math.floor(Math.random()*100)+20,chunks:Math.floor(Math.random()*300)+50,status:"completed"}}async function r(t){return await new Promise(e=>setTimeout(e,o)),{success:!0}}export{r as d,s as u};

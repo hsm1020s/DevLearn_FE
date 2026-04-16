@@ -1,12 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import useAppStore from '../../stores/useAppStore';
+import { getModeConfig } from '../../registry/modes';
 import ModeHeader from './ModeHeader';
 import SplitView from './SplitView';
 import Modal from '../common/Modal';
 
-const ChatContainer = lazy(() => import('../chat/ChatContainer'));
-const WorkStudyMode = lazy(() => import('../work/WorkStudyMode'));
-const CertMode = lazy(() => import('../cert/CertMode'));
 const MindmapPanel = lazy(() => import('../mindmap/MindmapPanel'));
 const RagUploader = lazy(() => import('../work/RagUploader'));
 const DocumentList = lazy(() => import('../work/DocumentList'));
@@ -26,24 +24,16 @@ function LoadingFallback() {
   );
 }
 
-function ModeContent({ mode }) {
-  switch (mode) {
-    case 'general':
-      return <ChatContainer />;
-    case 'work':
-      return <WorkStudyMode />;
-    case 'cert':
-      return <CertMode />;
-    default:
-      return null;
-  }
-}
-
 export default function MainContent() {
   const mainMode = useAppStore((s) => s.mainMode);
   const isMindmapOn = useAppStore((s) => s.isMindmapOn);
   const activeModal = useAppStore((s) => s.activeModal);
   const closeModal = useAppStore((s) => s.closeModal);
+
+  const ModeComponent = useMemo(
+    () => lazy(getModeConfig(mainMode).component),
+    [mainMode],
+  );
 
   const modalCfg = MODAL_CONFIG[activeModal];
 
@@ -53,7 +43,7 @@ export default function MainContent() {
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<LoadingFallback />}>
           <SplitView
-            leftContent={<ModeContent mode={mainMode} />}
+            leftContent={<ModeComponent />}
             rightContent={<MindmapPanel />}
             isRightVisible={isMindmapOn}
           />

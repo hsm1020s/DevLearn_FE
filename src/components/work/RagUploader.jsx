@@ -4,6 +4,7 @@ import Button from '../common/Button';
 import useRagStore from '../../stores/useRagStore';
 import { uploadDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
+import { showError, showSuccess } from '../../utils/errorHandler';
 
 export default function RagUploader({ onDone }) {
   const [dragging, setDragging] = useState(false);
@@ -24,8 +25,10 @@ export default function RagUploader({ onDone }) {
             d.id === doc.id ? { ...d, pages: result.pages, chunks: result.chunks } : d
           ),
         }));
+        showSuccess('문서가 업로드되었습니다');
       } catch {
         updateDocStatus(doc.id, 'error', 0);
+        showError(null, '문서 업로드에 실패했습니다');
       }
     }
   };

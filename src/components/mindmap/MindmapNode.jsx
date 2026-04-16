@@ -5,7 +5,7 @@ import useMindmapStore from '../../stores/useMindmapStore';
 const handleStyle = {
   width: 8,
   height: 8,
-  background: '#378ADD',
+  background: 'var(--color-primary)',
   border: '2px solid white',
 };
 

@@ -3,8 +3,9 @@ import { FileText, Trash2, FolderOpen } from 'lucide-react';
 import useRagStore from '../../stores/useRagStore';
 import { deleteDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
-import { useToastStore } from '../common/Toast';
+import { showError, showSuccess } from '../../utils/errorHandler';
 import Badge from '../common/Badge';
+import Button from '../common/Button';
 
 const STATUS_BADGE_COLOR = {
   processing: 'yellow',
@@ -13,10 +14,9 @@ const STATUS_BADGE_COLOR = {
   error: 'red',
 };
 
-export default function DocumentList() {
+export default function DocumentList({ onDone }) {
   const ragDocs = useRagStore((s) => s.ragDocs);
   const removeDoc = useRagStore((s) => s.removeDoc);
-  const addToast = useToastStore((s) => s.addToast);
 
   const completedDocs = ragDocs.filter((d) => d.status === 'completed');
   const totalChunks = completedDocs.reduce((sum, d) => sum + (d.chunks || 0), 0);
@@ -26,12 +26,12 @@ export default function DocumentList() {
       try {
         await deleteDocument(id);
         removeDoc(id);
-        addToast('문서가 삭제되었습니다', 'success');
-      } catch {
-        addToast('문서 삭제에 실패했습니다', 'error');
+        showSuccess('문서가 삭제되었습니다');
+      } catch (err) {
+        showError(null, '문서 삭제에 실패했습니다');
       }
     },
-    [removeDoc, addToast],
+    [removeDoc],
   );
 
   if (ragDocs.length === 0) {
@@ -105,6 +105,12 @@ export default function DocumentList() {
       <div className="border-t border-border-light px-3 py-2 text-xs text-text-tertiary">
         문서: {completedDocs.length} | 청크: {totalChunks}
       </div>
+
+      {onDone && (
+        <div className="px-3 pb-3 flex justify-end">
+          <Button variant="secondary" size="sm" onClick={onDone}>닫기</Button>
+        </div>
+      )}
     </div>
   );
 }

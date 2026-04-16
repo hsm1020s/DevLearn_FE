@@ -1,8 +1,6 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
 import { MessageSquare } from 'lucide-react';
-import useChatStore from '../../stores/useChatStore';
 import useAppStore from '../../stores/useAppStore';
-import { streamMessage } from '../../services/chatApi';
+import useStreamingChat from '../../hooks/useStreamingChat';
 import { MAIN_MODES } from '../../utils/constants';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
@@ -14,81 +12,17 @@ const EXAMPLE_QUESTIONS = [
 ];
 
 export default function ChatContainer() {
-  const messages = useChatStore((s) => s.messages);
-  const isStreaming = useChatStore((s) => s.isStreaming);
-  const addMessage = useChatStore((s) => s.addMessage);
-  const setStreaming = useChatStore((s) => s.setStreaming);
-  const currentConversationId = useChatStore((s) => s.currentConversationId);
-  const createConversation = useChatStore((s) => s.createConversation);
-
-  const selectedLLM = useAppStore((s) => s.selectedLLM);
   const mainMode = useAppStore((s) => s.mainMode);
-
-  const [streamingContent, setStreamingContent] = useState('');
-  const abortRef = useRef(false);
-  const bottomRef = useRef(null);
+  const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
+    useStreamingChat(mainMode);
 
   const modeLabel = MAIN_MODES.find((m) => m.value === mainMode)?.label ?? '일반검색';
-
-  // 새 메시지 시 자동 스크롤
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
-
-  const handleSend = useCallback(
-    async (text) => {
-      abortRef.current = false;
-
-      // 대화가 없으면 새로 생성
-      let convId = currentConversationId;
-      if (!convId) {
-        convId = createConversation(mainMode);
-      }
-
-      addMessage({ role: 'user', content: text });
-      setStreaming(true);
-      setStreamingContent('');
-
-      await streamMessage({
-        message: text,
-        mode: mainMode,
-        llm: selectedLLM,
-        conversationId: convId,
-        onToken: (accumulated) => {
-          if (abortRef.current) return;
-          setStreamingContent(accumulated);
-        },
-        onDone: (result) => {
-          if (!abortRef.current) {
-            addMessage({
-              role: 'assistant',
-              content: result.content,
-              sources: result.sources,
-            });
-          }
-          setStreamingContent('');
-          setStreaming(false);
-        },
-      });
-    },
-    [currentConversationId, createConversation, mainMode, selectedLLM, addMessage, setStreaming],
-  );
-
-  const handleStop = useCallback(() => {
-    abortRef.current = true;
-    if (streamingContent) {
-      addMessage({ role: 'assistant', content: streamingContent });
-    }
-    setStreamingContent('');
-    setStreaming(false);
-  }, [streamingContent, addMessage, setStreaming]);
-
   const isEmpty = messages.length === 0 && !streamingContent;
 
   return (
     <div className="flex flex-col h-full">
       {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
         {isEmpty ? (
           <WelcomeView modeLabel={modeLabel} onSelect={handleSend} />
         ) : (
@@ -102,7 +36,6 @@ export default function ChatContainer() {
                 isStreaming
               />
             )}
-            <div ref={bottomRef} />
           </div>
         )}
       </div>

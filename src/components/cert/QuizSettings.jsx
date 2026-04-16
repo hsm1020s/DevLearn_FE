@@ -5,6 +5,7 @@ import Dropdown from '../common/Dropdown';
 import useCertStore from '../../stores/useCertStore';
 import { generateQuiz } from '../../services/certApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
+import { showError } from '../../utils/errorHandler';
 
 const countOptions = QUIZ_COUNTS.map((n) => ({ value: String(n), label: `${n}문제` }));
 
@@ -63,6 +64,8 @@ export default function QuizSettings() {
       });
       setQuiz(result);
       setCertStep('quiz');
+    } catch {
+      showError(null, '퀴즈 생성에 실패했습니다');
     } finally {
       setLoading(false);
     }

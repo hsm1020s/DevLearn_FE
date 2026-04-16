@@ -1,40 +1,25 @@
-import { generateId } from '../utils/helpers';
-
-const MOCK_DELAY = 500;
+import { API_CONFIG } from './api.config';
+import * as mock from './mock/certMock';
+import api from './api';
 
 export async function uploadPdf(file) {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
-  return {
-    docId: generateId(),
-    fileName: file.name,
-    pages: Math.floor(Math.random() * 200) + 50,
-    chunks: Math.floor(Math.random() * 800) + 200,
-    status: 'completed',
-  };
+  if (API_CONFIG.useMock) return mock.uploadPdf(file);
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post('/cert/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
 }
 
-export async function generateQuiz({ docIds, chapters, count, difficulty, types }) {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
-
-  const questions = Array.from({ length: count }, (_, i) => ({
-    id: `q${i + 1}`,
-    type: types[i % types.length],
-    question: `[Mock] 샘플 문제 ${i + 1}번입니다. 다음 중 올바른 것은?`,
-    options: ['보기 1', '보기 2', '보기 3', '보기 4'],
-    answer: Math.floor(Math.random() * 4),
-    explanation: `문제 ${i + 1}의 해설입니다. 정답은 해당 보기가 올바른 설명이기 때문입니다.`,
-    chapter: chapters?.[i % (chapters?.length || 1)] || 1,
-  }));
-
-  return { quizId: generateId(), questions };
+export async function generateQuiz(params) {
+  if (API_CONFIG.useMock) return mock.generateQuiz(params);
+  const { data } = await api.post('/cert/generate-quiz', params);
+  return data;
 }
 
-export async function submitAnswer({ quizId, questionId, userAnswer }) {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
-  const correct = Math.random() > 0.4;
-  return {
-    correct,
-    correctAnswer: correct ? userAnswer : (userAnswer + 1) % 4,
-    explanation: '이 문제의 핵심은 개념의 정확한 이해입니다. Mock 해설 데이터입니다.',
-  };
+export async function submitAnswer(params) {
+  if (API_CONFIG.useMock) return mock.submitAnswer(params);
+  const { data } = await api.post('/cert/submit', params);
+  return data;
 }

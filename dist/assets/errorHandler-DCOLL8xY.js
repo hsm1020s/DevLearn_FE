@@ -1,0 +1,1 @@
+import{s as r}from"./index-BPTvy0Or.js";const e={DEFAULT:"요청에 실패했습니다"};function a(s){return e.DEFAULT}function n(s,o){const t=o||a();r.getState().addToast(t,"error")}function u(s){r.getState().addToast(s,"success")}export{n as a,u as s};

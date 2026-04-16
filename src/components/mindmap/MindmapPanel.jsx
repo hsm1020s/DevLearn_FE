@@ -3,6 +3,7 @@ import { Save, Trash2, Plus, FolderOpen, Loader } from 'lucide-react';
 
 import useMindmapStore from '../../stores/useMindmapStore';
 import { saveMindmap, getMindmapList, getMindmap } from '../../services/mindmapApi';
+import { showError, showSuccess } from '../../utils/errorHandler';
 import Button from '../common/Button';
 import MindmapCanvas from './MindmapCanvas';
 
@@ -22,9 +23,9 @@ export default function MindmapPanel() {
   const handleSave = useCallback(async () => {
     try {
       const result = await saveMindmap({ title: '마인드맵', nodes });
-      alert(`저장 완료 (${result.nodeCount}개 노드)`);
+      showSuccess('마인드맵이 저장되었습니다');
     } catch {
-      alert('저장에 실패했습니다.');
+      showError(null, '마인드맵 저장에 실패했습니다');
     }
   }, [nodes]);
 
@@ -64,7 +65,7 @@ export default function MindmapPanel() {
       useMindmapStore.setState({ nodes: data.nodes, selectedNodeId: null });
       setShowList(false);
     } catch {
-      alert('불러오기에 실패했습니다.');
+      showError(null, '마인드맵 불러오기에 실패했습니다');
     }
   }, []);
 

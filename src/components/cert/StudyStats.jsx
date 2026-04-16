@@ -1,7 +1,8 @@
 import { BarChart3, CheckCircle, XCircle, BookOpen } from 'lucide-react';
 import useCertStore from '../../stores/useCertStore';
+import Button from '../common/Button';
 
-export default function StudyStats() {
+export default function StudyStats({ onDone }) {
   const currentQuiz = useCertStore((s) => s.currentQuiz);
   const answers = useCertStore((s) => s.answers);
   const certDocs = useCertStore((s) => s.certDocs);
@@ -52,6 +53,12 @@ export default function StudyStats() {
         <p className="text-sm text-text-tertiary text-center py-4">
           아직 풀이한 퀴즈가 없습니다
         </p>
+      )}
+
+      {onDone && (
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm" onClick={onDone}>닫기</Button>
+        </div>
       )}
     </div>
   );

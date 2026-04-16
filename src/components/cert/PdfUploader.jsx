@@ -4,6 +4,7 @@ import Button from '../common/Button';
 import useCertStore from '../../stores/useCertStore';
 import { uploadPdf } from '../../services/certApi';
 import { DOC_STATUS } from '../../utils/constants';
+import { showError } from '../../utils/errorHandler';
 
 export default function PdfUploader() {
   const [dragging, setDragging] = useState(false);
@@ -25,6 +26,7 @@ export default function PdfUploader() {
         updateDocStatus(doc.id, 'completed', 100);
       } catch {
         updateDocStatus(doc.id, 'error', 0);
+        showError(null, 'PDF 업로드에 실패했습니다');
       }
     }
   };

@@ -3,9 +3,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  Search,
-  FileText,
-  Briefcase,
   Settings,
   BookOpen,
   Brain,
@@ -16,18 +13,8 @@ import useChatStore from '../../stores/useChatStore';
 import Dropdown from '../common/Dropdown';
 import Toggle from '../common/Toggle';
 import Button from '../common/Button';
-import { LLM_OPTIONS, MAIN_MODES, MODE_ICONS } from '../../utils/constants';
-
-const ICON_MAP = {
-  Search,
-  FileText,
-  Briefcase,
-};
-
-function getModeIcon(mode) {
-  const iconName = MODE_ICONS[mode];
-  return ICON_MAP[iconName] || Search;
-}
+import { LLM_OPTIONS } from '../../utils/constants';
+import { MODE_LIST, getModeConfig } from '../../registry/modes';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -58,7 +45,7 @@ export default function Sidebar() {
     setCurrentConversation(id);
   };
 
-  const modeOptions = MAIN_MODES.map(({ value, label }) => ({ value, label }));
+  const modeOptions = MODE_LIST.map(({ value, label }) => ({ value, label }));
 
   return (
     <aside
@@ -150,7 +137,7 @@ export default function Sidebar() {
         )}
         <ul className="flex flex-col gap-0.5">
           {conversations.map((conv) => {
-            const Icon = getModeIcon(conv.mode);
+            const Icon = getModeConfig(conv.mode).icon;
             const isActive = conv.id === currentConversationId;
             return (
               <li key={conv.id}>

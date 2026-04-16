@@ -9,7 +9,7 @@ import NodeContextMenu from './NodeContextMenu';
 
 const nodeTypes = { mindmapNode: MindmapNode };
 
-const defaultEdgeStyle = { stroke: '#378ADD', strokeWidth: 2 };
+const defaultEdgeStyle = { stroke: 'var(--color-primary)', strokeWidth: 2 };
 
 export default function MindmapCanvas() {
   const nodes = useMindmapStore((s) => s.nodes);
@@ -84,7 +84,7 @@ export default function MindmapCanvas() {
         fitView
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#E5E5E5" gap={20} />
+        <Background color="var(--color-border-light)" gap={20} />
         <MindmapControls />
       </ReactFlow>
 
