@@ -3,6 +3,7 @@ import ReactFlow, { Background, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import useMindmapStore from '../../stores/useMindmapStore';
+import { computeLayout } from '../../utils/layoutGraph';
 import MindmapNode from './MindmapNode';
 import MindmapControls from './MindmapControls';
 import NodeContextMenu from './NodeContextMenu';
@@ -19,16 +20,18 @@ export default function MindmapCanvas() {
 
   const [contextMenu, setContextMenu] = useState(null);
 
+  const positions = useMemo(() => computeLayout(nodes), [nodes]);
+
   const rfNodes = useMemo(
     () =>
       nodes.map((n) => ({
         id: n.id,
-        position: n.position,
+        position: positions.get(n.id) || n.position,
         data: { label: n.label, color: n.color },
         type: 'mindmapNode',
         selected: n.id === selectedNodeId,
       })),
-    [nodes, selectedNodeId],
+    [nodes, selectedNodeId, positions],
   );
 
   const rfEdges = useMemo(

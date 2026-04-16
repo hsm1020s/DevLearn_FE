@@ -42,7 +42,7 @@ export default function MindmapPanel() {
   }, [inputValue, selectedNodeId, addNode]);
 
   const handleKeyDown = useCallback(
-    (e) => { if (e.key === 'Enter') handleAddNode(); },
+    (e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddNode(); },
     [handleAddNode],
   );
 

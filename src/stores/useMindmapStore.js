@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { generateId, calculateNodePosition } from '../utils/helpers';
+import { generateId } from '../utils/helpers';
 
 const useMindmapStore = create(
   persist(
@@ -9,10 +9,8 @@ const useMindmapStore = create(
       selectedNodeId: null,
 
       addNode: (parentId, label) => {
-        const { nodes } = get();
         const id = generateId();
-        const position = calculateNodePosition(parentId, nodes);
-        const node = { id, label, parentId, position, color: null };
+        const node = { id, label, parentId, position: { x: 0, y: 0 }, color: null };
         set((state) => ({ nodes: [...state.nodes, node] }));
         return node;
       },
