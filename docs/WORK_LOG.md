@@ -24,3 +24,13 @@
 - 코드 스플리팅 적용 (React.lazy + Suspense, 569KB→청크 분리)
 - 신규 파일 5개: RagUploader, StudyStats, NodeContextMenu, Toast, (MindmapNode/Panel 대폭 확장)
 - 빌드 성공 확인
+
+## 2026-04-16 (3차) — 리팩토링 R1~R7
+- R1: 버그 수정 — QuizPlayer TDZ에러, SourcePanel border, chatApi sources 누락, 하드코딩 색상
+- R2: 모드 레지스트리 패턴 — registry/modes.js 1곳에서 모드 정의, constants/ModeHeader/MainContent/Sidebar 연동
+- R3: 스트리밍 커스텀 훅 — hooks/useStreamingChat.js 추출, ChatContainer(156→91줄) WorkStudyMode(171→97줄) 중복 제거
+- R4: API 레이어 — mock/real 분리 (services/mock/), api.config.js 환경변수 전환, SSE 스트리밍 실제 구현 준비
+- R5: 상태 영속성 — Zustand persist 미들웨어 적용 (대화/문서/마인드맵 localStorage 저장)
+- R6: 에러처리 통합 — errorHandler.js 중앙화, alert() 전부 Toast 전환, Modal onDone prop 수정
+- R7: 디자인 토큰 — CSS 변수 체계 구축 (:root + dark mode), 하드코딩 색상 제거
+- 신규 파일 8개, 수정 파일 25개, 빌드 성공, dev 서버 정상 확인
