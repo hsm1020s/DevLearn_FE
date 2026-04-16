@@ -45,7 +45,7 @@ export default function useStreamingChat(mode) {
       // 대화가 없으면 새로 생성
       let convId = currentConversationId;
       if (!convId) {
-        convId = createConversation(mode);
+        convId = createConversation(mode, selectedLLM);
       }
       addMessage({ role: 'user', content });
       setStreaming(true);
