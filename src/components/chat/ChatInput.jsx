@@ -40,7 +40,7 @@ export default function ChatInput({ onSend, isStreaming, onStop }) {
   // Enter 키로 전송, Shift+Enter는 줄바꿈 허용
   const handleKeyDown = useCallback(
     (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
         e.preventDefault();
         handleSend();
       }
