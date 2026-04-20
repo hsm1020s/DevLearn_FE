@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle } from 'lucide-react';
 
 import useAppStore from '../../stores/useAppStore';
+import useAuthStore from '../../stores/useAuthStore';
 import useMindmapStore from '../../stores/useMindmapStore';
 import { showSuccess } from '../../utils/errorHandler';
 import Button from '../common/Button';
@@ -14,6 +15,7 @@ import MindmapCanvas from './MindmapCanvas';
 /** 마인드맵 패널 메인 컴포넌트 */
 export default function MindmapPanel() {
   const mainMode = useAppStore((s) => s.mainMode);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
   const activeMapId = useMindmapStore((s) => s.activeMapId);
   const maps = useMindmapStore((s) => s.maps);
@@ -48,18 +50,21 @@ export default function MindmapPanel() {
   const [, setNowTick] = useState(0);
 
   // 마운트 시 서버 목록 pull — 로컬 nodes는 보존하고 메타데이터만 병합된다.
+  // 비로그인 상태에서 호출하면 401 → 전역 refresh 실패 → 강제 리로드로
+  // 모드/패널 상태가 초기화되는 문제를 피하기 위해 로그인 시에만 호출한다.
   useEffect(() => {
-    fetchMapList();
-  }, [fetchMapList]);
+    if (isLoggedIn) fetchMapList();
+  }, [isLoggedIn, fetchMapList]);
 
   // 활성 맵이 변경되고 nodes가 비어있는 placeholder 상태이면 상세를 서버에서 당겨온다.
   useEffect(() => {
+    if (!isLoggedIn) return;
     const active = activeMapId ? maps[activeMapId] : null;
     if (active && active.nodes.length === 0 && !active.isLocal) {
       loadMapFromServer(active.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMapId]);
+  }, [activeMapId, isLoggedIn]);
 
   // "N초 전" 표시 주기적 갱신 (30초)
   useEffect(() => {
