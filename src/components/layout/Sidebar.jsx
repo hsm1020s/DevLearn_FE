@@ -228,9 +228,14 @@ export default function Sidebar() {
     setMobileSidebarOpen(false);
   };
 
-  // 대화 선택 시 해당 대화로 전환 (모바일에서는 사이드바 닫기)
+  // 대화 선택 시 해당 대화로 전환 + 대화에 저장된 llm/mode를 UI에 복원.
+  // 복원이 없으면 상단 셀렉터와 실제 대화의 모델/모드가 어긋나 다음 전송 시
+  // 의도와 다른 모델로 요청되어 "스텁 모드" 같은 증상이 발생하던 문제를 차단.
   const handleSelectConversation = (id) => {
     setCurrentConversation(id);
+    const conv = conversations.find((c) => c.id === id);
+    if (conv?.llm) setLLM(conv.llm);
+    if (conv?.mode) setMainMode(conv.mode);
     setMobileSidebarOpen(false);
   };
 
