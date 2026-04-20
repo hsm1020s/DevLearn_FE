@@ -88,3 +88,30 @@
 - 노드 추가/삭제 시 fitView 자동 호출 (캔버스 벗어남 방지)
 - 마인드맵 컨트롤 바 개선
   - 세로 → 가로 배치, 아이콘 확대, 전체보기/PDF에 텍스트 라벨 추가
+
+## 2026-04-20 — 미구현 기능 6개 병렬 구현
+- 백엔드/프론트 전수 스캔으로 미구현 항목 도출 → `docs/DESIGN_미구현기능.md` 설계서 작성 → worktree 기반 병렬 에이전트 5개로 동시 구현
+- 섹션 1 — 채팅 대화 목록 서버 동기화
+  - chatApi에 `listConversations/updateConversation/deleteConversations` 추가, Mock 동기 재현
+  - useChatStore: `fetchConversations` + `isConversationsLoading/conversationsError/lastSyncedAt`, 이름변경/즐겨찾기/삭제 시 fire-and-forget 서버 반영
+  - Sidebar: 로그인 상태 진입 시 최초 fetch
+- 섹션 2+6 — RAG 문서 목록 · 청크 원문 모달
+  - ragApi에 `listRagDocs`, ragMock 모듈 스코프 `mockDocs(Map)` 전환
+  - useDocStore: `fetchDocs/pollDocStatus/stopPolling`(모듈 스코프 `activePollers: Set` 로 중복 방지)
+  - PdfUploadModal: 업로드 후 processing 폴링
+  - SourcePanel: 카드 버튼화 + `onSelectSource` prop
+  - 신규 `SourceChunkModal` — `getSource` 조회 후 `highlightRange` 3분할 하이라이트
+- 섹션 3 — 자격증 학습 통계
+  - certApi `getCertStats`, `STATS_DIFFICULTY_LABELS/STATS_TYPE_LABELS` 상수
+  - 신규 `StatsSummaryCards / StatsBreakdownChart / CertStatsPanel`
+  - MainContent에 `MODAL_CONFIG.certStats` 등록, CertMode 헤더 BarChart3 트리거 연결
+- 섹션 4 — 마인드맵 서버 동기화
+  - mindmapApi `deleteMindmap`, mindmapMock 모듈 스코프 `mockMaps(Map)` 전환
+  - useMindmapStore: `fetchMapList/loadMapFromServer/scheduleSave/saveActiveNow`, 모듈 스코프 `saveTimers/dirtySet` 기반 디바운스 자동 저장, 변이 액션(create/rename/addNode/deleteNode/updateNode/clearAll)에 scheduleSave 체이닝
+  - MindmapPanel: 마운트 시 `fetchMapList`, SyncIndicator 표시
+- 섹션 5 — 관리자 대시보드 서버 연동
+  - 신규 `adminApi.getAdminDashboard` + Mock, `useAdminDashboard`(loading/error/refresh, inflightRef)
+  - 신규 `StatCard / RecentConversations / DocumentTable / DashboardSkeleton / DashboardError`
+  - AdminPage: 서버 우선 + 로컬 폴백 패턴(`data?.counts ?? fallbackCounts` 등)
+- 공통 원칙: 기존 기능 삭제 없이 변경 최소화, Mock/Real API 분기 보존, 기존 액션 시그니처 유지
+- 빌드 성공, 커밋 `dedc58b6` 푸시 완료, dev 서버 재구동
