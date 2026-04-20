@@ -51,6 +51,15 @@ const useCertStore = create(
 
       // 퀴즈 전체 초기화 (업로드 단계로 복귀)
       resetQuiz: () => set({ currentQuiz: null, currentQuestionIndex: 0, answers: {}, certStep: 'upload' }),
+
+      /** 로그아웃 시 호출 — 문서·퀴즈 진행 상태 모두 초기화 */
+      reset: () => set({
+        certDocs: [],
+        currentQuiz: null,
+        currentQuestionIndex: 0,
+        answers: {},
+        certStep: 'upload',
+      }),
     }),
     {
       name: 'cert-store',

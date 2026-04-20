@@ -139,6 +139,12 @@ const useDocStore = create(
       stopPolling: (docId) => {
         activePollers.delete(docId);
       },
+
+      /** 로그아웃 시 호출 — 문서 목록과 진행 중 폴링을 모두 정리한다. */
+      reset: () => {
+        activePollers.clear();
+        set({ docs: [], isLoadingDocs: false, fetchError: null });
+      },
     }),
     {
       name: 'doc-store',

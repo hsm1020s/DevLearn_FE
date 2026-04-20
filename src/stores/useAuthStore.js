@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../services/api';
+import { resetUserStores } from '../utils/resetUserStores';
 
 const useAuthStore = create(
   persist(
@@ -30,6 +31,9 @@ const useAuthStore = create(
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
 
+          // 계정 전환 시 이전 사용자의 로컬 캐시가 남지 않도록 먼저 비운다
+          // (이후 각 화면에서 서버 데이터를 새로 fetch)
+          resetUserStores();
           set({ user: { email: user.email, name: user.name }, isLoggedIn: true });
           return { success: true };
         } catch (error) {
@@ -39,12 +43,16 @@ const useAuthStore = create(
       },
 
       /**
-       * 로그아웃 — 토큰 제거 및 상태 초기화
+       * 로그아웃 — 토큰 제거 및 상태 초기화 + 사용자별 로컬 데이터 전체 삭제
+       *
+       * 이전 세션의 대화/문서/마인드맵/자격증/RAG 캐시가 다음 사용자에게
+       * 남지 않도록 `resetUserStores()`로 일괄 비운다.
        */
       logout: () => {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         set({ user: null, isLoggedIn: false });
+        resetUserStores();
       },
 
       /**

@@ -497,6 +497,27 @@ const useMindmapStore = create(
           showError(err, '마인드맵 저장 실패');
         }
       },
+
+      /**
+       * 로그아웃 시 호출 — 모든 맵과 저장 타이머를 정리한다.
+       * saveTimers/dirtySet 등 모듈 스코프 상태까지 청소해야 이전 사용자의
+       * 예약된 서버 저장이 새 사용자 세션에서 발화하지 않는다.
+       */
+      reset: () => {
+        for (const t of saveTimers.values()) clearTimeout(t);
+        saveTimers.clear();
+        dirtySet.clear();
+        set({
+          maps: {},
+          activeMapId: null,
+          lastActiveByMode: {},
+          selectedNodeId: null,
+          lastSavedAt: null,
+          syncStatus: {},
+          lastServerSyncAt: {},
+          isListLoading: false,
+        });
+      },
     }),
     {
       name: 'mindmap-store',

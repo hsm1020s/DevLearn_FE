@@ -37,6 +37,9 @@ const useRagStore = create(
         set((state) => ({
           ragDocs: state.ragDocs.filter((d) => d.id !== id),
         })),
+
+      /** 로그아웃 시 호출 — RAG 문서 목록 초기화 */
+      reset: () => set({ ragDocs: [] }),
     }),
     {
       name: 'rag-store',

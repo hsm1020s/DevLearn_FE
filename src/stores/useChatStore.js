@@ -205,6 +205,19 @@ const useChatStore = create(
       },
 
       clearMessages: () => set({ currentConversationId: null }),
+
+      /**
+       * 로그아웃 시 호출 — 사용자별 로컬 캐시를 완전 초기화한다.
+       * 스트리밍 중이었다면 UI는 이미 unmount되므로 상태만 리셋.
+       */
+      reset: () => set({
+        conversations: [],
+        currentConversationId: null,
+        isStreaming: false,
+        isConversationsLoading: false,
+        conversationsError: null,
+        lastSyncedAt: null,
+      }),
     }),
     {
       name: 'chat-store',
