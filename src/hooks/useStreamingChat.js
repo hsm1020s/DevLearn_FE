@@ -44,6 +44,34 @@ export default function useStreamingChat(mode) {
     scrollToBottom();
   }, [currentConvMessages, streamingContent, scrollToBottom]);
 
+  // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
+  const doStream = useCallback(
+    async (content, convId, controller) => {
+      await streamMessage({
+        message: content,
+        mode,
+        llm: selectedLLM,
+        conversationId: convId,
+        signal: controller.signal,
+        onToken: (accumulated) => {
+          if (!controller.signal.aborted) setStreamingContent(accumulated);
+        },
+        onDone: (result) => {
+          if (!controller.signal.aborted) {
+            addMessage({
+              role: 'assistant',
+              content: result.content,
+              sources: result.sources,
+            });
+          }
+          setStreamingContent('');
+          setStreaming(false);
+        },
+      });
+    },
+    [mode, selectedLLM, addMessage, setStreaming],
+  );
+
   // 사용자 메시지 전송 및 SSE 스트리밍 수신 처리
   const handleSend = useCallback(
     async (content) => {
@@ -60,36 +88,34 @@ export default function useStreamingChat(mode) {
       abortControllerRef.current = controller;
 
       try {
-        await streamMessage({
-          message: content,
-          mode,
-          llm: selectedLLM,
-          conversationId: convId,
-          signal: controller.signal,
-          onToken: (accumulated) => {
-            if (!controller.signal.aborted) setStreamingContent(accumulated);
-          },
-          onDone: (result) => {
-            if (!controller.signal.aborted) {
-              addMessage({
-                role: 'assistant',
-                content: result.content,
-                sources: result.sources,
-              });
-            }
-            setStreamingContent('');
-            setStreaming(false);
-          },
-        });
+        await doStream(content, convId, controller);
       } catch (err) {
         if (err.name === 'AbortError') return; // 정상 중단
-        console.error('[useStreamingChat] Stream error:', err);
-        showError(err);
+
+        // 409 Conflict — 로컬 대화 ID가 서버에 없거나 충돌. 대화를 새로 만들어 재시도
+        if (err.status === 409) {
+          console.warn('[useStreamingChat] 409 Conflict, 새 대화로 재시도');
+          const { deleteConversations: removeConvs } = useChatStore.getState();
+          removeConvs([convId]);
+          const newConvId = createConversation(mode, selectedLLM);
+          addMessage({ role: 'user', content });
+          try {
+            await doStream(content, newConvId, controller);
+            return;
+          } catch (retryErr) {
+            if (retryErr.name === 'AbortError') return;
+            console.error('[useStreamingChat] Retry failed:', retryErr);
+            showError(retryErr);
+          }
+        } else {
+          console.error('[useStreamingChat] Stream error:', err);
+          showError(err);
+        }
         setStreamingContent('');
         setStreaming(false);
       }
     },
-    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming],
+    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream],
   );
 
   // 스트리밍 중단: SSE 연결을 끊고 현재까지 수신된 내용을 메시지로 확정

@@ -11,6 +11,8 @@ export const LLM_OPTIONS = [
   { value: 'claude-3.5', label: 'Claude 3.5' },
   { value: 'gemini', label: 'Gemini Pro' },
   { value: 'llama-8b', label: 'Llama 3.1 8B' },
+  { value: 'exaone-32b', label: 'EXAONE 3.5 32B' },
+  { value: 'gpt-oss-20b', label: 'GPT-OSS 20B' },
 ];
 
 // 퀴즈 문항 수 선택지

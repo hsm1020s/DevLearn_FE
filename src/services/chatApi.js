@@ -134,10 +134,10 @@ export async function streamMessage(params) {
       for (const line of lines) {
         const parsed = JSON.parse(line.slice(5));
         if (parsed.type === 'token') {
-          accumulated += parsed.content;
+          accumulated = parsed.content;
           onToken?.(accumulated);
         } else if (parsed.type === 'done') {
-          onDone?.({ conversationId: parsed.conversationId, content: accumulated, sources: parsed.sources });
+          onDone?.({ conversationId: parsed.conversationId, content: parsed.content || accumulated, sources: parsed.sources });
         }
       }
     }
