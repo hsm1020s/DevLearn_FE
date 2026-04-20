@@ -29,7 +29,7 @@ export async function listConversations() {
  * 대화 메타데이터(제목/즐겨찾기)를 서버에 부분 갱신한다.
  * @param {string} id
  * @param {{title?:string, isFavorite?:boolean}} patch
- * @returns {Promise<object>}
+ * @returns {Promise<void>}
  */
 export async function updateConversation(id, patch) {
   if (API_CONFIG.useMock) return mock.updateConversation(id, patch);
@@ -40,7 +40,7 @@ export async function updateConversation(id, patch) {
 /**
  * 대화 목록을 서버에서 일괄 삭제한다. axios는 DELETE body를 config.data로 전달한다.
  * @param {string[]} ids
- * @returns {Promise<{deletedIds:string[]}>}
+ * @returns {Promise<void>}
  */
 export async function deleteConversations(ids) {
   if (API_CONFIG.useMock) return mock.deleteConversations(ids);

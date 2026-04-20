@@ -1,6 +1,6 @@
 /**
  * @fileoverview Axios 인스턴스 생성 및 공통 인터셉터 설정.
- * 서버 에러(500+) 또는 404 응답 시 에러 페이지로 이동시킨다.
+ * 401 응답 시 토큰 자동 갱신을 시도하며, 그 외 에러는 호출측/errorHandler에 위임한다.
  */
 import axios from 'axios';
 
@@ -20,7 +20,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 응답 인터셉터: 401 시 토큰 자동 갱신, 서버 에러 시 에러 페이지 이동
+// 응답 인터셉터: 401 시 토큰 자동 갱신, 그 외 에러는 호출측(토스트 등)에 위임
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -59,13 +59,7 @@ api.interceptors.response.use(
       }
     }
 
-    // 서버 에러(500+) 또는 404 시 에러 페이지로 이동
-    if (status >= 500 || status === 404) {
-      window.location.href = `/error/${status}`;
-      return new Promise(() => {}); // 페이지 이동 중 후속 처리 방지
-    }
-
-    // 기존 에러 핸들링 유지
+    // 500/404 전역 리다이렉트 제거 — 호출측에서 토스트 등으로 처리하도록 위임
     const message = error.response?.data?.message || error.message || '요청에 실패했습니다';
     return Promise.reject({ ...error, userMessage: message });
   },
