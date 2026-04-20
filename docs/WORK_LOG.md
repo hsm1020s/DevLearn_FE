@@ -115,3 +115,21 @@
   - AdminPage: 서버 우선 + 로컬 폴백 패턴(`data?.counts ?? fallbackCounts` 등)
 - 공통 원칙: 기존 기능 삭제 없이 변경 최소화, Mock/Real API 분기 보존, 기존 액션 시그니처 유지
 - 빌드 성공, 커밋 `dedc58b6` 푸시 완료, dev 서버 재구동
+
+## 2026-04-20 (2차) — 풀스택 통합 테스트 + P0 버그 전수 해결
+- `.gitignore` 보안 강화: `.env.*` 화이트리스트, 인증서/SSH 키/secrets/service-account/.npmrc/.yarnrc, 전 로그, coverage/, 캐시(.cache/.turbo/.parcel-cache), DB 덤프(*.sql/*.dump/*.sqlite), 백업 파일, macOS `._*`, `.history/` 차단
+- `.env.local` 생성(`VITE_MOCK_API=false`), FE↔BE(8080)↔PostgreSQL 동시 기동 후 LLM 미관여 엔드포인트 16개 라이브 curl 매트릭스 실행
+- 결과: 정상 7 + 500 INTERNAL_ERROR 9건(B1~B9) + 403/401 계약 불일치(C4) + 응답 shape 미세 불일치 → `docs/풀스택테스트.md` 보고서 작성
+- P0 수정(병렬 에이전트 6개, FE 1 + BE 5):
+  - FE `src/services/api.js` 500/404 전역 리다이렉트 제거(통합 환경에서 에러 즉시 튕김 방지), 401 refresh 로직 유지
+  - FE `src/services/chatApi.js` JSDoc `updateConversation/deleteConversations` → `Promise<void>` 정정
+  - BE `SecurityConfig` + 신규 `JwtAuthenticationEntryPoint` — 인증 실패 시 403 → **401 + `ApiResponse(UNAUTHORIZED)`** 통일 (FE 자동 토큰 갱신 복구)
+  - BE `ChatService.updateConversation/deleteConversations` — UUID 포맷 사전 검증, 존재하지 않는 id 500 → 404/200
+  - BE `RagService.deleteDocument/getSource/getDocName` — UUID 검증 + null-safe(filePath/docId/content)
+  - BE `MindmapService.saveMindmap/deleteMindmap/toNodeEntity` — FE 임시 id(`n1` 등) 허용(서버 재생성), 기본 label/color 보정, UUID 검증
+  - BE `GlobalExceptionHandler` — `IllegalArgumentException`/`BadSqlGrammarException` → 400, `DataIntegrityViolationException` → 409 추가
+  - BE `QuizMapper.xml` — JOIN `::text` 캐스트 제거(UUID 컬럼이라 불필요, `/cert/stats` 500 해소)
+  - BE `LoginResponse.UserInfo` + `AuthService.buildLoginResponse` — `id` 필드 추가(FE user.id 참조 안전)
+  - BE `application-local.yml` — `file.upload-dir: /Users/moon/DevLearn_uploads`(절대경로) + 디렉토리 생성 → `/rag/upload`·`/cert/upload` FILE_UPLOAD_FAILED 해결
+- 회귀 검증: BE 재기동 후 전 매트릭스 재실행 → 이전 500 9건 전부 200/400/404/401로 정상화, FE 빌드 성공
+- 커밋: FE `f47be9d9` (3 files +112/-11) / BE `8ad0209` (9 files +375/-37) 푸시 완료, dev 서버 정상
