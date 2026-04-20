@@ -51,13 +51,17 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // 갱신 실패 시 로그아웃 처리 후 메인 페이지로 이동
-        // auth-storage(zustand persist)도 함께 제거해야 isLoggedIn 잔존으로 인한
-        // 재시도 루프(로그인 상태 복원 → 401 → refresh 실패 → 리로드 반복)를 막을 수 있다.
+        // 갱신 실패 시 소프트 로그아웃. 하드 리다이렉트를 하면 마인드맵 패널,
+        // 작성 중이던 노드 등 in-flight UI 상태가 전부 날아가므로 피한다.
+        // 동적 import로 api ↔ useAuthStore 순환 의존을 회피한다.
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        localStorage.removeItem('auth-storage');
-        window.location.href = '/';
+        const [{ default: useAuthStore }, { showError }] = await Promise.all([
+          import('../stores/useAuthStore'),
+          import('../utils/errorHandler'),
+        ]);
+        useAuthStore.getState().logout();
+        showError(null, '세션이 만료되었습니다. 다시 로그인해주세요.');
         return Promise.reject(refreshError);
       }
     }

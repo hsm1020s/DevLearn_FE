@@ -394,6 +394,10 @@ const useMindmapStore = create(
        * - 실패 시 1회만 재시도, 계속 실패하면 error 상태
        */
       _performSave: async (mapId, isRetry = false) => {
+        // 비로그인 상태에서는 서버 저장을 스킵한다. 401 → refresh 실패 → 토스트 스팸을
+        // 방지하고, 로컬 편집(isLocal=true)은 그대로 유지되어 로그인 후 다음 편집 시
+        // 자연스럽게 서버에 업로드된다.
+        if (!localStorage.getItem('accessToken')) return;
         const map = get().maps[mapId];
         if (!map) return;
 
