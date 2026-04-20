@@ -9,6 +9,7 @@ import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
 import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import EmptyChatView from '../chat/EmptyChatView';
+import JumpToBottomButton from '../chat/JumpToBottomButton';
 
 /** 상단 우측 "통계 보기" 트리거 — 누적 통계 모달(certStats)을 연다. */
 function CertStatsTrigger() {
@@ -35,8 +36,18 @@ const EXAMPLE_QUESTIONS = [
 
 /** 자격증 모드 채팅 화면 */
 export default function CertMode() {
-  const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
-    useStreamingChat('cert');
+  const {
+    messages,
+    streamingContent,
+    isStreaming,
+    handleSend,
+    handleStop,
+    scrollRef,
+    handleScroll,
+    isAtBottom,
+    hasNewBelow,
+    scrollToBottomNow,
+  } = useStreamingChat('cert');
 
   const isEmpty = messages.length === 0 && !streamingContent;
 
@@ -60,19 +71,30 @@ export default function CertMode() {
   return (
     <div className="flex flex-col h-full">
       <CertStatsTrigger />
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto flex flex-col gap-4">
-          {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
-          ))}
-          {isStreaming && !streamingContent && <ChatLoadingBubble />}
-          {isStreaming && streamingContent && (
-            <ChatMessage
-              message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
-              isStreaming
-            />
-          )}
+      <div className="flex-1 relative min-h-0">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="absolute inset-0 overflow-y-auto px-4 py-6"
+        >
+          <div className="max-w-3xl mx-auto flex flex-col gap-4">
+            {messages.map((msg) => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
+            {isStreaming && !streamingContent && <ChatLoadingBubble />}
+            {isStreaming && streamingContent && (
+              <ChatMessage
+                message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
+                isStreaming
+              />
+            )}
+          </div>
         </div>
+        <JumpToBottomButton
+          visible={!isAtBottom}
+          hasNew={hasNewBelow}
+          onClick={scrollToBottomNow}
+        />
       </div>
       <div className="max-w-3xl mx-auto w-full">
         <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />

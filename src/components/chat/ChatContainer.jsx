@@ -10,6 +10,7 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import ChatLoadingBubble from './ChatLoadingBubble';
 import EmptyChatView from './EmptyChatView';
+import JumpToBottomButton from './JumpToBottomButton';
 
 const EXAMPLE_QUESTIONS = [
   'React와 Vue의 차이점은?',
@@ -20,8 +21,18 @@ const EXAMPLE_QUESTIONS = [
 /** 일반 모드 채팅 화면 */
 export default function ChatContainer() {
   const mainMode = useAppStore((s) => s.mainMode);
-  const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
-    useStreamingChat(mainMode);
+  const {
+    messages,
+    streamingContent,
+    isStreaming,
+    handleSend,
+    handleStop,
+    scrollRef,
+    handleScroll,
+    isAtBottom,
+    hasNewBelow,
+    scrollToBottomNow,
+  } = useStreamingChat(mainMode);
 
   const isEmpty = messages.length === 0 && !streamingContent;
 
@@ -43,19 +54,30 @@ export default function ChatContainer() {
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 md:px-4 py-4 md:py-6">
-        <div className="max-w-3xl mx-auto flex flex-col gap-3 md:gap-4">
-          {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
-          ))}
-          {isStreaming && !streamingContent && <ChatLoadingBubble />}
-          {isStreaming && streamingContent && (
-            <ChatMessage
-              message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
-              isStreaming
-            />
-          )}
+      <div className="flex-1 relative min-h-0">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="absolute inset-0 overflow-y-auto px-2 md:px-4 py-4 md:py-6"
+        >
+          <div className="max-w-3xl mx-auto flex flex-col gap-3 md:gap-4">
+            {messages.map((msg) => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
+            {isStreaming && !streamingContent && <ChatLoadingBubble />}
+            {isStreaming && streamingContent && (
+              <ChatMessage
+                message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
+                isStreaming
+              />
+            )}
+          </div>
         </div>
+        <JumpToBottomButton
+          visible={!isAtBottom}
+          hasNew={hasNewBelow}
+          onClick={scrollToBottomNow}
+        />
       </div>
       <div className="max-w-3xl mx-auto w-full">
         <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />

@@ -1,12 +1,20 @@
 /**
  * @fileoverview SSE 기반 스트리밍 채팅 커스텀 훅.
- * 메시지 전송, 토큰 단위 스트리밍 수신, 중단 처리, 자동 스크롤을 관리한다.
+ * 메시지 전송, 토큰 단위 스트리밍 수신, 중단 처리, 스마트 오토스크롤을 관리한다.
+ *
+ * 스마트 오토스크롤:
+ *   - 사용자가 하단 근접(임계 120px) 상태일 때만 새 토큰/메시지에 맞춰 자동 스크롤.
+ *   - 위로 올려 이전 대화를 읽는 중이면 오토스크롤을 멈추고 `hasNewBelow` 플래그로
+ *     "새 답변 도착"을 UI에 알림. 버튼 클릭 시 `scrollToBottomNow`로 복귀.
  */
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
 import { streamMessage } from '../services/chatApi';
 import { showError } from '../utils/errorHandler';
+
+// 하단 근접 판정 임계값(px). 이 거리 이내면 "맨 아래로 따라가기" 모드로 간주.
+const NEAR_BOTTOM_THRESHOLD = 120;
 
 /**
  * 스트리밍 채팅 훅
@@ -29,20 +37,71 @@ export default function useStreamingChat(mode) {
   const scrollRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // 채팅 영역을 맨 아래로 부드럽게 스크롤
-  const scrollToBottom = useCallback(() => {
+  // 하단 근접 여부. ref는 effect/콜백에서 즉시 참조, state는 UI(버튼 노출)용.
+  const isAtBottomRef = useRef(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  // 위로 올려둔 상태에서 새 답변이 도착했는지 — 플로팅 버튼 뱃지에 사용.
+  const [hasNewBelow, setHasNewBelow] = useState(false);
+
+  // 강제로 맨 아래로 스크롤. 버튼 클릭·사용자 전송 직후 사용.
+  const scrollToBottomNow = useCallback(() => {
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     });
+    isAtBottomRef.current = true;
+    setIsAtBottom(true);
+    setHasNewBelow(false);
   }, []);
 
-  // 메시지 추가, 스트리밍 내용 변경, 로딩 버블 등장 시 자동 스크롤
+  // 스크롤 이벤트 핸들러. 컨테이너의 onScroll에 연결한다.
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const near = distance < NEAR_BOTTOM_THRESHOLD;
+    if (isAtBottomRef.current !== near) {
+      isAtBottomRef.current = near;
+      setIsAtBottom(near);
+    }
+    // 사용자가 손으로 맨 아래 근접까지 돌아오면 "새 답변" 뱃지도 해제.
+    if (near) setHasNewBelow(false);
+  }, []);
+
+  // 메시지 목록/스트리밍 상태 변경 시: 근접이면 자동 스크롤, 아니면 새 답변 플래그.
   useEffect(() => {
-    scrollToBottom();
-  }, [currentConvMessages, streamingContent, isStreaming, scrollToBottom]);
+    if (isAtBottomRef.current) {
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      });
+    } else if (currentConvMessages.length > 0 || isStreaming) {
+      setHasNewBelow(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConvMessages.length, isStreaming]);
+
+  // 스트리밍 토큰이 들어올 때마다 — 근접 상태에서만 따라붙기. 위에 있으면 무시(뱃지는 이미 켜짐).
+  useEffect(() => {
+    if (!streamingContent) return;
+    if (!isAtBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [streamingContent]);
+
+  // 대화가 바뀌면 자동으로 맨 아래로 + 상태 초기화.
+  useEffect(() => {
+    isAtBottomRef.current = true;
+    setIsAtBottom(true);
+    setHasNewBelow(false);
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, [currentConversationId]);
 
   // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
   const doStream = useCallback(
@@ -87,6 +146,8 @@ export default function useStreamingChat(mode) {
       addMessage({ role: 'user', content });
       setStreaming(true);
       setStreamingContent('');
+      // 사용자가 방금 전송했으니 무조건 맨 아래로 복귀.
+      scrollToBottomNow();
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -119,7 +180,7 @@ export default function useStreamingChat(mode) {
         setStreaming(false);
       }
     },
-    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream],
+    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream, scrollToBottomNow],
   );
 
   // 스트리밍 중단: SSE 연결을 끊고 현재까지 수신된 내용을 메시지로 확정
@@ -135,5 +196,16 @@ export default function useStreamingChat(mode) {
     setStreaming(false);
   }, [streamingContent, addMessage, setStreaming]);
 
-  return { messages: currentConvMessages, streamingContent, isStreaming, handleSend, handleStop, scrollRef };
+  return {
+    messages: currentConvMessages,
+    streamingContent,
+    isStreaming,
+    handleSend,
+    handleStop,
+    scrollRef,
+    handleScroll,
+    isAtBottom,
+    hasNewBelow,
+    scrollToBottomNow,
+  };
 }

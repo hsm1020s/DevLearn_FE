@@ -12,6 +12,7 @@ import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
 import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import EmptyChatView from '../chat/EmptyChatView';
+import JumpToBottomButton from '../chat/JumpToBottomButton';
 import DocumentList from './DocumentList';
 import SourcePanel from './SourcePanel';
 import SourceChunkModal from './SourceChunkModal';
@@ -28,8 +29,18 @@ export default function WorkStudyMode() {
   const docs = useDocStore((s) => s.docs);
   const fetchDocs = useDocStore((s) => s.fetchDocs);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
-  const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
-    useStreamingChat('work');
+  const {
+    messages,
+    streamingContent,
+    isStreaming,
+    handleSend,
+    handleStop,
+    scrollRef,
+    handleScroll,
+    isAtBottom,
+    hasNewBelow,
+    scrollToBottomNow,
+  } = useStreamingChat('work');
 
   // 마운트 시 서버에서 문서 목록 pull (processing 자동 폴링 포함)
   // 비로그인 상태에서 호출하면 401 → 전역 refresh 실패 → 강제 리로드로
@@ -68,29 +79,40 @@ export default function WorkStudyMode() {
     <div className="flex h-full">
       {/* 좌측: 채팅 영역 */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="max-w-3xl mx-auto flex flex-col gap-4">
-            {messages.map((msg) => (
-              <div key={msg.id}>
-                <ChatMessage message={msg} />
-                {msg.role === 'assistant' && msg.sources && (
-                  <div className="ml-10 mt-1">
-                    <SourcePanel
-                      sources={msg.sources}
-                      onSelectSource={setSelectedChunk}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-            {isStreaming && !streamingContent && <ChatLoadingBubble />}
-            {isStreaming && streamingContent && (
-              <ChatMessage
-                message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
-                isStreaming
-              />
-            )}
+        <div className="flex-1 relative min-h-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="absolute inset-0 overflow-y-auto px-4 py-6"
+          >
+            <div className="max-w-3xl mx-auto flex flex-col gap-4">
+              {messages.map((msg) => (
+                <div key={msg.id}>
+                  <ChatMessage message={msg} />
+                  {msg.role === 'assistant' && msg.sources && (
+                    <div className="ml-10 mt-1">
+                      <SourcePanel
+                        sources={msg.sources}
+                        onSelectSource={setSelectedChunk}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {isStreaming && !streamingContent && <ChatLoadingBubble />}
+              {isStreaming && streamingContent && (
+                <ChatMessage
+                  message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
+                  isStreaming
+                />
+              )}
+            </div>
           </div>
+          <JumpToBottomButton
+            visible={!isAtBottom}
+            hasNew={hasNewBelow}
+            onClick={scrollToBottomNow}
+          />
         </div>
         <div className="max-w-3xl mx-auto w-full">
           <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
