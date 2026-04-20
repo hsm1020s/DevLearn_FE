@@ -1,9 +1,37 @@
 /**
  * @fileoverview 채팅 API - 일반/자격증/업무 모드별 메시지 송수신 처리
  */
+import axios from 'axios';
 import { API_CONFIG } from './api.config';
 import * as mock from './mock/chatMock';
 import api from './api';
+
+/**
+ * refreshToken으로 accessToken 갱신을 시도한다. 성공 시 새 accessToken 반환.
+ * 실패 시 tokens/auth-storage를 정리하고 throw한다.
+ * @returns {Promise<string>}
+ */
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) throw new Error('No refresh token');
+  try {
+    const { data } = await axios.post(
+      `${api.defaults.baseURL}/auth/refresh`,
+      { refreshToken },
+    );
+    const newAccessToken = data.data.accessToken;
+    const newRefreshToken = data.data.refreshToken;
+    localStorage.setItem('accessToken', newAccessToken);
+    localStorage.setItem('refreshToken', newRefreshToken);
+    return newAccessToken;
+  } catch (err) {
+    // refresh 실패 → 인증 정보 모두 정리 (api.js 인터셉터와 동일 정책)
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('auth-storage');
+    throw err;
+  }
+}
 
 /** @typedef {{ message: string, mode: string, llm: string, conversationId?: string }} ChatParams */
 
@@ -48,28 +76,52 @@ export async function deleteConversations(ids) {
   return data.data;
 }
 
-/** SSE 기반 스트리밍으로 메시지를 전송하고 토큰 단위로 콜백을 호출한다 */
+/**
+ * SSE 기반 스트리밍으로 메시지를 전송하고 토큰 단위로 콜백을 호출한다.
+ * 401 수신 시 refreshToken으로 1회 재시도하며, refresh 실패/재시도 실패 시
+ * userMessage를 가진 에러를 throw하여 호출측(useStreamingChat)이 토스트로 처리한다.
+ */
 export async function streamMessage(params) {
   if (API_CONFIG.useMock) return mock.streamMessage(params);
   const { message, mode, llm, conversationId, onToken, onDone, signal } = params;
-  // fetch 기반 스트리밍은 axios 인터셉터를 거치지 않으므로 JWT 헤더를 직접 추가
-  const accessToken = localStorage.getItem('accessToken');
-  const headers = { 'Content-Type': 'application/json' };
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
+  const url = `${api.defaults.baseURL}/chat/stream`;
+  const body = JSON.stringify({ message, mode, llm, conversationId });
+
+  const doFetch = (token) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { method: 'POST', headers, body, signal });
+  };
+
+  let accessToken = localStorage.getItem('accessToken');
+  let response = await doFetch(accessToken);
+
+  // 401 → refresh 시도 후 1회 재시도. 실패 시 사용자 친화적 에러로 throw.
+  if (response.status === 401) {
+    try {
+      accessToken = await refreshAccessToken();
+    } catch {
+      const err = new Error('로그인이 필요합니다');
+      err.userMessage = '로그인이 필요합니다';
+      err.status = 401;
+      throw err;
+    }
+    response = await doFetch(accessToken);
   }
 
-  const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ message, mode, llm, conversationId }),
-    signal,
-  });
-  // HTTP 에러 상태 시 에러 페이지로 이동
   if (!response.ok) {
-    window.location.href = `/error/${response.status}`;
-    return;
+    // 서버가 JSON 에러 본문을 내려주면 message를 뽑아 토스트에 노출
+    let message = `요청 실패 (${response.status})`;
+    try {
+      const body = await response.json();
+      if (body?.message) message = body.message;
+    } catch { /* 본문 파싱 실패는 무시 */ }
+    const err = new Error(message);
+    err.userMessage = message;
+    err.status = response.status;
+    throw err;
   }
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
