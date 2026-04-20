@@ -39,10 +39,10 @@ export default function useStreamingChat(mode) {
     });
   }, []);
 
-  // 메시지 추가 또는 스트리밍 내용 변경 시 자동 스크롤
+  // 메시지 추가, 스트리밍 내용 변경, 로딩 버블 등장 시 자동 스크롤
   useEffect(() => {
     scrollToBottom();
-  }, [currentConvMessages, streamingContent, scrollToBottom]);
+  }, [currentConvMessages, streamingContent, isStreaming, scrollToBottom]);
 
   // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
   const doStream = useCallback(

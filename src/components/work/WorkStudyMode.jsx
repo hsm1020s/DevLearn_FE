@@ -10,6 +10,7 @@ import useAuthStore from '../../stores/useAuthStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
+import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import EmptyChatView from '../chat/EmptyChatView';
 import DocumentList from './DocumentList';
 import SourcePanel from './SourcePanel';
@@ -82,6 +83,7 @@ export default function WorkStudyMode() {
                 )}
               </div>
             ))}
+            {isStreaming && !streamingContent && <ChatLoadingBubble />}
             {isStreaming && streamingContent && (
               <ChatMessage
                 message={{ id: '__streaming', role: 'assistant', content: streamingContent }}

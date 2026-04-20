@@ -7,6 +7,7 @@ import useStreamingChat from '../../hooks/useStreamingChat';
 import useAppStore from '../../stores/useAppStore';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
+import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import EmptyChatView from '../chat/EmptyChatView';
 
 /** 상단 우측 "통계 보기" 트리거 — 누적 통계 모달(certStats)을 연다. */
@@ -64,6 +65,7 @@ export default function CertMode() {
           {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} />
           ))}
+          {isStreaming && !streamingContent && <ChatLoadingBubble />}
           {isStreaming && streamingContent && (
             <ChatMessage
               message={{ id: '__streaming', role: 'assistant', content: streamingContent }}

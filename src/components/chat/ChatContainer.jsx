@@ -8,6 +8,7 @@ import useAppStore from '../../stores/useAppStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import ChatLoadingBubble from './ChatLoadingBubble';
 import EmptyChatView from './EmptyChatView';
 
 const EXAMPLE_QUESTIONS = [
@@ -47,6 +48,7 @@ export default function ChatContainer() {
           {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} />
           ))}
+          {isStreaming && !streamingContent && <ChatLoadingBubble />}
           {isStreaming && streamingContent && (
             <ChatMessage
               message={{ id: '__streaming', role: 'assistant', content: streamingContent }}

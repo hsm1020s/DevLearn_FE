@@ -92,3 +92,53 @@ body {
 .animate-popover-in {
   animation: popover-in 0.15s ease-out;
 }
+
+/* ── 채팅 로딩 인디케이터 애니메이션 ── */
+/* 아바타 breathing — scale이 부드럽게 커졌다 작아짐 */
+@keyframes chat-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-chat-breathe {
+  animation: chat-breathe 1.8s ease-in-out infinite;
+}
+
+/* 아바타 주변 glow ring — 퍼져나가며 사라짐 */
+@keyframes chat-glow-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.animate-chat-glow-ring {
+  animation: chat-glow-ring 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* 시머 텍스트 — 그라데이션이 좌→우로 흐름 */
+@keyframes chat-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.chat-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-text-tertiary) 0%,
+    var(--color-text-tertiary) 40%,
+    var(--color-text-primary) 50%,
+    var(--color-text-tertiary) 60%,
+    var(--color-text-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: chat-shimmer 2.4s linear infinite;
+}
+
+/* 로딩 문구 교체 시 페이드 */
+@keyframes chat-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-chat-fade-in {
+  animation: chat-fade-in 0.4s ease-out;
+}
