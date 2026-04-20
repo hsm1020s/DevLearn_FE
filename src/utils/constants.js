@@ -10,6 +10,7 @@ export const LLM_OPTIONS = [
   { value: 'gpt-4o', label: 'GPT-4o' },
   { value: 'claude-3.5', label: 'Claude 3.5' },
   { value: 'gemini', label: 'Gemini Pro' },
+  { value: 'llama-8b', label: 'Llama 3.1 8B' },
 ];
 
 // 퀴즈 문항 수 선택지
