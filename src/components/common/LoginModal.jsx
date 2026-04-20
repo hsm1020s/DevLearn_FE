@@ -22,13 +22,13 @@ export default function LoginModal({ isOpen, onClose, anchorRef }) {
 
   // 폼 제출 — 빈 입력 검증 후 스토어 login 호출, 성공 시 모달 닫기
   const handleSubmit = useCallback(
-    (e) => {
+    async (e) => {
       e.preventDefault();
       if (!email.trim() || !password) {
         addToast('아이디와 비밀번호를 입력해주세요.', 'error');
         return;
       }
-      const result = login(email.trim(), password);
+      const result = await login(email.trim(), password);
       if (result.success) {
         addToast('로그인되었습니다.', 'success');
         setEmail('');
