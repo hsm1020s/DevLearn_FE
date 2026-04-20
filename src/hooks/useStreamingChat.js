@@ -64,6 +64,10 @@ export default function useStreamingChat(mode) {
               sources: result.sources,
             });
           }
+          // 스트리밍 경로로도 서버에 대화가 생성되므로 isLocal 승격 + 대기 패치 flush
+          if (result?.conversationId) {
+            useChatStore.getState().reconcileConversation(result.conversationId);
+          }
           setStreamingContent('');
           setStreaming(false);
         },

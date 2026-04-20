@@ -54,6 +54,19 @@ export async function listConversations() {
 }
 
 /**
+ * 클라이언트가 지정한 id로 빈 대화를 서버에 미리 생성한다 (idempotent).
+ * 새 대화 생성 직후 메시지 전송 전이라도 즐겨찾기/이름변경이 404 없이 동작하도록
+ * 서버 레코드를 사전 확보하는 용도.
+ * @param {{id:string, mode:string, llm:string, title?:string, isFavorite?:boolean}} payload
+ * @returns {Promise<{id:string,title:string,mode:string,llm:string,isFavorite:boolean}>}
+ */
+export async function createConversation(payload) {
+  if (API_CONFIG.useMock) return mock.createConversation?.(payload) ?? payload;
+  const { data } = await api.post('/chat/conversations', payload);
+  return data.data;
+}
+
+/**
  * 대화 메타데이터(제목/즐겨찾기)를 서버에 부분 갱신한다.
  * @param {string} id
  * @param {{title?:string, isFavorite?:boolean}} patch
