@@ -52,8 +52,11 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // 갱신 실패 시 로그아웃 처리 후 메인 페이지로 이동
+        // auth-storage(zustand persist)도 함께 제거해야 isLoggedIn 잔존으로 인한
+        // 재시도 루프(로그인 상태 복원 → 401 → refresh 실패 → 리로드 반복)를 막을 수 있다.
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('auth-storage');
         window.location.href = '/';
         return Promise.reject(refreshError);
       }
