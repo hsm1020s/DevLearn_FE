@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import useDocStore from '../../stores/useDocStore';
+import useAuthStore from '../../stores/useAuthStore';
 import useStreamingChat from '../../hooks/useStreamingChat';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
@@ -25,13 +26,16 @@ const EXAMPLE_QUESTIONS = [
 export default function WorkStudyMode() {
   const docs = useDocStore((s) => s.docs);
   const fetchDocs = useDocStore((s) => s.fetchDocs);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const { messages, streamingContent, isStreaming, handleSend, handleStop, scrollRef } =
     useStreamingChat('work');
 
   // 마운트 시 서버에서 문서 목록 pull (processing 자동 폴링 포함)
+  // 비로그인 상태에서 호출하면 401 → 전역 refresh 실패 → 강제 리로드로
+  // 모드가 초기화되는 문제를 피하기 위해 로그인 시에만 호출한다.
   useEffect(() => {
-    fetchDocs();
-  }, [fetchDocs]);
+    if (isLoggedIn) fetchDocs();
+  }, [isLoggedIn, fetchDocs]);
 
   // 출처 카드 클릭으로 여는 원문 모달 상태
   const [selectedChunk, setSelectedChunk] = useState(null);
