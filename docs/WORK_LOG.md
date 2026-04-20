@@ -133,3 +133,15 @@
   - BE `application-local.yml` — `file.upload-dir: /Users/moon/DevLearn_uploads`(절대경로) + 디렉토리 생성 → `/rag/upload`·`/cert/upload` FILE_UPLOAD_FAILED 해결
 - 회귀 검증: BE 재기동 후 전 매트릭스 재실행 → 이전 500 9건 전부 200/400/404/401로 정상화, FE 빌드 성공
 - 커밋: FE `f47be9d9` (3 files +112/-11) / BE `8ad0209` (9 files +375/-37) 푸시 완료, dev 서버 정상
+
+## 2026-04-20 (3차) — 대화창 스크롤 UX 개선 P0
+- 문제: 긴 대화에서 사용자가 위로 올려 이전 메시지를 읽는 중에도 새 스트리밍 토큰이 도착하면 강제로 맨 아래로 튕겨 가독성 저하
+- 해결: `useStreamingChat`에 스마트 오토스크롤 도입
+  - 하단 근접(임계 120px) 상태일 때만 새 메시지·토큰에 맞춰 자동 스크롤
+  - 위에 있으면 위치 고정, 새 답변 도착 시 `hasNewBelow=true`로 플래그
+  - 대화 전환 시 자동 하단 복귀, 사용자 전송 시 무조건 하단 복귀
+- 공통 컴포넌트 신규: `src/components/chat/JumpToBottomButton.jsx`
+  - 플로팅 원형 버튼, `visible/hasNew/onClick` props
+  - 평소엔 아이콘(또는 "맨 아래로") — 새 답변 도착 상태에선 primary 배경 + "새 답변" 라벨
+- 적용 범위: general(`ChatContainer`), cert(`CertMode`), work(`WorkStudyMode`) 세 모드 모두
+- 커밋 `6ae1e082` 푸시 완료, dev 서버 재구동
