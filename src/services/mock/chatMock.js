@@ -5,6 +5,9 @@ import { generateId } from '../../utils/helpers';
 
 const MOCK_DELAY = 300;
 
+/** 모듈 스코프 Mock 대화 저장소 — 목록/수정/삭제 API에서 공유한다 */
+const mockConversations = [];
+
 /** 모드별 기본 Mock 응답 텍스트 */
 const MOCK_RESPONSES = {
   general: '안녕하세요! 무엇이든 물어보세요. 검색, 코딩, 일반 지식 등 다양한 주제에 대해 도움을 드릴 수 있습니다.',
@@ -53,4 +56,41 @@ export async function streamMessage({ message, mode, llm, conversationId, onToke
       ? [{ docId: 'mock-1', docName: '샘플문서.pdf', page: 1, chunk: '관련 내용...', similarity: 0.92 }]
       : undefined,
   });
+}
+
+/** 서버에 저장된 대화 목록을 반환하는 Mock */
+export async function listConversations() {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
+  return mockConversations.map((c) => ({ ...c }));
+}
+
+/** 대화 메타데이터를 부분 갱신하는 Mock */
+export async function updateConversation(id, patch) {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
+  const idx = mockConversations.findIndex((c) => c.id === id);
+  if (idx === -1) {
+    // 존재하지 않으면 새로 추가 (로컬에서 만든 대화가 서버에 없는 경우 대비)
+    const now = new Date().toISOString();
+    const created = { id, createdAt: now, updatedAt: now, ...patch };
+    mockConversations.unshift(created);
+    return { ...created };
+  }
+  mockConversations[idx] = {
+    ...mockConversations[idx],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  return { ...mockConversations[idx] };
+}
+
+/** 대화 목록을 일괄 삭제하는 Mock */
+export async function deleteConversations(ids) {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
+  const idSet = new Set(ids);
+  const before = mockConversations.length;
+  for (let i = mockConversations.length - 1; i >= 0; i--) {
+    if (idSet.has(mockConversations[i].id)) mockConversations.splice(i, 1);
+  }
+  const deleted = before - mockConversations.length;
+  return { deletedIds: deleted > 0 ? ids : [] };
 }

@@ -2,8 +2,8 @@
  * @fileoverview 마인드맵 패널 — 모드별 마인드맵 목록 관리, 생성/선택/삭제, 노드 추가, 캔버스 표시.
  * 현재 모드에 해당하는 마인드맵만 필터링하여 보여준다.
  */
-import { useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, X, Edit3 } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle } from 'lucide-react';
 
 import useAppStore from '../../stores/useAppStore';
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -25,6 +25,11 @@ export default function MindmapPanel() {
   const addNode = useMindmapStore((s) => s.addNode);
   const clearAll = useMindmapStore((s) => s.clearAll);
   const getMapsByMode = useMindmapStore((s) => s.getMapsByMode);
+  const fetchMapList = useMindmapStore((s) => s.fetchMapList);
+  const loadMapFromServer = useMindmapStore((s) => s.loadMapFromServer);
+  const saveActiveNow = useMindmapStore((s) => s.saveActiveNow);
+  const syncStatus = useMindmapStore((s) => s.syncStatus);
+  const lastServerSyncAt = useMindmapStore((s) => s.lastServerSyncAt);
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
   const nodes = activeMap ? activeMap.nodes : [];
@@ -39,6 +44,28 @@ export default function MindmapPanel() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  /** 인디케이터 상대 시간 표시 갱신용 틱 (lastServerSyncAt 변경과 별개로 30초마다 재렌더) */
+  const [, setNowTick] = useState(0);
+
+  // 마운트 시 서버 목록 pull — 로컬 nodes는 보존하고 메타데이터만 병합된다.
+  useEffect(() => {
+    fetchMapList();
+  }, [fetchMapList]);
+
+  // 활성 맵이 변경되고 nodes가 비어있는 placeholder 상태이면 상세를 서버에서 당겨온다.
+  useEffect(() => {
+    const active = activeMapId ? maps[activeMapId] : null;
+    if (active && active.nodes.length === 0 && !active.isLocal) {
+      loadMapFromServer(active.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMapId]);
+
+  // "N초 전" 표시 주기적 갱신 (30초)
+  useEffect(() => {
+    const handle = setInterval(() => setNowTick((t) => t + 1), 30000);
+    return () => clearInterval(handle);
+  }, []);
 
   /** 새 마인드맵 생성 */
   const handleCreate = useCallback(() => {
@@ -137,6 +164,17 @@ export default function MindmapPanel() {
             <button onClick={startRename} className="text-text-tertiary hover:text-primary transition-colors" title="이름 변경">
               <Edit3 size={14} />
             </button>
+          )}
+
+          {/* 서버 동기화 상태 인디케이터 */}
+          {activeMap && !editingTitle && (
+            <SyncIndicator
+              mapId={activeMap.id}
+              isLocal={!!activeMap.isLocal}
+              status={syncStatus[activeMap.id]}
+              lastSyncAt={lastServerSyncAt[activeMap.id]}
+              onRetry={saveActiveNow}
+            />
           )}
 
           {/* 목록 토글 */}
@@ -281,4 +319,72 @@ export default function MindmapPanel() {
       </div>
     </div>
   );
+}
+
+/**
+ * 서버 동기화 상태 인디케이터.
+ * @param {object} props
+ * @param {string} props.mapId
+ * @param {boolean} props.isLocal — true면 "아직 저장 안 됨"
+ * @param {'idle'|'saving'|'saved'|'error'|undefined} props.status
+ * @param {number|undefined} props.lastSyncAt
+ * @param {() => void} props.onRetry — error 상태에서 클릭 시 재시도
+ */
+function SyncIndicator({ isLocal, status, lastSyncAt, onRetry }) {
+  if (isLocal) {
+    return (
+      <span className="text-[10px] text-warning shrink-0" title="아직 서버에 저장되지 않았습니다">
+        아직 저장 안 됨
+      </span>
+    );
+  }
+
+  if (status === 'saving') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-text-tertiary shrink-0">
+        <Loader2 size={12} className="animate-spin" />
+        저장 중
+      </span>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <button
+        type="button"
+        onClick={onRetry}
+        className="flex items-center gap-1 text-[10px] text-danger hover:text-danger/80 shrink-0"
+        title="클릭하여 재시도"
+      >
+        <AlertTriangle size={12} />
+        저장 실패
+      </button>
+    );
+  }
+
+  if (status === 'saved' && lastSyncAt) {
+    const diffMs = Date.now() - lastSyncAt;
+    const label = formatSyncTimeLabel(diffMs, lastSyncAt);
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-text-tertiary shrink-0">
+        <Check size={12} className="text-success/70" />
+        {label}
+      </span>
+    );
+  }
+
+  // idle / undefined → 표시 안함
+  return null;
+}
+
+/** 경과 시간에 따라 "방금 전 저장됨" / "N초 전 저장됨" / HH:MM 형태로 렌더 */
+function formatSyncTimeLabel(diffMs, lastSyncAt) {
+  const TWO_MIN = 2 * 60 * 1000;
+  if (diffMs < 10 * 1000) return '방금 저장됨';
+  if (diffMs < 60 * 1000) return `${Math.floor(diffMs / 1000)}초 전 저장됨`;
+  if (diffMs < TWO_MIN) return `${Math.floor(diffMs / 1000)}초 전 저장됨`;
+  const d = new Date(lastSyncAt);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm} 저장됨`;
 }

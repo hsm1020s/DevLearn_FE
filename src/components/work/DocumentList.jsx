@@ -5,6 +5,7 @@
 import { useCallback } from 'react';
 import { FileText, Trash2, FolderOpen } from 'lucide-react';
 import useDocStore from '../../stores/useDocStore';
+import { deleteDocument } from '../../services/ragApi';
 import { DOC_STATUS } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import Badge from '../common/Badge';
@@ -26,11 +27,16 @@ export default function DocumentList({ onDone }) {
   const completedDocs = docs.filter((d) => d.status === 'completed');
   const totalChunks = completedDocs.reduce((sum, d) => sum + (d.chunks || 0), 0);
 
-  // 스토어에서 문서 제거
+  // 서버 삭제 → 성공 시 로컬 제거. 실패 시 토스트만 띄우고 목록 유지
   const handleDelete = useCallback(
-    (id) => {
-      removeDoc(id);
-      showSuccess('문서가 삭제되었습니다');
+    async (id) => {
+      try {
+        await deleteDocument(id);
+        removeDoc(id);
+        showSuccess('문서가 삭제되었습니다');
+      } catch (err) {
+        showError(err, '문서 삭제에 실패했습니다');
+      }
     },
     [removeDoc],
   );

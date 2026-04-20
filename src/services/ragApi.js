@@ -5,6 +5,14 @@ import { API_CONFIG } from './api.config';
 import * as mock from './mock/ragMock';
 import api from './api';
 
+/** 업로드된 RAG 문서 목록을 서버에서 조회한다 */
+export async function listRagDocs() {
+  if (API_CONFIG.useMock) return mock.listRagDocs();
+  const { data } = await api.get('/rag/docs');
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
+}
+
 /** RAG용 문서 파일을 업로드하고 청크 분할 결과를 반환한다 */
 export async function uploadDocument(file) {
   if (API_CONFIG.useMock) return mock.uploadDocument(file);

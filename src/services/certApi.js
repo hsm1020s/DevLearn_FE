@@ -32,3 +32,16 @@ export async function submitAnswer(params) {
   // 백엔드 ApiResponse 래핑 해제
   return data.data;
 }
+
+/**
+ * 자격증 학습 누적 통계를 조회한다.
+ * @returns {Promise<{totalSolved:number, correctCount:number, correctRate:number,
+ *   byDifficulty: Array<{difficulty:string,total:number,correct:number,rate:number}>,
+ *   byType: Array<{type:string,total:number,correct:number,rate:number}>}>}
+ */
+export async function getCertStats() {
+  if (API_CONFIG.useMock) return mock.getCertStats();
+  const { data } = await api.get('/cert/stats');
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
+}

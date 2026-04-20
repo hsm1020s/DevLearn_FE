@@ -44,3 +44,23 @@ export async function submitAnswer({ quizId, questionId, userAnswer }) {
     explanation: '이 문제의 핵심은 개념의 정확한 이해입니다. Mock 해설 데이터입니다.',
   };
 }
+
+/** 자격증 누적 학습 통계 Mock 응답을 반환한다. */
+export async function getCertStats() {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
+  return {
+    totalSolved: 128,
+    correctCount: 92,
+    correctRate: 0.72,
+    byDifficulty: [
+      { difficulty: 'easy', total: 60, correct: 52, rate: 0.866 },
+      { difficulty: 'mixed', total: 40, correct: 28, rate: 0.7 },
+      { difficulty: 'hard', total: 28, correct: 12, rate: 0.428 },
+    ],
+    byType: [
+      { type: 'multiple', total: 80, correct: 60, rate: 0.75 },
+      { type: 'ox', total: 30, correct: 24, rate: 0.8 },
+      { type: 'short', total: 18, correct: 8, rate: 0.444 },
+    ],
+  };
+}

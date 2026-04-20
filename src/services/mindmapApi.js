@@ -28,3 +28,11 @@ export async function getMindmap(id) {
   // 백엔드 ApiResponse 래핑 해제
   return data.data;
 }
+
+/** 마인드맵을 서버에서 삭제한다 */
+export async function deleteMindmap(id) {
+  if (API_CONFIG.useMock) return mock.deleteMindmap(id);
+  const { data } = await api.delete(`/mindmap/${id}`);
+  // 백엔드 ApiResponse 래핑 해제 (본문이 없으면 undefined 반환)
+  return data?.data;
+}

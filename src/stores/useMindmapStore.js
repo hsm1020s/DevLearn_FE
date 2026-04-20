@@ -1,19 +1,37 @@
 /**
- * @fileoverview 마인드맵 상태 관리 스토어
- * 모드별로 독립된 마인드맵을 maps 객체에 저장하고,
- * activeMapId로 현재 캔버스에 표시할 맵을 선택한다.
- * 대화 삭제와 무관하게 마인드맵은 독립적으로 보존된다.
+ * @fileoverview 마인드맵 상태 관리 스토어 (서버 동기화 포함)
+ * - 모드별로 독립된 마인드맵을 maps 객체에 저장하고, activeMapId로 현재 맵을 선택한다.
+ * - 편집은 로컬에 즉시 반영하고, 1.5초 debounce로 서버 자동 저장을 트리거한다.
+ * - 신규 생성 맵은 isLocal=true로 표시되고, 첫 저장 성공 시 서버가 발급한 id로 키를 교체한다.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/helpers';
+import {
+  saveMindmap,
+  getMindmap,
+  getMindmapList,
+  deleteMindmap,
+} from '../services/mindmapApi';
+import { showError } from '../utils/errorHandler';
+
+// ── 모듈 스코프 (persist 대상 아님) ──
+/** mapId → setTimeout 핸들. 디바운스 저장 예약 상태 */
+const saveTimers = new Map();
+/** 저장 중 편집 발생 시 완료 후 재예약하기 위한 dirty 셋 */
+const dirtySet = new Set();
+
+/** 디바운스 지연(ms) */
+const SAVE_DEBOUNCE_MS = 1500;
+/** 저장 실패 시 단일 재시도 지연(ms) */
+const SAVE_RETRY_MS = 3000;
 
 const useMindmapStore = create(
   persist(
     (set, get) => ({
       /**
        * 저장된 마인드맵 맵 객체
-       * { [mapId]: { id, title, mode, nodes, createdAt, updatedAt } }
+       * { [mapId]: { id, title, mode, nodes, createdAt, updatedAt, isLocal? } }
        */
       maps: {},
 
@@ -26,16 +44,33 @@ const useMindmapStore = create(
       /** 현재 선택된 노드 ID */
       selectedNodeId: null,
 
-      /** 마지막 저장 타임스탬프 */
+      /** 마지막 저장 타임스탬프 (로컬 편집 기준) */
       lastSavedAt: null,
+
+      /** 맵별 동기화 상태: 'idle' | 'saving' | 'saved' | 'error' */
+      syncStatus: {},
+
+      /** 맵별 마지막 서버 저장 타임스탬프 */
+      lastServerSyncAt: {},
+
+      /** 목록 로딩 중 여부 */
+      isListLoading: false,
 
       // ── 맵 관리 ──
 
-      /** 새 마인드맵 생성 후 활성화 */
+      /** 새 마인드맵 생성 후 활성화 (isLocal=true로 표시, 첫 편집/저장 시 서버로 업로드) */
       createMap: (mode, title = '새 마인드맵') => {
         const id = generateId();
         const now = Date.now();
-        const newMap = { id, title, mode, nodes: [], createdAt: now, updatedAt: now };
+        const newMap = {
+          id,
+          title,
+          mode,
+          nodes: [],
+          createdAt: now,
+          updatedAt: now,
+          isLocal: true,
+        };
         set((state) => ({
           maps: { ...state.maps, [id]: newMap },
           activeMapId: id,
@@ -43,34 +78,59 @@ const useMindmapStore = create(
           lastSavedAt: now,
           lastActiveByMode: { ...state.lastActiveByMode, [mode]: id },
         }));
+        // 신규 생성 직후 debounce 저장 예약 → 서버 id 발급
+        get().scheduleSave(id);
         return newMap;
       },
 
-      /** 마인드맵 삭제 (사용자가 직접 선택) */
-      deleteMap: (mapId) =>
+      /**
+       * 마인드맵 삭제.
+       * - isLocal=true 이면 서버 호출 없이 로컬만 제거
+       * - 그 외엔 서버 삭제 호출 후 로컬 제거 (실패 시 토스트만 띄우고 로컬 상태는 유지하지 않음 → 설계 단순화를 위해 로컬 제거 진행)
+       */
+      deleteMap: (mapId) => {
+        const map = get().maps[mapId];
+        // 예약된 저장 타이머 취소
+        if (saveTimers.has(mapId)) {
+          clearTimeout(saveTimers.get(mapId));
+          saveTimers.delete(mapId);
+        }
+        dirtySet.delete(mapId);
+
+        if (map && !map.isLocal) {
+          // 서버 삭제는 fire-and-forget (실패 시 토스트)
+          deleteMindmap(mapId).catch((err) => showError(err, '마인드맵 삭제에 실패했습니다'));
+        }
+
         set((state) => {
           const { [mapId]: _, ...rest } = state.maps;
           const updatedLastActive = { ...state.lastActiveByMode };
-          // lastActiveByMode에서도 제거
           Object.entries(updatedLastActive).forEach(([mode, id]) => {
             if (id === mapId) delete updatedLastActive[mode];
           });
+          const { [mapId]: __, ...restSyncStatus } = state.syncStatus;
+          const { [mapId]: ___, ...restLastSync } = state.lastServerSyncAt;
           return {
             maps: rest,
             activeMapId: state.activeMapId === mapId ? null : state.activeMapId,
             selectedNodeId: state.activeMapId === mapId ? null : state.selectedNodeId,
             lastActiveByMode: updatedLastActive,
+            syncStatus: restSyncStatus,
+            lastServerSyncAt: restLastSync,
           };
-        }),
+        });
+      },
 
       /** 마인드맵 제목 변경 */
-      renameMap: (mapId, title) =>
+      renameMap: (mapId, title) => {
         set((state) => ({
           maps: {
             ...state.maps,
             [mapId]: { ...state.maps[mapId], title, updatedAt: Date.now() },
           },
-        })),
+        }));
+        get().scheduleSave(mapId);
+      },
 
       /** 특정 마인드맵을 캔버스에 로드 */
       loadMap: (mapId) => {
@@ -126,6 +186,7 @@ const useMindmapStore = create(
           },
           lastSavedAt: now,
         }));
+        get().scheduleSave(activeMapId);
         return node;
       },
 
@@ -166,6 +227,7 @@ const useMindmapStore = create(
             lastSavedAt: now,
           };
         });
+        get().scheduleSave(activeMapId);
       },
 
       /** 노드 속성 부분 업데이트 (라벨, 위치, 색상 등) */
@@ -189,6 +251,7 @@ const useMindmapStore = create(
             lastSavedAt: now,
           };
         });
+        get().scheduleSave(activeMapId);
       },
 
       selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
@@ -211,6 +274,224 @@ const useMindmapStore = create(
             lastSavedAt: null,
           };
         });
+        get().scheduleSave(activeMapId);
+      },
+
+      // ── 서버 동기화 액션 ──
+
+      /**
+       * 서버 목록을 pull 하여 maps에 병합한다.
+       * - 이미 로컬에 nodes가 있으면 덮어쓰지 않는다 (편집 충돌 방지)
+       * - 로컬에 없는 맵은 placeholder(nodes: [])로 추가한다
+       */
+      fetchMapList: async () => {
+        set({ isListLoading: true });
+        try {
+          const list = await getMindmapList();
+          set((state) => {
+            const mergedMaps = { ...state.maps };
+            const mergedSyncStatus = { ...state.syncStatus };
+            list.forEach((summary) => {
+              const updatedAtMs =
+                typeof summary.updatedAt === 'string'
+                  ? new Date(summary.updatedAt).getTime()
+                  : summary.updatedAt || Date.now();
+              const existing = mergedMaps[summary.id];
+              if (existing && existing.nodes && existing.nodes.length > 0) {
+                // 로컬에 노드가 있으면 메타만 갱신 (nodes overwrite 금지)
+                mergedMaps[summary.id] = {
+                  ...existing,
+                  title: summary.title ?? existing.title,
+                  mode: summary.mode ?? existing.mode,
+                  updatedAt: updatedAtMs,
+                  isLocal: false,
+                };
+              } else {
+                // 로컬에 없거나 nodes가 비어있으면 placeholder로 병합
+                mergedMaps[summary.id] = {
+                  id: summary.id,
+                  title: summary.title ?? '마인드맵',
+                  mode: summary.mode ?? 'general',
+                  nodes: [],
+                  createdAt: existing?.createdAt ?? updatedAtMs,
+                  updatedAt: updatedAtMs,
+                  isLocal: false,
+                };
+                mergedSyncStatus[summary.id] = 'idle';
+              }
+            });
+            return { maps: mergedMaps, syncStatus: mergedSyncStatus, isListLoading: false };
+          });
+        } catch (err) {
+          showError(err, '마인드맵 목록 조회 실패');
+          set({ isListLoading: false });
+        }
+      },
+
+      /** 서버에서 특정 맵의 상세(nodes)를 받아 로컬을 덮어쓴다 */
+      loadMapFromServer: async (id) => {
+        try {
+          const detail = await getMindmap(id);
+          set((state) => {
+            const existing = state.maps[id];
+            return {
+              maps: {
+                ...state.maps,
+                [id]: {
+                  ...(existing || {}),
+                  id,
+                  title: detail.title ?? existing?.title ?? '마인드맵',
+                  mode: detail.mode ?? existing?.mode ?? 'general',
+                  nodes: detail.nodes || [],
+                  createdAt: existing?.createdAt ?? Date.now(),
+                  updatedAt: Date.now(),
+                  isLocal: false,
+                },
+              },
+              syncStatus: { ...state.syncStatus, [id]: 'saved' },
+              lastServerSyncAt: { ...state.lastServerSyncAt, [id]: Date.now() },
+            };
+          });
+        } catch (err) {
+          showError(err, '마인드맵 조회 실패');
+        }
+      },
+
+      /**
+       * 디바운스 저장 예약.
+       * - 같은 맵의 기존 타이머는 취소하고 1.5초 후 _performSave 실행
+       */
+      scheduleSave: (mapId) => {
+        if (!mapId) return;
+        // 저장 중에 호출되면 dirty로 표시 → 완료 후 재예약
+        const status = get().syncStatus[mapId];
+        if (status === 'saving') {
+          dirtySet.add(mapId);
+          return;
+        }
+        if (saveTimers.has(mapId)) clearTimeout(saveTimers.get(mapId));
+        const handle = setTimeout(() => {
+          saveTimers.delete(mapId);
+          get()._performSave(mapId);
+        }, SAVE_DEBOUNCE_MS);
+        saveTimers.set(mapId, handle);
+      },
+
+      /** 즉시 저장 (디바운스 건너뜀) — 활성 맵 대상 */
+      saveActiveNow: () => {
+        const { activeMapId } = get();
+        if (!activeMapId) return;
+        if (saveTimers.has(activeMapId)) {
+          clearTimeout(saveTimers.get(activeMapId));
+          saveTimers.delete(activeMapId);
+        }
+        get()._performSave(activeMapId);
+      },
+
+      /**
+       * 내부: 실제 서버 저장 수행.
+       * - 신규(isLocal=true) 맵은 서버가 발급한 id로 키 교체 + activeMapId/lastActiveByMode 치환
+       * - 실패 시 1회만 재시도, 계속 실패하면 error 상태
+       */
+      _performSave: async (mapId, isRetry = false) => {
+        const map = get().maps[mapId];
+        if (!map) return;
+
+        set((state) => ({
+          syncStatus: { ...state.syncStatus, [mapId]: 'saving' },
+        }));
+
+        try {
+          // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다
+          const payload = {
+            id: map.isLocal ? undefined : mapId,
+            title: map.title,
+            mode: map.mode,
+            nodes: map.nodes,
+          };
+          const res = await saveMindmap(payload);
+          const serverId = res?.id;
+
+          set((state) => {
+            let nextActiveMapId = state.activeMapId;
+            let nextLastActiveByMode = state.lastActiveByMode;
+            const nextSyncStatus = { ...state.syncStatus };
+            const nextLastSync = { ...state.lastServerSyncAt };
+
+            if (serverId && serverId !== mapId) {
+              // 서버가 신규 id를 발급 → 키 교체
+              const { [mapId]: oldEntry, ...restMaps } = state.maps;
+              const nextMaps = {
+                ...restMaps,
+                [serverId]: {
+                  ...oldEntry,
+                  id: serverId,
+                  isLocal: false,
+                  updatedAt: Date.now(),
+                },
+              };
+
+              if (nextActiveMapId === mapId) nextActiveMapId = serverId;
+
+              nextLastActiveByMode = { ...state.lastActiveByMode };
+              Object.entries(nextLastActiveByMode).forEach(([m, id]) => {
+                if (id === mapId) nextLastActiveByMode[m] = serverId;
+              });
+
+              delete nextSyncStatus[mapId];
+              delete nextLastSync[mapId];
+              nextSyncStatus[serverId] = 'saved';
+              nextLastSync[serverId] = Date.now();
+
+              return {
+                maps: nextMaps,
+                activeMapId: nextActiveMapId,
+                lastActiveByMode: nextLastActiveByMode,
+                syncStatus: nextSyncStatus,
+                lastServerSyncAt: nextLastSync,
+              };
+            }
+
+            // id 동일한 경우 — 기존 엔트리 갱신만
+            const finalId = serverId || mapId;
+            const nextMaps = {
+              ...state.maps,
+              [finalId]: {
+                ...state.maps[finalId],
+                isLocal: false,
+                updatedAt: Date.now(),
+              },
+            };
+            nextSyncStatus[finalId] = 'saved';
+            nextLastSync[finalId] = Date.now();
+
+            return {
+              maps: nextMaps,
+              syncStatus: nextSyncStatus,
+              lastServerSyncAt: nextLastSync,
+            };
+          });
+
+          // 저장 중 누적된 dirty 가 있으면 재예약 (키 교체 고려)
+          const finalId = serverId && serverId !== mapId ? serverId : mapId;
+          const hadOldDirty = dirtySet.delete(mapId);
+          const hadNewDirty = dirtySet.delete(finalId);
+          if (hadOldDirty || hadNewDirty) {
+            get().scheduleSave(finalId);
+          }
+        } catch (err) {
+          if (!isRetry) {
+            // 단일 재시도
+            setTimeout(() => {
+              get()._performSave(mapId, true);
+            }, SAVE_RETRY_MS);
+            return;
+          }
+          set((state) => ({
+            syncStatus: { ...state.syncStatus, [mapId]: 'error' },
+          }));
+          showError(err, '마인드맵 저장 실패');
+        }
       },
     }),
     {
@@ -224,7 +505,6 @@ const useMindmapStore = create(
       migrate: (persisted, version) => {
         if (version === 0 && persisted.nodes) {
           const migrated = { maps: {}, lastActiveByMode: {} };
-          // 기존 노드가 있으면 general 모드 마인드맵으로 변환
           if (persisted.nodes.length > 0) {
             const id = 'migrated-' + Date.now();
             migrated.maps[id] = {

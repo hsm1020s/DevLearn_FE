@@ -15,6 +15,39 @@ export async function sendMessage(params) {
   return data.data;
 }
 
+/**
+ * 서버에 저장된 대화 목록(메타데이터)을 조회한다.
+ * @returns {Promise<Array<{id:string,title:string,mode:string,llm:string,isFavorite?:boolean,createdAt:string,updatedAt:string}>>}
+ */
+export async function listConversations() {
+  if (API_CONFIG.useMock) return mock.listConversations();
+  const { data } = await api.get('/chat/conversations');
+  return data.data;
+}
+
+/**
+ * 대화 메타데이터(제목/즐겨찾기)를 서버에 부분 갱신한다.
+ * @param {string} id
+ * @param {{title?:string, isFavorite?:boolean}} patch
+ * @returns {Promise<object>}
+ */
+export async function updateConversation(id, patch) {
+  if (API_CONFIG.useMock) return mock.updateConversation(id, patch);
+  const { data } = await api.patch(`/chat/conversations/${id}`, patch);
+  return data.data;
+}
+
+/**
+ * 대화 목록을 서버에서 일괄 삭제한다. axios는 DELETE body를 config.data로 전달한다.
+ * @param {string[]} ids
+ * @returns {Promise<{deletedIds:string[]}>}
+ */
+export async function deleteConversations(ids) {
+  if (API_CONFIG.useMock) return mock.deleteConversations(ids);
+  const { data } = await api.delete('/chat/conversations', { data: { ids } });
+  return data.data;
+}
+
 /** SSE 기반 스트리밍으로 메시지를 전송하고 토큰 단위로 콜백을 호출한다 */
 export async function streamMessage(params) {
   if (API_CONFIG.useMock) return mock.streamMessage(params);

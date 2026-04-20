@@ -15,11 +15,13 @@ const MindmapPanel = lazy(() => import('../mindmap/MindmapPanel'));
 const RagUploader = lazy(() => import('../work/RagUploader'));
 const DocumentList = lazy(() => import('../work/DocumentList'));
 const StudyStats = lazy(() => import('../cert/StudyStats'));
+const CertStatsPanel = lazy(() => import('../cert/CertStatsPanel'));
 
 const MODAL_CONFIG = {
   ragUpload: { title: 'PDF 문서 업로드', Component: RagUploader },
   docManage: { title: '문서 관리', Component: DocumentList },
   studyStats: { title: '학습 현황', Component: StudyStats },
+  certStats: { title: '학습 통계', Component: CertStatsPanel },
 };
 
 function LoadingFallback() {

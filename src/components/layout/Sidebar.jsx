@@ -58,6 +58,7 @@ export default function Sidebar() {
   const deleteConversations = useChatStore((s) => s.deleteConversations);
   const renameConversation = useChatStore((s) => s.renameConversation);
   const toggleFavorite = useChatStore((s) => s.toggleFavorite);
+  const fetchConversations = useChatStore((s) => s.fetchConversations);
 
   // 즐겨찾기 목록 (최대 3개)
   const favorites = conversations.filter((c) => c.isFavorite).slice(0, 3);
@@ -103,6 +104,11 @@ export default function Sidebar() {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const editInputRef = useRef(null);
+
+  // 로그인 상태에서 서버 대화 목록을 pull (로그인 직후 또는 새로고침 시 동기화)
+  useEffect(() => {
+    if (isLoggedIn) fetchConversations();
+  }, [isLoggedIn, fetchConversations]);
 
   // 유저 메뉴 바깥 클릭 시 닫기
   useEffect(() => {

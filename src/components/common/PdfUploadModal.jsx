@@ -20,6 +20,7 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
   const updateDocStatus = useDocStore((s) => s.updateDocStatus);
   const updateDocInfo = useDocStore((s) => s.updateDocInfo);
   const removeDoc = useDocStore((s) => s.removeDoc);
+  const pollDocStatus = useDocStore((s) => s.pollDocStatus);
 
   // 파일 업로드 처리 (타입/크기 검증 포함)
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -37,15 +38,29 @@ export default function PdfUploadModal({ isOpen, onClose, anchorRef }) {
       const doc = addDoc({ fileName: file.name.slice(0, 255) });
       try {
         const result = await uploadDocument(file);
-        updateDocStatus(doc.id, 'completed', 100);
-        updateDocInfo(doc.id, { pages: result.pages, chunks: result.chunks });
-        showSuccess('문서가 업로드되었습니다');
+        // 서버가 부여한 실제 docId로 교체 + 결과 정보 반영
+        updateDocInfo(doc.id, {
+          id: result.docId ?? doc.id,
+          pages: result.pages,
+          chunks: result.chunks,
+        });
+        const serverDocId = result.docId ?? doc.id;
+        if (result.status === 'processing') {
+          // 비동기 처리 중 — 폴링으로 완료 감지
+          updateDocStatus(serverDocId, 'processing', result.progress ?? 0);
+          pollDocStatus(serverDocId);
+          showSuccess('문서 업로드가 시작되었습니다');
+        } else {
+          // 즉시 완료 — 기존 동작 유지
+          updateDocStatus(serverDocId, 'completed', 100);
+          showSuccess('문서가 업로드되었습니다');
+        }
       } catch {
         updateDocStatus(doc.id, 'error', 0);
         showError(null, '문서 업로드에 실패했습니다');
       }
     }
-  }, [addDoc, updateDocStatus, updateDocInfo]);
+  }, [addDoc, updateDocStatus, updateDocInfo, pollDocStatus]);
 
   // 문서 삭제 처리
   const handleDelete = useCallback((id) => {

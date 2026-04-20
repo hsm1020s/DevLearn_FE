@@ -36,3 +36,17 @@ export const DOC_STATUS = {
   completed: { label: '완료', color: 'text-success' },
   error: { label: '오류', color: 'text-danger' },
 };
+
+// 통계 화면에서 사용하는 난이도 key → 한글 라벨 매핑
+export const STATS_DIFFICULTY_LABELS = {
+  easy: '쉬움',
+  mixed: '혼합',
+  hard: '어려움',
+};
+
+// 통계 화면에서 사용하는 문제 유형 key → 한글 라벨 매핑
+export const STATS_TYPE_LABELS = {
+  multiple: '4지선다',
+  ox: 'OX',
+  short: '단답형',
+};
