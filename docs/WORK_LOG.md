@@ -145,3 +145,17 @@
   - 평소엔 아이콘(또는 "맨 아래로") — 새 답변 도착 상태에선 primary 배경 + "새 답변" 라벨
 - 적용 범위: general(`ChatContainer`), cert(`CertMode`), work(`WorkStudyMode`) 세 모드 모두
 - 커밋 `6ae1e082` 푸시 완료, dev 서버 재구동
+
+## 2026-04-20 (4차) — 로그아웃 시 사용자 로컬 데이터 누출 버그 수정
+- 문제: `useChatStore`·`useDocStore`·`useMindmapStore`·`useCertStore`·`useRagStore`가 전부
+  Zustand persist로 `localStorage`에 상태를 저장하지만, `useAuthStore.logout()`은
+  토큰과 `auth-storage`만 삭제해 이전 사용자의 대화/문서/마인드맵이 로그아웃 후
+  (또는 다른 계정으로 로그인해도) 그대로 노출됨 — PII 유출 위험
+- 해결: 5개 스토어에 `reset()` 액션 추가 + 일괄 초기화 유틸 도입
+  - `src/utils/resetUserStores.js` 신규 — 각 스토어 reset 호출 + persist 키 5개 `removeItem`
+  - 마인드맵은 모듈 스코프 `saveTimers`/`dirtySet`도 정리(예약 저장이 다음 세션에 발화 방지)
+  - 문서 스토어는 `activePollers` Set 정리
+  - `useAuthStore.login()`에도 선제 reset 호출(계정 전환 대비)
+  - `useAuthStore.logout()`에서 `resetUserStores()` 호출
+  - `main.jsx` 부팅 가드: 비로그인 상태로 시작이면 렌더 전 캐시 청소 → 기존에 남아 있던 유출 상태도 자연 복구
+- 커밋 `a3c414f9` 푸시 완료, dev 서버 재구동
