@@ -13,19 +13,22 @@ export async function uploadPdf(file) {
   const { data } = await api.post('/cert/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }
 
 /** 업로드된 문서 기반으로 퀴즈를 생성한다 */
 export async function generateQuiz(params) {
   if (API_CONFIG.useMock) return mock.generateQuiz(params);
   const { data } = await api.post('/cert/generate-quiz', params);
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }
 
 /** 사용자의 퀴즈 답안을 제출하고 채점 결과를 반환한다 */
 export async function submitAnswer(params) {
   if (API_CONFIG.useMock) return mock.submitAnswer(params);
   const { data } = await api.post('/cert/submit', params);
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }

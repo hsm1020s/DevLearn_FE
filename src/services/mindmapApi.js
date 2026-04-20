@@ -9,19 +9,22 @@ import api from './api';
 export async function saveMindmap(params) {
   if (API_CONFIG.useMock) return mock.saveMindmap(params);
   const { data } = await api.post('/mindmap/save', params);
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }
 
 /** 저장된 마인드맵 목록을 조회한다 */
 export async function getMindmapList() {
   if (API_CONFIG.useMock) return mock.getMindmapList();
   const { data } = await api.get('/mindmap/list');
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }
 
 /** ID로 특정 마인드맵을 조회한다 */
 export async function getMindmap(id) {
   if (API_CONFIG.useMock) return mock.getMindmap(id);
   const { data } = await api.get(`/mindmap/${id}`);
-  return data;
+  // 백엔드 ApiResponse 래핑 해제
+  return data.data;
 }

@@ -11,16 +11,24 @@ import api from './api';
 export async function sendMessage(params) {
   if (API_CONFIG.useMock) return mock.sendMessage(params);
   const { data } = await api.post('/chat', params);
-  return data;
+  // 백엔드 ApiResponse 래핑 해제: response.data가 ApiResponse이므로 data.data가 실제 데이터
+  return data.data;
 }
 
 /** SSE 기반 스트리밍으로 메시지를 전송하고 토큰 단위로 콜백을 호출한다 */
 export async function streamMessage(params) {
   if (API_CONFIG.useMock) return mock.streamMessage(params);
   const { message, mode, llm, conversationId, onToken, onDone, signal } = params;
+  // fetch 기반 스트리밍은 axios 인터셉터를 거치지 않으므로 JWT 헤더를 직접 추가
+  const accessToken = localStorage.getItem('accessToken');
+  const headers = { 'Content-Type': 'application/json' };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ message, mode, llm, conversationId }),
     signal,
   });
