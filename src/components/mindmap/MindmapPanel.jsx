@@ -25,6 +25,7 @@ export default function MindmapPanel() {
   const loadMap = useMindmapStore((s) => s.loadMap);
   const renameMap = useMindmapStore((s) => s.renameMap);
   const addNode = useMindmapStore((s) => s.addNode);
+  const deleteNode = useMindmapStore((s) => s.deleteNode);
   const clearAll = useMindmapStore((s) => s.clearAll);
   const getMapsByMode = useMindmapStore((s) => s.getMapsByMode);
   const fetchMapList = useMindmapStore((s) => s.fetchMapList);
@@ -47,6 +48,7 @@ export default function MindmapPanel() {
   const [showList, setShowList] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   /** 인디케이터 상대 시간 표시 갱신용 틱 (lastServerSyncAt 변경과 별개로 30초마다 재렌더) */
@@ -100,6 +102,14 @@ export default function MindmapPanel() {
     clearAll();
     setShowClearConfirm(false);
   }, [clearAll]);
+
+  /** 선택된 노드 삭제 (확인 후) */
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedNodeId) return;
+    deleteNode(selectedNodeId);
+    setShowDeleteSelectedConfirm(false);
+    showSuccess('노드가 삭제되었습니다');
+  }, [selectedNodeId, deleteNode]);
 
   /** 노드 추가 */
   const handleAddNode = useCallback(() => {
@@ -292,11 +302,41 @@ export default function MindmapPanel() {
 
       {/* 노드 추가 입력 (활성 맵이 있거나, 입력하면 자동 생성) */}
       <div className="px-4 py-3 border-b border-border-light space-y-2">
-        <p className="text-xs text-text-secondary">
-          선택: <span className="font-medium text-text-primary">
-            {selectedNode ? selectedNode.label : '노드를 선택하세요'}
-          </span>
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-text-secondary">
+            선택: <span className="font-medium text-text-primary">
+              {selectedNode ? selectedNode.label : '노드를 선택하세요'}
+            </span>
+          </p>
+          {/* 선택된 노드가 있을 때만 인라인 삭제 진입점 노출 */}
+          {selectedNode && (
+            showDeleteSelectedConfirm ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDeleteSelected}
+                  className="px-2 py-0.5 text-xs text-white bg-danger rounded hover:bg-danger/80"
+                >
+                  확인
+                </button>
+                <button
+                  onClick={() => setShowDeleteSelectedConfirm(false)}
+                  className="text-text-tertiary hover:text-text-primary"
+                  aria-label="삭제 취소"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowDeleteSelectedConfirm(true)}
+                className="flex items-center gap-1 text-xs text-danger hover:text-danger/80 transition-colors"
+                title="선택 노드 삭제"
+              >
+                <Trash2 size={12} /> 선택 삭제
+              </button>
+            )
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <input
             type="text"
