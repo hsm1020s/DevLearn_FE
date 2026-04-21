@@ -10,8 +10,10 @@ export async function uploadPdf(file) {
   if (API_CONFIG.useMock) return mock.uploadPdf(file);
   const formData = new FormData();
   formData.append('file', file);
+  // Content-Type을 명시하지 않아야 브라우저가 boundary를 자동 생성한다.
+  // 대용량 파일(최대 1GB)을 위해 timeout을 10분으로 설정한다.
   const { data } = await api.post('/study/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 600_000,
   });
   // 백엔드 ApiResponse 래핑 해제
   return data.data;

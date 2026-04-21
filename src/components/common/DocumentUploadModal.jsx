@@ -12,8 +12,8 @@ import { useToastStore } from './Toast';
 import useDocStore from '../../stores/useDocStore';
 import { uploadPdf } from '../../services/studyApi';
 
-/** PDF 파일 단일 최대 크기 (50MB) */
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+/** PDF 파일 단일 최대 크기 (1GB) */
+const MAX_FILE_SIZE = 1024 * 1024 * 1024;
 
 /** 바이트를 사람이 읽기 쉬운 단위로 변환 */
 function formatSize(bytes) {
@@ -97,7 +97,7 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
           continue;
         }
         if (f.size > MAX_FILE_SIZE) {
-          addToast(`${f.name}: 50MB 이하 파일만 업로드할 수 있습니다.`, 'error');
+          addToast(`${f.name}: 1GB 이하 파일만 업로드할 수 있습니다.`, 'error');
           continue;
         }
         valid.push(f);
@@ -109,13 +109,13 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="문서 업로드" anchorRef={anchorRef}>
+    <Modal isOpen={isOpen} onClose={onClose} title="문서 업로드" anchorRef={anchorRef} offsetVh={0.15}>
       <div className="flex flex-col gap-4">
         <FileDropZone
           onFiles={handleFiles}
           accept=".pdf,application/pdf"
           multiple
-          label="PDF 파일을 드래그하거나 클릭하여 업로드 (최대 50MB)"
+          label="PDF 파일을 드래그하거나 클릭하여 업로드 (최대 1GB)"
         />
 
         {/* 업로드된 문서 목록 */}
