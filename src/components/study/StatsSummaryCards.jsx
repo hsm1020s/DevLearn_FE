@@ -1,5 +1,5 @@
 /**
- * @fileoverview 자격증 학습 통계 — 상단 요약 카드 3종.
+ * @fileoverview 학습 통계 — 상단 요약 카드 3종.
  * 총 풀이 수, 정답 수, 정답률(프로그레스 바 내장)을 표시한다.
  */
 import { BookOpen, CheckCircle, TrendingUp } from 'lucide-react';

@@ -18,7 +18,7 @@ const NEAR_BOTTOM_THRESHOLD = 120;
 
 /**
  * 스트리밍 채팅 훅
- * @param {string} mode - 채팅 모드 (general | cert | work)
+ * @param {string} mode - 채팅 모드 (general | study)
  */
 export default function useStreamingChat(mode) {
   const currentConversationId = useChatStore((s) => s.currentConversationId);

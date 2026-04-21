@@ -1,5 +1,5 @@
 /**
- * @fileoverview 채팅 API - 일반/자격증/업무 모드별 메시지 송수신 처리
+ * @fileoverview 채팅 API - 일반/학습 모드별 메시지 송수신 처리
  */
 import axios from 'axios';
 import { API_CONFIG } from './api.config';
@@ -61,7 +61,7 @@ export async function listConversations() {
  * @returns {Promise<{id:string,title:string,mode:string,llm:string,isFavorite:boolean}>}
  */
 export async function createConversation(payload) {
-  if (API_CONFIG.useMock) return mock.createConversation?.(payload) ?? payload;
+  if (API_CONFIG.useMock) return mock['createConversation']?.(payload) ?? payload;
   const { data } = await api.post('/chat/conversations', payload);
   return data.data;
 }

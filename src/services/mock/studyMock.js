@@ -1,5 +1,5 @@
 /**
- * @fileoverview 자격증 API Mock - PDF 업로드, 퀴즈 생성, 답안 채점 시뮬레이션
+ * @fileoverview 학습 API Mock - PDF 업로드, 퀴즈 생성, 답안 채점 시뮬레이션
  */
 import { generateId } from '../../utils/helpers';
 
@@ -45,8 +45,8 @@ export async function submitAnswer({ quizId, questionId, userAnswer }) {
   };
 }
 
-/** 자격증 누적 학습 통계 Mock 응답을 반환한다. */
-export async function getCertStats() {
+/** 학습 누적 학습 통계 Mock 응답을 반환한다. */
+export async function getStudyStats() {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
   return {
     totalSolved: 128,

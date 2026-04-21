@@ -1,7 +1,7 @@
 /**
  * @fileoverview 관리자 대시보드 페이지.
  * 서버 집계(GET /admin/dashboard)를 우선 표시하며, 실패 시 기존 로컬 스토어
- * (useChatStore/useDocStore/useMindmapStore/useCertStore) 데이터로 폴백 렌더한다.
+ * (useChatStore/useDocStore/useMindmapStore/useStudyStore) 데이터로 폴백 렌더한다.
  * 진입 가드: isLoggedIn=false면 메인으로 리다이렉트한다. role 기반 가드는 Phase B에서 추가.
  */
 import { useEffect, useMemo } from 'react';
@@ -25,7 +25,7 @@ import useAdminDashboard from '../hooks/useAdminDashboard';
 import useAuthStore from '../stores/useAuthStore';
 // 폴백용 — 서버 호출 실패 시 로컬 스토어 집계를 사용한다
 import useChatStore from '../stores/useChatStore';
-import useCertStore from '../stores/useCertStore';
+import useStudyStore from '../stores/useStudyStore';
 import useDocStore from '../stores/useDocStore';
 import useMindmapStore from '../stores/useMindmapStore';
 
@@ -39,7 +39,7 @@ export default function AdminPage() {
 
   // 폴백용 로컬 스토어 구독 (서버 실패 시에만 사용)
   const conversations = useChatStore((s) => s.conversations);
-  const answers = useCertStore((s) => s.answers);
+  const answers = useStudyStore((s) => s.answers);
   const docs = useDocStore((s) => s.docs);
   const maps = useMindmapStore((s) => s.maps);
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview 자격증 모드 — 채팅 기반 학습 화면.
+ * @fileoverview 학습 모드 — 채팅 기반 학습 화면.
  * EmptyChatView로 빈 상태를 공통 처리하고, 대화 시작 후 하단 입력창 레이아웃을 사용한다.
  */
 import { FileText } from 'lucide-react';
@@ -16,8 +16,8 @@ const EXAMPLE_QUESTIONS = [
   'SQL 기본 문법 정리해줘',
 ];
 
-/** 자격증 모드 채팅 화면 */
-export default function CertMode() {
+/** 학습 모드 채팅 화면 */
+export default function StudyMode() {
   const {
     messages,
     streamingContent,
@@ -29,7 +29,7 @@ export default function CertMode() {
     isAtBottom,
     hasNewBelow,
     scrollToBottomNow,
-  } = useStreamingChat('cert');
+  } = useStreamingChat('study');
 
   const isEmpty = messages.length === 0 && !streamingContent;
 
@@ -38,8 +38,8 @@ export default function CertMode() {
       <div className="flex flex-col h-full">
         <EmptyChatView
           icon={FileText}
-          title="자격증 모드"
-          description="자격증 학습에 대해 질문해보세요"
+          title="학습 모드"
+          description="학습할 주제에 대해 질문해보세요"
           examples={EXAMPLE_QUESTIONS}
           onSend={handleSend}
           isStreaming={isStreaming}

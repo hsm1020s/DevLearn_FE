@@ -5,13 +5,13 @@
  */
 import { BarChart3, CheckCircle, XCircle, BookOpen } from 'lucide-react';
 import useDocStore from '../../stores/useDocStore';
-import useCertStore from '../../stores/useCertStore';
+import useStudyStore from '../../stores/useStudyStore';
 import Button from '../common/Button';
 
 /** 학습 통계 요약 카드. 문서/문제/정답/오답 수와 정답률 프로그레스 바를 표시한다. */
 export default function StudyStats({ onDone }) {
-  const currentQuiz = useCertStore((s) => s.currentQuiz);
-  const answers = useCertStore((s) => s.answers);
+  const currentQuiz = useStudyStore((s) => s.currentQuiz);
+  const answers = useStudyStore((s) => s.answers);
   const docs = useDocStore((s) => s.docs);
 
   const questions = currentQuiz?.questions || [];

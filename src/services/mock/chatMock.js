@@ -11,8 +11,7 @@ const mockConversations = [];
 /** 모드별 기본 Mock 응답 텍스트 */
 const MOCK_RESPONSES = {
   general: '안녕하세요! 무엇이든 물어보세요. 검색, 코딩, 일반 지식 등 다양한 주제에 대해 도움을 드릴 수 있습니다.',
-  cert: '자격증 학습을 도와드리겠습니다. 어떤 자격증을 준비하고 계신가요?',
-  work: '업무 문서를 기반으로 답변드리겠습니다. 궁금한 내용을 질문해주세요.',
+  study: '학습을 도와드리겠습니다. 어떤 주제를 준비하고 계신가요?',
 };
 
 /** 단일 메시지 전송을 시뮬레이션하고 Mock 응답을 반환한다 */
@@ -27,9 +26,6 @@ export async function sendMessage({ message, mode, llm, conversationId }) {
     role: 'assistant',
     content: responseText,
     conversationId: conversationId || generateId(),
-    sources: mode === 'work'
-      ? [{ docId: 'mock-1', docName: '샘플문서.pdf', page: 1, chunk: '관련 내용...', similarity: 0.92 }]
-      : undefined,
   };
 }
 
@@ -52,9 +48,6 @@ export async function streamMessage({ message, mode, llm, conversationId, onToke
   onDone?.({
     conversationId: conversationId || generateId(),
     content: accumulated,
-    sources: mode === 'work'
-      ? [{ docId: 'mock-1', docName: '샘플문서.pdf', page: 1, chunk: '관련 내용...', similarity: 0.92 }]
-      : undefined,
   });
 }
 

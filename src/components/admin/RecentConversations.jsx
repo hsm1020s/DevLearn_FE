@@ -7,7 +7,7 @@ import { MessageSquare } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 
 /** 모드 키 → 한글 라벨 */
-const MODE_LABELS = { general: '일반', cert: '자격증', work: '업무' };
+const MODE_LABELS = { general: '일반', study: '학습' };
 
 /**
  * 최근 대화 목록 (최대 8건 권장, 상위 컴포넌트에서 slice)
