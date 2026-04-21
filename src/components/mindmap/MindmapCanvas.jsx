@@ -3,7 +3,7 @@
  * 스토어의 노드 데이터를 자동 레이아웃으로 변환하여 표시한다.
  */
 import { useCallback, useMemo, useEffect, useRef, useState } from 'react';
-import ReactFlow, { Background, useNodesState, useEdgesState, useReactFlow, ReactFlowProvider, useNodesInitialized } from 'reactflow';
+import ReactFlow, { Background, useNodesState, useEdgesState, useReactFlow, ReactFlowProvider } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -110,31 +110,23 @@ function MindmapCanvasInner() {
   useEffect(() => { setFlowEdges(rfEdges); }, [rfEdges, setFlowEdges]);
 
   // 화면에 보이는 노드 수가 바뀔 때(추가/삭제/접기/펼치기) 전체 뷰에 맞게 자동 줌 조절.
-  // - `useNodesInitialized` 가 "직전 노드 집합" 기준의 stale true 를 반환하면서 새로 나타난
-  //   노드 측정 전에 fit 이 실행되는 race 를 막기 위해, 감지와 실행을 두 effect 로 분리한다.
-  //   1) count 가 바뀌면 `pendingFit` 플래그만 세운다.
-  //   2) `nodesInitialized` 가 true 로 돌아오고 플래그가 켜져 있을 때만 실제 fit 실행.
-  //   → 측정 완료 후에 반드시 한 번 재계산되므로 펼치기 직후에도 모든 노드가 화면에 들어온다.
-  // - `maxZoom: 1.5` 로 캡을 둬서 루트를 접어 단일 노드만 남은 경우 극단 확대를 막는다.
-  const nodesInitialized = useNodesInitialized();
-  const pendingFit = useRef(false);
+  // 단일 setTimeout 디바운스로 단순화: 이전 구현(pendingFit ref + useNodesInitialized)은
+  // React StrictMode 가 effect 를 두 번 실행하며 cleanup 으로 RAF 를 취소하는 경로에서 fit 이
+  // 아예 실행되지 않거나 stale bbox 로 실행되는 문제가 있었다.
+  // - `lastCountRef` 업데이트를 **setTimeout 콜백 안**에서만 수행하는 것이 핵심.
+  //   StrictMode 첫 실행 → cleanup → 재실행 사이에 ref 가 아직 옛 값이라 조건이 다시 맞고
+  //   재스케줄된다. 디바운스 180ms 가 측정/레이아웃 안정화 시간을 확보한다.
+  // - `padding: 0.3` 여유, `maxZoom: 1.2` 로 소수 노드 집합 과확대 방지.
   const lastCountRef = useRef(flowNodes.length);
-
   useEffect(() => {
-    if (flowNodes.length !== lastCountRef.current) {
-      lastCountRef.current = flowNodes.length;
-      pendingFit.current = true;
-    }
-  }, [flowNodes.length]);
-
-  useEffect(() => {
-    if (!nodesInitialized || !pendingFit.current) return;
-    pendingFit.current = false;
-    const raf = requestAnimationFrame(() => {
-      fitView({ padding: 0.2, duration: 300, maxZoom: 1.5 });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [nodesInitialized, flowNodes.length, fitView]);
+    if (flowNodes.length === lastCountRef.current) return;
+    const target = flowNodes.length;
+    const id = setTimeout(() => {
+      fitView({ padding: 0.3, duration: 400, maxZoom: 1.2 });
+      lastCountRef.current = target;
+    }, 180);
+    return () => clearTimeout(id);
+  }, [flowNodes.length, fitView]);
 
   const onNodeClick = useCallback(
     (_event, node) => { selectNode(node.id); },
