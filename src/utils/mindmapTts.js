@@ -65,7 +65,7 @@ export function buildTtsScript(nodes) {
     if (!children || children.length === 0) continue;
 
     script.push({
-      text: `${labelForAnnouncement(parent)}의 하위 내용은 ${children.map(labelForAnnouncement).join(', ')}`,
+      text: `${labelForAnnouncement(parent)} ${children.map(labelForAnnouncement).join(', ')}`,
       nodeId: null,
     });
 
