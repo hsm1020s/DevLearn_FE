@@ -9,6 +9,7 @@
  * @param {Array<{value: string, label: string}>} options - 선택 옵션 목록
  * @param {string} value - 현재 선택된 값
  * @param {Function} onChange - 선택 변경 시 value를 전달하는 콜백
+ * @param {boolean} [disabled] - 비활성 상태
  */
 export default function Dropdown({
   label,
@@ -16,6 +17,7 @@ export default function Dropdown({
   value,
   onChange,
   className = '',
+  disabled = false,
 }) {
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
@@ -25,15 +27,17 @@ export default function Dropdown({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="
+        disabled={disabled}
+        className={`
           w-full px-3 py-2 text-sm rounded-lg
           bg-bg-secondary border border-border-light
-          text-text-primary cursor-pointer
+          text-text-primary
           focus:outline-none focus:border-primary
           appearance-none
           bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22currentColor%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')]
           bg-no-repeat bg-[right_0.75rem_center]
-        "
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        `}
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

@@ -22,8 +22,11 @@ const useAppStore = create(
       isMobileSidebarOpen: false,
       // 채팅/마인드맵 분할 시 좌측(채팅) 비율 (%)
       splitLeftPct: 50,
+      // 학습 모드 내부 서브 탭 (chat | quiz | record)
+      studySubTab: 'chat',
 
       setLLM: (llm) => set({ selectedLLM: llm }),
+      setStudySubTab: (tab) => set({ studySubTab: tab }),
       setMainMode: (mode) => {
         set({ mainMode: mode });
         // 모드 전환 시 채팅 공간을 모드별로 분리하고 마인드맵도 복원
@@ -52,6 +55,7 @@ const useAppStore = create(
         splitLeftPct: state.splitLeftPct,
         mainMode: state.mainMode,
         isMindmapOn: state.isMindmapOn,
+        studySubTab: state.studySubTab,
       }),
     },
   ),

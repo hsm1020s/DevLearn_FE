@@ -32,6 +32,20 @@ export const QUIZ_TYPES = [
   { value: 'short', label: '단답형' },
 ];
 
+// 학습 채팅 스타일 (그룹 D — 이해도 점검용 프롬프트 프리셋)
+export const CHAT_STYLES = [
+  { value: 'general', label: '일반', short: '💬', description: '자유 질의응답' },
+  { value: 'feynman', label: '파인만', short: '🧠', description: '내가 설명하면 AI가 빠진 개념을 짚어준다' },
+  { value: 'summary', label: '한줄요약', short: '✂️', description: '핵심을 한 문장으로 요약해준다' },
+];
+
+// 모의고사 프리셋 (그룹 A #7)
+export const EXAM_PRESET = {
+  count: 30,
+  difficulty: 'mixed',
+  timerSec: 30 * 60, // 30분
+};
+
 // 문서 처리 상태별 라벨 및 색상 매핑
 export const DOC_STATUS = {
   processing: { label: '처리중', color: 'text-warning' },

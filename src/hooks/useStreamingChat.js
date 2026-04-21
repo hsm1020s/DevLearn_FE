@@ -10,8 +10,15 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
+import useStudyStore from '../stores/useStudyStore';
 import { streamMessage } from '../services/chatApi';
 import { showError } from '../utils/errorHandler';
+
+// 학습 모드 스타일별 프리픽스 — mock/백엔드에서 이 토큰을 보고 응답 스타일을 결정.
+const STYLE_PREFIX = {
+  feynman: '[파인만 모드] ',
+  summary: '[한줄요약] ',
+};
 
 // 하단 근접 판정 임계값(px). 이 거리 이내면 "맨 아래로 따라가기" 모드로 간주.
 const NEAR_BOTTOM_THRESHOLD = 120;
@@ -104,10 +111,12 @@ export default function useStreamingChat(mode) {
   }, [currentConversationId]);
 
   // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
+  // style: 학습 모드에서 다음 턴에 적용할 스타일(general|feynman|summary). 메시지 meta + 프리픽스에 사용.
   const doStream = useCallback(
-    async (content, convId, controller) => {
+    async (content, convId, controller, style) => {
+      const prefixed = style && STYLE_PREFIX[style] ? STYLE_PREFIX[style] + content : content;
       await streamMessage({
-        message: content,
+        message: prefixed,
         mode,
         llm: selectedLLM,
         conversationId: convId,
@@ -121,6 +130,7 @@ export default function useStreamingChat(mode) {
               role: 'assistant',
               content: result.content,
               sources: result.sources,
+              meta: style && style !== 'general' ? { style } : undefined,
             });
           }
           // 스트리밍 경로로도 서버에 대화가 생성되므로 isLocal 승격 + 대기 패치 flush
@@ -138,12 +148,20 @@ export default function useStreamingChat(mode) {
   // 사용자 메시지 전송 및 SSE 스트리밍 수신 처리
   const handleSend = useCallback(
     async (content) => {
+      // 학습 모드에서만 현재 스타일을 읽어 프리픽스/메타에 사용. 일반 모드는 무시.
+      const studyState = useStudyStore.getState();
+      const style = mode === 'study' ? studyState.chatStyle : 'general';
+
       // 대화가 없으면 새로 생성
       let convId = currentConversationId;
       if (!convId) {
         convId = createConversation(mode, selectedLLM);
       }
-      addMessage({ role: 'user', content });
+      addMessage({
+        role: 'user',
+        content,
+        meta: mode === 'study' && style !== 'general' ? { style } : undefined,
+      });
       setStreaming(true);
       setStreamingContent('');
       // 사용자가 방금 전송했으니 무조건 맨 아래로 복귀.
@@ -153,7 +171,7 @@ export default function useStreamingChat(mode) {
       abortControllerRef.current = controller;
 
       try {
-        await doStream(content, convId, controller);
+        await doStream(content, convId, controller, style);
       } catch (err) {
         if (err.name === 'AbortError') return; // 정상 중단
 
@@ -165,7 +183,7 @@ export default function useStreamingChat(mode) {
           const newConvId = createConversation(mode, selectedLLM);
           addMessage({ role: 'user', content });
           try {
-            await doStream(content, newConvId, controller);
+            await doStream(content, newConvId, controller, style);
             return;
           } catch (retryErr) {
             if (retryErr.name === 'AbortError') return;
@@ -178,6 +196,11 @@ export default function useStreamingChat(mode) {
         }
         setStreamingContent('');
         setStreaming(false);
+      } finally {
+        // 턴 종료 — 고정되지 않은 스타일은 'general'로 리셋
+        if (mode === 'study') {
+          useStudyStore.getState().resetChatStyleIfNotLocked();
+        }
       }
     },
     [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream, scrollToBottomNow],
