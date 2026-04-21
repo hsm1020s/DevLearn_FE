@@ -1,5 +1,13 @@
 # 개발 로그
 
+## 2026-04-21 (6차) — 마인드맵 fitView 재설계 (StrictMode race 해소)
+- 5차 수정(`pendingFit` ref + 분리된 두 effect) 이 StrictMode 의 이중 effect 실행 + cleanup 경로에서 RAF 가 취소된 뒤 플래그가 false 로 고착되어 fit 이 누락되는 문제가 있었음.
+- 단일 `useEffect` + 180ms setTimeout 디바운스 구조로 단순화 ([MindmapCanvas.jsx](../src/components/mindmap/MindmapCanvas.jsx)).
+  - `lastCountRef` 업데이트를 타이머 콜백 내부로 이동 → cleanup 후 재실행에서 조건이 다시 맞아 재스케줄되는 경로 확보.
+  - `padding: 0.3`, `maxZoom: 1.2` 로 여유/과확대 조정.
+- 증상: (1) 루트에 자식 추가 시 새 자식이 뷰포트 하단 잘림, (2) 루트 접었다 펼치면 좌상단 쏠림 — 모두 해결.
+- 설계 문서: [docs/designs/2026-04-21-fix-mindmap-fit-robust.md](designs/2026-04-21-fix-mindmap-fit-robust.md)
+
 ## 2026-04-21 (5차) — 마인드맵 fitView race 수정 + 하네스 증거 포맷 변경
 - 루트 노드 접었다 펼치면 일부 자식이 뷰 밖에 남는 버그 수정 ([MindmapCanvas.jsx](../src/components/mindmap/MindmapCanvas.jsx))
   - 단일 `useEffect` 에서 count 비교와 fitView 실행을 동시에 처리하던 구조가 `useNodesInitialized` 의 stale true 와 결합해 측정 전에 fit 이 한 번 실행되고 `lastFittedCount` 가 선갱신되면서 재-fit 기회를 잃는 race 를 만들었음.
