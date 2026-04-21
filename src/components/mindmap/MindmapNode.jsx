@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position } from 'reactflow';
+import { X } from 'lucide-react';
 import useMindmapStore from '../../stores/useMindmapStore';
 
 const handleStyle = {
@@ -30,6 +31,7 @@ export default function MindmapNode({ id, data, selected }) {
   const inputRef = useRef(null);
   const updateNode = useMindmapStore((s) => s.updateNode);
   const toggleCollapsed = useMindmapStore((s) => s.toggleCollapsed);
+  const deleteNode = useMindmapStore((s) => s.deleteNode);
 
   // 편집 모드 진입 시 입력 필드에 포커스
   useEffect(() => {
@@ -58,11 +60,28 @@ export default function MindmapNode({ id, data, selected }) {
     <div
       onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
       className={`
-        px-3 py-2 rounded-lg bg-bg-primary
+        group relative px-3 py-2 rounded-lg bg-bg-primary
         text-sm font-medium text-text-primary transition-all
         ${selected ? `border-2 ${borderColor} bg-primary/5 shadow-md` : `border ${borderColor} shadow-sm`}
       `}
     >
+      {/* hover 시 우상단에 나타나는 삭제 버튼 — ReactFlow 드래그/편집 핸들러와 분리되도록 stopPropagation */}
+      {!editing && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); deleteNode(id); }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-bg-primary border border-border-light
+                     text-text-secondary hover:text-danger hover:border-danger
+                     opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity
+                     flex items-center justify-center shadow-sm z-10"
+          title="노드 삭제"
+          aria-label="노드 삭제"
+        >
+          <X size={12} />
+        </button>
+      )}
       <Handle type="target" position={Position.Left} style={handleStyle} />
       <div className="flex items-center gap-1">
         {editing ? (
