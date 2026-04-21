@@ -79,6 +79,7 @@ function MindmapCanvasInner() {
             color: n.color,
             childCount: childIds ? childIds.length : 0,
             isCollapsed: !!n.collapsed,
+            description: n.description || '',
           },
           type: 'mindmapNode',
           selected: n.id === selectedNodeId,

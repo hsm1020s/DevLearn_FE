@@ -178,7 +178,7 @@ const useMindmapStore = create(
         }
 
         const id = generateId();
-        const node = { id, label, parentId, position: { x: 0, y: 0 }, color: null };
+        const node = { id, label, parentId, position: { x: 0, y: 0 }, color: null, description: '' };
         const now = Date.now();
         set((state) => {
           const map = state.maps[activeMapId];
@@ -444,12 +444,13 @@ const useMindmapStore = create(
 
         try {
           // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다.
-          // collapsed는 FE 전용 UI 상태 — BE 계층 저장 도입 시 아래 map(strip)만 제거하면 된다.
+          // collapsed/description은 FE 전용 상태 — BE 스키마 추가 전까지 payload에서 제거.
+          // 스키마가 추가되면 아래 map(strip)의 해당 필드만 빼면 된다.
           const payload = {
             id: map.isLocal ? undefined : mapId,
             title: map.title,
             mode: map.mode,
-            nodes: map.nodes.map(({ collapsed: _c, ...rest }) => rest),
+            nodes: map.nodes.map(({ collapsed: _c, description: _d, ...rest }) => rest),
           };
           const res = await saveMindmap(payload);
           const serverId = res?.id;
@@ -559,30 +560,44 @@ const useMindmapStore = create(
     }),
     {
       name: 'mindmap-store',
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         maps: state.maps,
         lastActiveByMode: state.lastActiveByMode,
       }),
-      // 이전 버전(nodes 배열)에서 새 구조(maps 객체)로 마이그레이션
+      // v0 → v1: nodes 배열을 maps 객체로 승격
+      // v1 → v2: 모든 노드에 description: '' 주입 (신규 필드)
       migrate: (persisted, version) => {
-        if (version === 0 && persisted.nodes) {
+        let next = persisted;
+        if (version === 0 && next.nodes) {
           const migrated = { maps: {}, lastActiveByMode: {} };
-          if (persisted.nodes.length > 0) {
+          if (next.nodes.length > 0) {
             const id = 'migrated-' + Date.now();
             migrated.maps[id] = {
               id,
               title: '마이그레이션 마인드맵',
               mode: 'general',
-              nodes: persisted.nodes,
+              nodes: next.nodes,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             };
             migrated.lastActiveByMode.general = id;
           }
-          return migrated;
+          next = migrated;
         }
-        return persisted;
+        if (version < 2 && next?.maps) {
+          const nextMaps = {};
+          Object.entries(next.maps).forEach(([mapId, map]) => {
+            nextMaps[mapId] = {
+              ...map,
+              nodes: (map.nodes || []).map((n) =>
+                n.description == null ? { ...n, description: '' } : n,
+              ),
+            };
+          });
+          next = { ...next, maps: nextMaps };
+        }
+        return next;
       },
     },
   ),

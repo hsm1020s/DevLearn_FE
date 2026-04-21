@@ -1,10 +1,14 @@
 /**
  * @fileoverview 마인드맵 개별 노드 컴포넌트.
- * 더블클릭으로 인라인 편집, 색상별 테두리 스타일을 지원한다.
+ * - 더블클릭으로 라벨 인라인 편집
+ * - hover 시 우상단 오버레이(연필 + X)
+ * - description이 있으면 500ms 호버 지연 후 상단 툴팁(ReactFlow NodeToolbar)으로 설명 표시
+ * - 연필 클릭 시 하단 NodeToolbar에 textarea 편집 팝오버
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Handle, Position } from 'reactflow';
-import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Handle, Position, NodeToolbar } from 'reactflow';
+import { X, Pencil } from 'lucide-react';
 import useMindmapStore from '../../stores/useMindmapStore';
 
 const handleStyle = {
@@ -24,27 +28,57 @@ const NODE_COLORS = {
   purple: 'border-purple-500',
 };
 
+/** 툴팁을 보여주기 전 호버 유지 시간(ms) — 사실상 즉시 노출 */
+const TOOLTIP_HOVER_DELAY = 10;
+/** 설명 최대 길이 */
+const DESCRIPTION_MAX = 500;
+
 /** 마인드맵 커스텀 노드 (ReactFlow nodeTypes에 등록) */
 export default function MindmapNode({ id, data, selected }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(data.label);
-  const inputRef = useRef(null);
+  const labelInputRef = useRef(null);
   const updateNode = useMindmapStore((s) => s.updateNode);
   const toggleCollapsed = useMindmapStore((s) => s.toggleCollapsed);
   const deleteNode = useMindmapStore((s) => s.deleteNode);
 
+  // 설명 편집 상태
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState(data.description || '');
+  const descTextareaRef = useRef(null);
+
+  // hover → 지연 후 툴팁 노출 (마우스 벗어나면 즉시 숨김)
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const tooltipTimerRef = useRef(null);
+
   // 편집 모드 진입 시 입력 필드에 포커스
   useEffect(() => {
-    if (editing) inputRef.current?.focus();
+    if (editing) labelInputRef.current?.focus();
   }, [editing]);
+
+  // 설명 편집 진입 시 textarea 포커스 + 커서 맨 뒤
+  useEffect(() => {
+    if (editingDesc) {
+      const ta = descTextareaRef.current;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    }
+  }, [editingDesc]);
 
   // 외부에서 라벨이 변경되면 로컬 상태 동기화
   useEffect(() => {
     setLabel(data.label);
   }, [data.label]);
 
+  // 외부(스토어) description 변경 시 로컬 draft 동기화 — 편집 중이 아닐 때만
+  useEffect(() => {
+    if (!editingDesc) setDescDraft(data.description || '');
+  }, [data.description, editingDesc]);
+
   // 편집 확정: 변경된 라벨을 스토어에 반영하거나 원복
-  const commit = useCallback(() => {
+  const commitLabel = useCallback(() => {
     const trimmed = label.trim();
     if (trimmed && trimmed !== data.label) {
       updateNode(id, { label: trimmed });
@@ -54,43 +88,185 @@ export default function MindmapNode({ id, data, selected }) {
     setEditing(false);
   }, [label, data.label, id, updateNode]);
 
+  /** 설명 저장 */
+  const commitDesc = useCallback(() => {
+    const next = descDraft.slice(0, DESCRIPTION_MAX);
+    if (next !== (data.description || '')) {
+      updateNode(id, { description: next });
+    }
+    setEditingDesc(false);
+  }, [descDraft, data.description, id, updateNode]);
+
+  /** 설명 편집 취소 (원복) */
+  const cancelDesc = useCallback(() => {
+    setDescDraft(data.description || '');
+    setEditingDesc(false);
+  }, [data.description]);
+
+  // hover 진입 — 지연 후 툴팁 활성화
+  const handleMouseEnter = useCallback(() => {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    tooltipTimerRef.current = setTimeout(() => {
+      setTooltipOpen(true);
+    }, TOOLTIP_HOVER_DELAY);
+  }, []);
+
+  // hover 이탈 — 즉시 숨김 + 타이머 정리
+  const handleMouseLeave = useCallback(() => {
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+    setTooltipOpen(false);
+  }, []);
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => () => {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+  }, []);
+
   const borderColor = NODE_COLORS[data.color] || NODE_COLORS[null];
+  const hasDescription = !!(data.description && data.description.trim());
+  // 편집 중(라벨/설명)엔 툴팁 숨김 — 중복 UI 방지
+  const showTooltip = tooltipOpen && hasDescription && !editing && !editingDesc;
 
   return (
     <div
       onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={`
         group relative px-3 py-2 rounded-lg bg-bg-primary
         text-sm font-medium text-text-primary transition-all
         ${selected ? `border-2 ${borderColor} bg-primary/5 shadow-md` : `border ${borderColor} shadow-sm`}
       `}
     >
-      {/* hover 시 우상단에 나타나는 삭제 버튼 — ReactFlow 드래그/편집 핸들러와 분리되도록 stopPropagation */}
-      {!editing && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); deleteNode(id); }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()}
-          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-bg-primary border border-border-light
-                     text-text-secondary hover:text-danger hover:border-danger
-                     opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity
-                     flex items-center justify-center shadow-sm z-10"
-          title="노드 삭제"
-          aria-label="노드 삭제"
+      {/* hover 오버레이 — 연필(설명 편집) + X(삭제). 편집 중엔 숨김 */}
+      {!editing && !editingDesc && (
+        <div
+          className="absolute -top-2 -right-2 flex items-center gap-1 z-10
+                     opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
         >
-          <X size={12} />
-        </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setEditingDesc(true); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="w-5 h-5 rounded-full bg-bg-primary border border-border-light
+                       text-text-secondary hover:text-primary hover:border-primary
+                       flex items-center justify-center shadow-sm"
+            title={hasDescription ? '설명 편집' : '설명 추가'}
+            aria-label={hasDescription ? '설명 편집' : '설명 추가'}
+          >
+            <Pencil size={11} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); deleteNode(id); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="w-5 h-5 rounded-full bg-bg-primary border border-border-light
+                       text-text-secondary hover:text-danger hover:border-danger
+                       flex items-center justify-center shadow-sm"
+            title="노드 삭제"
+            aria-label="노드 삭제"
+          >
+            <X size={12} />
+          </button>
+        </div>
       )}
+
+      {/* 설명 툴팁 — hover 지연 후 위쪽에 노출 */}
+      <NodeToolbar isVisible={showTooltip} position={Position.Top} offset={10}>
+        <div
+          role="tooltip"
+          className="max-w-[240px] px-3 py-2 rounded-lg bg-bg-primary border border-border-light
+                     shadow-lg text-xs text-text-primary whitespace-pre-wrap break-words"
+        >
+          {data.description}
+        </div>
+      </NodeToolbar>
+
+      {/* 설명 편집 모달 — ReactFlow pane 경계(overflow)로 잘리지 않도록 body에 portal 렌더링 */}
+      {editingDesc && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          onMouseDown={(e) => {
+            // 바깥 클릭 시 취소 (내부 카드는 stopPropagation)
+            if (e.target === e.currentTarget) cancelDesc();
+          }}
+        >
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            className="relative w-[360px] p-4 rounded-lg bg-bg-primary border border-border-light shadow-xl space-y-3"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-text-primary">
+                설명 편집 — <span className="text-text-secondary">{data.label}</span>
+              </span>
+              <button
+                type="button"
+                onClick={cancelDesc}
+                className="text-text-tertiary hover:text-text-primary"
+                aria-label="닫기"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <textarea
+              ref={descTextareaRef}
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value.slice(0, DESCRIPTION_MAX))}
+              onKeyDown={(e) => {
+                // IME 조합 중엔 확정 무시
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === 'Escape') { e.preventDefault(); cancelDesc(); }
+                // Cmd/Ctrl+Enter = 저장 (단순 Enter는 줄바꿈)
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitDesc(); }
+              }}
+              rows={6}
+              maxLength={DESCRIPTION_MAX}
+              placeholder="이 노드에 대한 설명을 입력하세요"
+              className="w-full px-2 py-1.5 text-sm border border-border-light rounded
+                         bg-bg-primary text-text-primary placeholder:text-text-secondary
+                         focus:outline-none focus:border-primary resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-tertiary">
+                {descDraft.length}/{DESCRIPTION_MAX} · ⌘/Ctrl+Enter 저장 · Esc 취소
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelDesc}
+                  className="px-3 py-1 text-xs text-text-secondary hover:text-text-primary"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={commitDesc}
+                  className="px-3 py-1 text-xs text-white bg-primary rounded hover:bg-primary/80"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       <Handle type="target" position={Position.Left} style={handleStyle} />
       <div className="flex items-center gap-1">
         {editing ? (
           <input
-            ref={inputRef}
+            ref={labelInputRef}
             value={label}
             onChange={(e) => setLabel(e.target.value.slice(0, 200))}
-            onBlur={commit}
-            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setLabel(data.label); setEditing(false); } }}
+            onBlur={commitLabel}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitLabel(); if (e.key === 'Escape') { setLabel(data.label); setEditing(false); } }}
             className="bg-transparent outline-none text-sm w-full min-w-[60px]"
           />
         ) : (
