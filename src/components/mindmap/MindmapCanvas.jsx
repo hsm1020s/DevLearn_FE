@@ -25,6 +25,7 @@ function MindmapCanvasInner() {
     return activeMapId && maps[activeMapId] ? maps[activeMapId].nodes : [];
   });
   const selectedNodeId = useMindmapStore((s) => s.selectedNodeId);
+  const playingNodeId = useMindmapStore((s) => s.playingNodeId);
   const selectNode = useMindmapStore((s) => s.selectNode);
   const updateNode = useMindmapStore((s) => s.updateNode);
 
@@ -80,12 +81,13 @@ function MindmapCanvasInner() {
             childCount: childIds ? childIds.length : 0,
             isCollapsed: !!n.collapsed,
             description: n.description || '',
+            isPlaying: n.id === playingNodeId,
           },
           type: 'mindmapNode',
           selected: n.id === selectedNodeId,
         };
       }),
-    [visibleNodes, childrenMap, selectedNodeId, positions],
+    [visibleNodes, childrenMap, selectedNodeId, playingNodeId, positions],
   );
 
   // 양 끝이 모두 visible인 엣지만 생성

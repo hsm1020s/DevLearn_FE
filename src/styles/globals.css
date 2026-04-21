@@ -23,6 +23,10 @@
   --color-text-tertiary: #999999;
   --color-border-light: #DDD9CE;
   --color-border-medium: #C5C0B4;
+
+  /* TTS 재생 중 노드 하이라이트 — 기존 primary(파랑)와 구분되는 앰버 톤 */
+  --color-highlight-tts-bg: rgba(232, 163, 60, 0.22);
+  --color-highlight-tts-border: #E8A33C;
 }
 
 /* ── 다크 테마 디자인 토큰 (data-theme="dark" 속성으로 활성화) ── */
@@ -40,6 +44,9 @@
   --color-text-tertiary: #707070;
   --color-border-light: #3A3A3A;
   --color-border-medium: #505050;
+
+  --color-highlight-tts-bg: rgba(240, 184, 88, 0.18);
+  --color-highlight-tts-border: #F0B858;
 }
 
 /* ── 글로벌 리셋 및 기본 스타일 ── */
