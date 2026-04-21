@@ -1,5 +1,6 @@
 /**
- * @fileoverview 채팅 API Mock - 개발/테스트용 채팅 응답 시뮬레이션
+ * @fileoverview 채팅 API Mock - 개발/테스트용 채팅 응답 시뮬레이션.
+ * 학습 모드의 스타일 프리픽스(`[파인만 모드]`, `[한줄요약]`)를 감지하여 응답을 변형한다.
  */
 import { generateId } from '../../utils/helpers';
 
@@ -14,12 +15,50 @@ const MOCK_RESPONSES = {
   study: '학습을 도와드리겠습니다. 어떤 주제를 준비하고 계신가요?',
 };
 
+/** 학습 스타일별 응답 빌더 — 실제 LLM 연동 전 UX 확인용 간이 응답. */
+function buildStyledResponse(topic, style) {
+  const cleanTopic = topic.replace(/\[파인만 모드\]\s*|\[한줄요약\]\s*/g, '').trim() || '해당 주제';
+  if (style === 'feynman') {
+    return [
+      `🧠 **파인만 모드** — "${cleanTopic}"에 대해 본인의 말로 설명해보세요.`,
+      '',
+      '설명을 받으면 다음을 점검해드리겠습니다:',
+      '1. 누락된 핵심 개념',
+      '2. 잘못 이해하고 있는 부분',
+      '3. 초보자가 이해하기 어려운 표현',
+      '',
+      '_(Mock 응답입니다. 백엔드 연결 시 실제 점검 프롬프트로 대체됩니다.)_',
+    ].join('\n');
+  }
+  if (style === 'summary') {
+    return [
+      `✂️ **한 줄 요약** — "${cleanTopic}"의 핵심은:`,
+      '',
+      `> ${cleanTopic}을(를) 한 문장으로 표현하면, "핵심 개념을 한 문장으로 압축한 Mock 요약입니다."`,
+      '',
+      '_(Mock 응답입니다.)_',
+    ].join('\n');
+  }
+  return null;
+}
+
+/** 메시지 내용에서 스타일 프리픽스를 감지한다. */
+function detectStyle(message) {
+  if (!message) return 'general';
+  if (message.startsWith('[파인만 모드]')) return 'feynman';
+  if (message.startsWith('[한줄요약]')) return 'summary';
+  return 'general';
+}
+
 /** 단일 메시지 전송을 시뮬레이션하고 Mock 응답을 반환한다 */
 export async function sendMessage({ message, mode, llm, conversationId }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
 
-  const responseText = MOCK_RESPONSES[mode] ||
-    `"${message}"에 대한 답변입니다.\n\n이것은 **Mock 응답**입니다. 백엔드 연동 시 실제 LLM(${llm}) 응답으로 대체됩니다.`;
+  const style = detectStyle(message);
+  const styled = buildStyledResponse(message, style);
+  const responseText = styled
+    || MOCK_RESPONSES[mode]
+    || `"${message}"에 대한 답변입니다.\n\n이것은 **Mock 응답**입니다. 백엔드 연동 시 실제 LLM(${llm}) 응답으로 대체됩니다.`;
 
   return {
     id: generateId(),
@@ -31,8 +70,11 @@ export async function sendMessage({ message, mode, llm, conversationId }) {
 
 /** 스트리밍 응답을 글자 단위로 시뮬레이션한다 */
 export async function streamMessage({ message, mode, llm, conversationId, onToken, onDone, signal }) {
-  const fullText = MOCK_RESPONSES[mode] ||
-    `"${message}"에 대한 답변입니다.\n\n이것은 **Mock 스트리밍 응답**입니다.`;
+  const style = detectStyle(message);
+  const styled = buildStyledResponse(message, style);
+  const fullText = styled
+    || MOCK_RESPONSES[mode]
+    || `"${message}"에 대한 답변입니다.\n\n이것은 **Mock 스트리밍 응답**입니다.`;
 
   const words = fullText.split('');
   let accumulated = '';

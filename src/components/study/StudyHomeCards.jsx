@@ -1,0 +1,82 @@
+/**
+ * @fileoverview 학습 모드 빈 상태 런처 카드.
+ * 채팅 탭이 비어있을 때 상단에 표시되는 3-카드(퀴즈/이해도 점검/복습).
+ * 각 카드 클릭 시 해당 서브 탭 또는 채팅 스타일로 이동한다.
+ */
+import { Target, Brain, BookMarked, Scissors } from 'lucide-react';
+import useAppStore from '../../stores/useAppStore';
+import useStudyStore from '../../stores/useStudyStore';
+
+const CARDS = [
+  {
+    id: 'quiz',
+    icon: Target,
+    title: '🎯 퀴즈 풀기',
+    description: '4지선다·주관식·모의고사',
+    subtitle: 'A그룹',
+    action: { type: 'tab', value: 'quiz' },
+  },
+  {
+    id: 'comprehend',
+    icon: Brain,
+    title: '🧠 이해도 점검',
+    description: '파인만 기법 / 한 줄 요약',
+    subtitle: 'D그룹',
+    action: { type: 'style', value: 'feynman' },
+  },
+  {
+    id: 'record',
+    icon: BookMarked,
+    title: '📚 복습·기록',
+    description: '오답노트 · 체크리스트',
+    subtitle: 'C그룹',
+    action: { type: 'tab', value: 'record' },
+  },
+];
+
+/** 학습 모드 빈 화면의 3개 기능 런처 카드. */
+export default function StudyHomeCards() {
+  const setStudySubTab = useAppStore((s) => s.setStudySubTab);
+  const setChatStyle = useStudyStore((s) => s.setChatStyle);
+
+  const handleClick = (action) => {
+    if (action.type === 'tab') {
+      setStudySubTab(action.value);
+    } else if (action.type === 'style') {
+      // 스타일 카드 클릭 = 해당 스타일로 다음 턴 프리셋 설정 (채팅 탭은 그대로)
+      setChatStyle(action.value);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-3xl mx-auto">
+      {CARDS.map(({ id, icon: Icon, title, description, subtitle, action }) => (
+        <button
+          key={id}
+          onClick={() => handleClick(action)}
+          className="
+            group flex flex-col items-start gap-2 p-4 rounded-xl
+            border border-border-light bg-bg-primary
+            hover:border-primary/50 hover:bg-primary/5
+            transition-all text-left
+          "
+        >
+          <div className="flex items-center justify-between w-full">
+            <Icon size={20} className="text-primary" />
+            <span className="text-[10px] font-medium text-text-tertiary px-1.5 py-0.5 rounded bg-bg-secondary">
+              {subtitle}
+            </span>
+          </div>
+          <span className="text-sm font-semibold text-text-primary">{title}</span>
+          <span className="text-xs text-text-secondary">{description}</span>
+          {id === 'comprehend' && (
+            <span className="mt-1 flex items-center gap-1 text-[11px] text-text-tertiary">
+              <Scissors size={11} />
+              클릭 시 파인만 스타일 프리셋 적용
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
