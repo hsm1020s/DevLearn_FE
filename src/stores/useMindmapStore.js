@@ -175,19 +175,51 @@ const useMindmapStore = create(
         const id = generateId();
         const node = { id, label, parentId, position: { x: 0, y: 0 }, color: null };
         const now = Date.now();
-        set((state) => ({
-          maps: {
-            ...state.maps,
-            [activeMapId]: {
-              ...state.maps[activeMapId],
-              nodes: [...state.maps[activeMapId].nodes, node],
-              updatedAt: now,
+        set((state) => {
+          const map = state.maps[activeMapId];
+          // 접힌 부모에 자식 추가 시 자동 펼침 — 새 자식이 숨겨지는 혼란 방지
+          const parentUnfolded = map.nodes.map((n) =>
+            n.id === parentId && n.collapsed ? { ...n, collapsed: false } : n,
+          );
+          return {
+            maps: {
+              ...state.maps,
+              [activeMapId]: {
+                ...map,
+                nodes: [...parentUnfolded, node],
+                updatedAt: now,
+              },
             },
-          },
-          lastSavedAt: now,
-        }));
+            lastSavedAt: now,
+          };
+        });
         get().scheduleSave(activeMapId);
         return node;
+      },
+
+      /**
+       * 노드 접힘/펼침 토글 (UI 상태, 서버 저장 스케줄 없음).
+       * 현재는 `_performSave`에서 collapsed 필드를 strip하므로 FE-전용으로 동작하며,
+       * BE가 노드 단위 계층 저장을 지원하게 되면 strip 로직만 제거하면 된다.
+       */
+      toggleCollapsed: (nodeId) => {
+        const { activeMapId } = get();
+        if (!activeMapId) return;
+        set((state) => {
+          const map = state.maps[activeMapId];
+          if (!map) return state;
+          return {
+            maps: {
+              ...state.maps,
+              [activeMapId]: {
+                ...map,
+                nodes: map.nodes.map((n) =>
+                  n.id === nodeId ? { ...n, collapsed: !n.collapsed } : n,
+                ),
+              },
+            },
+          };
+        });
       },
 
       /** 노드와 하위 자식 노드를 재귀적으로 삭제 */
@@ -406,12 +438,13 @@ const useMindmapStore = create(
         }));
 
         try {
-          // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다
+          // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다.
+          // collapsed는 FE 전용 UI 상태 — BE 계층 저장 도입 시 아래 map(strip)만 제거하면 된다.
           const payload = {
             id: map.isLocal ? undefined : mapId,
             title: map.title,
             mode: map.mode,
-            nodes: map.nodes,
+            nodes: map.nodes.map(({ collapsed: _c, ...rest }) => rest),
           };
           const res = await saveMindmap(payload);
           const serverId = res?.id;

@@ -29,6 +29,7 @@ export default function MindmapNode({ id, data, selected }) {
   const [label, setLabel] = useState(data.label);
   const inputRef = useRef(null);
   const updateNode = useMindmapStore((s) => s.updateNode);
+  const toggleCollapsed = useMindmapStore((s) => s.toggleCollapsed);
 
   // 편집 모드 진입 시 입력 필드에 포커스
   useEffect(() => {
@@ -63,18 +64,34 @@ export default function MindmapNode({ id, data, selected }) {
       `}
     >
       <Handle type="target" position={Position.Left} style={handleStyle} />
-      {editing ? (
-        <input
-          ref={inputRef}
-          value={label}
-          onChange={(e) => setLabel(e.target.value.slice(0, 200))}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setLabel(data.label); setEditing(false); } }}
-          className="bg-transparent outline-none text-sm w-full min-w-[60px]"
-        />
-      ) : (
-        <span>{data.label}</span>
-      )}
+      <div className="flex items-center gap-1">
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={label}
+            onChange={(e) => setLabel(e.target.value.slice(0, 200))}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setLabel(data.label); setEditing(false); } }}
+            className="bg-transparent outline-none text-sm w-full min-w-[60px]"
+          />
+        ) : (
+          <span>{data.label}</span>
+        )}
+        {!editing && data.childCount > 0 && (
+          // ReactFlow의 드래그/선택을 막기 위해 mousedown까지 stopPropagation 필요
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleCollapsed(id); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="ml-0.5 px-1 py-0 text-[10px] leading-none rounded text-text-secondary hover:text-primary hover:bg-bg-secondary"
+            title={data.isCollapsed ? '하위 노드 펼치기' : '하위 노드 접기'}
+            aria-label={data.isCollapsed ? '하위 노드 펼치기' : '하위 노드 접기'}
+          >
+            {data.isCollapsed ? `▸ ${data.childCount}` : '▾'}
+          </button>
+        )}
+      </div>
       <Handle type="source" position={Position.Right} style={handleStyle} />
     </div>
   );

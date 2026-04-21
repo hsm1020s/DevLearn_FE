@@ -3,7 +3,7 @@
  * 스토어의 노드 데이터를 자동 레이아웃으로 변환하여 표시한다.
  */
 import { useCallback, useMemo, useEffect, useRef, useState } from 'react';
-import ReactFlow, { Background, useNodesState, useEdgesState, useReactFlow, ReactFlowProvider } from 'reactflow';
+import ReactFlow, { Background, useNodesState, useEdgesState, useReactFlow, ReactFlowProvider, useNodesInitialized } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -30,29 +30,68 @@ function MindmapCanvasInner() {
 
   const { fitView } = useReactFlow();
   const [contextMenu, setContextMenu] = useState(null);
-  const prevNodeCount = useRef(nodes.length);
 
-  // 노드 트리 구조로부터 자동 좌표 계산
-  const positions = useMemo(() => computeLayout(nodes), [nodes]);
+  // 부모 id → 직계 자식 id 배열 매핑 (자식 수 표시 + 후손 탐색용)
+  const childrenMap = useMemo(() => {
+    const m = new Map();
+    nodes.forEach((n) => {
+      if (!n.parentId) return;
+      const arr = m.get(n.parentId);
+      if (arr) arr.push(n.id);
+      else m.set(n.parentId, [n.id]);
+    });
+    return m;
+  }, [nodes]);
 
-  // 스토어 노드를 ReactFlow 노드 형식으로 변환
-  const rfNodes = useMemo(
-    () =>
-      nodes.map((n) => ({
-        id: n.id,
-        position: positions.get(n.id) || n.position,
-        data: { label: n.label, color: n.color },
-        type: 'mindmapNode',
-        selected: n.id === selectedNodeId,
-      })),
-    [nodes, selectedNodeId, positions],
+  // 접힌 노드의 모든 후손 id — 렌더링에서 제외할 노드 집합
+  const hiddenSet = useMemo(() => {
+    const hidden = new Set();
+    const walk = (id) => {
+      const children = childrenMap.get(id);
+      if (!children) return;
+      children.forEach((cid) => {
+        hidden.add(cid);
+        walk(cid);
+      });
+    };
+    nodes.forEach((n) => { if (n.collapsed) walk(n.id); });
+    return hidden;
+  }, [nodes, childrenMap]);
+
+  // 실제로 그려질 노드만 추려서 레이아웃 계산 — 접힌 영역만큼 자연스럽게 재배치됨
+  const visibleNodes = useMemo(
+    () => nodes.filter((n) => !hiddenSet.has(n.id)),
+    [nodes, hiddenSet],
   );
 
-  // 부모-자식 관계를 ReactFlow 엣지로 변환
+  const positions = useMemo(() => computeLayout(visibleNodes), [visibleNodes]);
+
+  // 스토어 노드를 ReactFlow 노드 형식으로 변환 (접힘 토글 버튼에 필요한 메타 포함)
+  const rfNodes = useMemo(
+    () =>
+      visibleNodes.map((n) => {
+        const childIds = childrenMap.get(n.id);
+        return {
+          id: n.id,
+          position: positions.get(n.id) || n.position,
+          data: {
+            label: n.label,
+            color: n.color,
+            childCount: childIds ? childIds.length : 0,
+            isCollapsed: !!n.collapsed,
+          },
+          type: 'mindmapNode',
+          selected: n.id === selectedNodeId,
+        };
+      }),
+    [visibleNodes, childrenMap, selectedNodeId, positions],
+  );
+
+  // 양 끝이 모두 visible인 엣지만 생성
   const rfEdges = useMemo(
     () =>
       nodes
-        .filter((n) => n.parentId)
+        .filter((n) => n.parentId && !hiddenSet.has(n.id) && !hiddenSet.has(n.parentId))
         .map((n) => ({
           id: `e-${n.parentId}-${n.id}`,
           source: n.parentId,
@@ -60,7 +99,7 @@ function MindmapCanvasInner() {
           type: 'smoothstep',
           style: defaultEdgeStyle,
         })),
-    [nodes],
+    [nodes, hiddenSet],
   );
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(rfNodes);
@@ -70,16 +109,21 @@ function MindmapCanvasInner() {
   useEffect(() => { setFlowNodes(rfNodes); }, [rfNodes, setFlowNodes]);
   useEffect(() => { setFlowEdges(rfEdges); }, [rfEdges, setFlowEdges]);
 
-  // 노드 추가/삭제 시 전체 뷰에 맞게 자동 줌 조절
+  // 화면에 보이는 노드 수가 바뀔 때(추가/삭제/접기/펼치기) 전체 뷰에 맞게 자동 줌 조절.
+  // - `useNodesInitialized` 로 "모든 노드 DOM 측정 완료" 시점을 기다려야 펼치기 직후
+  //   폭/높이가 0인 상태로 fit이 계산되는 문제를 피할 수 있다.
+  // - `maxZoom: 1.5` 로 캡을 둬서 루트를 접어 단일 노드만 남은 경우 극단 확대를 막는다.
+  const nodesInitialized = useNodesInitialized();
+  const lastFittedCount = useRef(flowNodes.length);
   useEffect(() => {
-    if (nodes.length !== prevNodeCount.current) {
-      prevNodeCount.current = nodes.length;
-      // ReactFlow 내부 렌더링 후 fitView 호출
-      requestAnimationFrame(() => {
-        fitView({ padding: 0.2, duration: 300 });
-      });
-    }
-  }, [nodes.length, fitView]);
+    if (!nodesInitialized) return;
+    if (flowNodes.length === lastFittedCount.current) return;
+    lastFittedCount.current = flowNodes.length;
+    const raf = requestAnimationFrame(() => {
+      fitView({ padding: 0.2, duration: 300, maxZoom: 1.5 });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [nodesInitialized, flowNodes.length, fitView]);
 
   const onNodeClick = useCallback(
     (_event, node) => { selectNode(node.id); },
