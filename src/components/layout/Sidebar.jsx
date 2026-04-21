@@ -58,8 +58,13 @@ export default function Sidebar() {
   const toggleFavorite = useChatStore((s) => s.toggleFavorite);
   const fetchConversations = useChatStore((s) => s.fetchConversations);
 
-  // 즐겨찾기 목록 (최대 3개)
-  const favorites = conversations.filter((c) => c.isFavorite).slice(0, 3);
+  // 현재 모드에 속한 대화만 사이드바에 노출 — 모드별 채팅 공간 분리
+  const visibleConversations = useMemo(
+    () => conversations.filter((c) => c.mode === mainMode),
+    [conversations, mainMode],
+  );
+  // 즐겨찾기 목록 (최대 3개) — 현재 모드 범위 내에서만
+  const favorites = visibleConversations.filter((c) => c.isFavorite).slice(0, 3);
 
   const collapsed = isSidebarCollapsed;
 
@@ -205,15 +210,15 @@ export default function Sidebar() {
     setDeleteConfirm(null);
   }, [deleteConfirm, deleteConversations, selectedIds]);
 
-  const isAllSelected = conversations.length > 0 && selectedIds.size === conversations.length;
+  const isAllSelected = visibleConversations.length > 0 && selectedIds.size === visibleConversations.length;
 
   const toggleSelectAll = useCallback(() => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(conversations.map((c) => c.id)));
+      setSelectedIds(new Set(visibleConversations.map((c) => c.id)));
     }
-  }, [isAllSelected, conversations]);
+  }, [isAllSelected, visibleConversations]);
 
   // 새 채팅 생성 후 기존 메시지 초기화 (선택된 LLM, 입력된 채팅명 함께 저장)
   const handleNewConversation = () => {
@@ -390,7 +395,7 @@ export default function Sidebar() {
               <MessageSquare size={14} className="text-text-secondary" />
               <span className="text-xs font-medium text-text-secondary">최근 채팅</span>
             </div>
-            {conversations.length > 0 && (
+            {visibleConversations.length > 0 && (
               <button
                 onClick={toggleDeleteMode}
                 className="p-0.5 rounded hover:bg-bg-secondary text-text-tertiary hover:text-danger transition-colors"
@@ -434,7 +439,7 @@ export default function Sidebar() {
           </div>
         )}
         <ul className="flex flex-col gap-0.5">
-          {conversations.map((conv) => {
+          {visibleConversations.map((conv) => {
             const Icon = getModeConfig(conv.mode).icon;
             const isActive = conv.id === currentConversationId;
             const isSelected = selectedIds.has(conv.id);

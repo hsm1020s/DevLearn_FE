@@ -26,6 +26,8 @@ const useChatStore = create(
       conversations: [],
       // 현재 활성 대화 ID
       currentConversationId: null,
+      // 모드별 마지막으로 보던 대화 id — 모드 전환 시 자동 복원용
+      lastActiveByMode: { general: null, study: null },
       // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
       // 서버 대화 목록 동기화 상태
@@ -134,8 +136,47 @@ const useChatStore = create(
         apiUpdateConversation(id, patch).catch(() => { /* 다음 기회에 재시도 */ });
       },
 
-      /** 대화 전환 */
-      setCurrentConversation: (id) => set({ currentConversationId: id }),
+      /**
+       * 대화 전환 — currentConversationId 갱신 + 해당 대화 mode의 lastActive 슬롯에 기록.
+       * null 전달 시 currentConversationId만 해제(슬롯은 변경하지 않음 — 모드 복귀 시 복원용).
+       */
+      setCurrentConversation: (id) => {
+        if (id == null) {
+          set({ currentConversationId: null });
+          return;
+        }
+        const conv = get().conversations.find((c) => c.id === id);
+        set((state) => ({
+          currentConversationId: id,
+          lastActiveByMode: conv?.mode
+            ? { ...state.lastActiveByMode, [conv.mode]: id }
+            : state.lastActiveByMode,
+        }));
+      },
+
+      /**
+       * 모드 전환 시 호출 — 현재 대화 id를 이전 모드 슬롯에 저장하고,
+       * 새 모드의 마지막 대화를 currentConversationId로 복원한다.
+       * 복원 대상이 존재하지 않으면 null(EmptyChatView 노출).
+       */
+      switchMode: (newMode) => {
+        set((state) => {
+          const currentId = state.currentConversationId;
+          const currentConv = state.conversations.find((c) => c.id === currentId);
+          const prevMode = currentConv?.mode;
+          const nextSlots = prevMode
+            ? { ...state.lastActiveByMode, [prevMode]: currentId }
+            : state.lastActiveByMode;
+          const candidate = nextSlots[newMode];
+          const restored = state.conversations.some((c) => c.id === candidate && c.mode === newMode)
+            ? candidate
+            : null;
+          return {
+            lastActiveByMode: restored ? nextSlots : { ...nextSlots, [newMode]: null },
+            currentConversationId: restored,
+          };
+        });
+      },
 
       /** 메시지를 현재 대화에 추가하고, 첫 사용자 메시지일 경우 대화 제목을 자동 설정 */
       addMessage: (message) => {
@@ -193,12 +234,21 @@ const useChatStore = create(
         const serverIds = get().conversations
           .filter((c) => idSet.has(c.id) && c.isLocal !== true)
           .map((c) => c.id);
-        set((state) => ({
-          conversations: state.conversations.filter((c) => !idSet.has(c.id)),
-          currentConversationId: idSet.has(state.currentConversationId)
-            ? null
-            : state.currentConversationId,
-        }));
+        set((state) => {
+          const cleanedSlots = Object.fromEntries(
+            Object.entries(state.lastActiveByMode).map(([mode, id]) => [
+              mode,
+              idSet.has(id) ? null : id,
+            ]),
+          );
+          return {
+            conversations: state.conversations.filter((c) => !idSet.has(c.id)),
+            currentConversationId: idSet.has(state.currentConversationId)
+              ? null
+              : state.currentConversationId,
+            lastActiveByMode: cleanedSlots,
+          };
+        });
         if (serverIds.length === 0) return;
         apiDeleteConversations(serverIds)
           .catch((err) => showError(err, '삭제 실패'));
@@ -213,6 +263,7 @@ const useChatStore = create(
       reset: () => set({
         conversations: [],
         currentConversationId: null,
+        lastActiveByMode: { general: null, study: null },
         isStreaming: false,
         isConversationsLoading: false,
         conversationsError: null,
@@ -221,12 +272,13 @@ const useChatStore = create(
     }),
     {
       name: 'chat-store',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
+        lastActiveByMode: state.lastActiveByMode,
       }),
-      /** 이전 버전(messages가 전역 배열)에서 마이그레이션 */
+      /** v1: messages가 전역 배열 → 대화별. v3: lastActiveByMode 기본값 주입 */
       migrate: (persisted, version) => {
         try {
           if (version < 2) {
@@ -240,9 +292,16 @@ const useChatStore = create(
               state.conversations = [];
             }
           }
+          if (version < 3) {
+            persisted.lastActiveByMode = { general: null, study: null };
+          }
           return persisted;
         } catch {
-          return { conversations: [], currentConversationId: null };
+          return {
+            conversations: [],
+            currentConversationId: null,
+            lastActiveByMode: { general: null, study: null },
+          };
         }
       },
     },

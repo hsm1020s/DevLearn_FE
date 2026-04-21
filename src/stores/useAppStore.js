@@ -1,6 +1,7 @@
 /** @fileoverview 앱 전역 UI 상태 관리 스토어 (LLM 선택, 모드, 사이드바, 모달) */
 import { create } from 'zustand';
 import useMindmapStore from './useMindmapStore';
+import useChatStore from './useChatStore';
 
 const useAppStore = create((set) => ({
   // 현재 선택된 LLM 모델
@@ -17,7 +18,8 @@ const useAppStore = create((set) => ({
   setLLM: (llm) => set({ selectedLLM: llm }),
   setMainMode: (mode) => {
     set({ mainMode: mode });
-    // 모드 전환 시 해당 모드의 마지막 마인드맵 복원
+    // 모드 전환 시 채팅 공간을 모드별로 분리하고 마인드맵도 복원
+    useChatStore.getState().switchMode(mode);
     useMindmapStore.getState().restoreForMode(mode);
   },
   toggleMindmap: () => set((state) => ({ isMindmapOn: !state.isMindmapOn })),
