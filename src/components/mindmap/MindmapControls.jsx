@@ -1,13 +1,14 @@
 /**
  * @fileoverview 마인드맵 캔버스 하단 우측 컨트롤 바
- * 줌인/줌아웃 | 전체보기 | PDF 다운로드를 가로 한 줄로 배치한다.
+ * 줌인/줌아웃 | 전체보기 | 음성 읽기(재생/일시정지/정지) | PDF 다운로드를 가로 한 줄로 배치.
  */
 import { useState, useCallback } from 'react';
 import { useReactFlow } from 'reactflow';
-import { ZoomIn, ZoomOut, Maximize2, Download, Loader2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Download, Loader2, Volume2, Pause, Square, Play } from 'lucide-react';
 import { exportMindmapToPdf } from '../../utils/exportPdf';
 import { useToastStore } from '../common/Toast';
 import useMindmapStore from '../../stores/useMindmapStore';
+import { useMindmapTts } from '../../hooks/useMindmapTts';
 
 /** 마인드맵 줌/전체보기/PDF 컨트롤 바 */
 export default function MindmapControls() {
@@ -21,6 +22,16 @@ export default function MindmapControls() {
     return activeMapId && maps[activeMapId] ? maps[activeMapId].nodes : [];
   });
   const markSaved = useMindmapStore((s) => s.markSaved);
+
+  // TTS 재생 상태 및 제어
+  const {
+    play: ttsPlay,
+    pause: ttsPause,
+    stop: ttsStop,
+    status: ttsStatus,
+    supported: ttsSupported,
+    hasReadableContent,
+  } = useMindmapTts();
 
   // 캔버스를 fitView 후 DOM 캡처하여 PDF로 내보내기
   const handleExportPdf = useCallback(async () => {
@@ -76,6 +87,56 @@ export default function MindmapControls() {
       >
         <Maximize2 size={18} />
         <span>전체</span>
+      </button>
+
+      {/* 구분선 */}
+      <div className="w-px h-6 bg-border-light mx-1" />
+
+      {/* TTS — 재생/일시정지 토글 버튼 */}
+      {ttsStatus === 'playing' ? (
+        <button
+          onClick={ttsPause}
+          className="p-2 rounded-lg text-warning hover:bg-bg-secondary transition-colors"
+          title="일시정지"
+          aria-label="일시정지"
+        >
+          <Pause size={18} />
+        </button>
+      ) : (
+        <button
+          onClick={ttsSupported && hasReadableContent ? ttsPlay : undefined}
+          disabled={!ttsSupported || !hasReadableContent}
+          className={`p-2 rounded-lg transition-colors ${
+            !ttsSupported || !hasReadableContent
+              ? 'text-text-tertiary cursor-not-allowed'
+              : 'text-text-secondary hover:text-primary hover:bg-bg-secondary'
+          }`}
+          title={
+            !ttsSupported
+              ? '이 브라우저는 음성 읽기를 지원하지 않습니다'
+              : !hasReadableContent
+                ? '읽을 노드가 없습니다'
+                : ttsStatus === 'paused' ? '이어서 재생' : '음성으로 읽기'
+          }
+          aria-label={ttsStatus === 'paused' ? '이어서 재생' : '음성으로 읽기'}
+        >
+          {ttsStatus === 'paused' ? <Play size={18} /> : <Volume2 size={18} />}
+        </button>
+      )}
+
+      {/* TTS — 정지 버튼 (재생/일시정지 상태에서만 활성) */}
+      <button
+        onClick={ttsStatus === 'idle' ? undefined : ttsStop}
+        disabled={ttsStatus === 'idle'}
+        className={`p-2 rounded-lg transition-colors ${
+          ttsStatus === 'idle'
+            ? 'text-text-tertiary cursor-not-allowed'
+            : 'text-text-secondary hover:text-danger hover:bg-bg-secondary'
+        }`}
+        title="음성 읽기 정지"
+        aria-label="음성 읽기 정지"
+      >
+        <Square size={18} />
       </button>
 
       {/* 구분선 */}

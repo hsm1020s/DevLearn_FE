@@ -137,12 +137,23 @@ export default function MindmapNode({ id, data, selected }) {
   // 편집 중(라벨/설명)엔 툴팁 숨김 — 중복 UI 방지
   const showTooltip = tooltipOpen && hasDescription && !editing && !editingDesc;
 
+  // TTS 재생 중인 노드는 앰버 톤으로 강조 — selected 스타일보다 우선해서 보이도록
+  // 인라인 style로 덮어써 className의 border/bg를 모두 치환한다.
+  const playingStyle = data.isPlaying ? {
+    borderColor: 'var(--color-highlight-tts-border)',
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    backgroundColor: 'var(--color-highlight-tts-bg)',
+    boxShadow: '0 0 0 3px var(--color-highlight-tts-border)',
+  } : undefined;
+
   return (
     <div
       ref={nodeRootRef}
       onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      style={playingStyle}
       className={`
         group relative px-3 py-2 rounded-lg bg-bg-primary
         text-sm font-medium text-text-primary transition-all

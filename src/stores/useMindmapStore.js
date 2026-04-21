@@ -44,6 +44,20 @@ const useMindmapStore = create(
       /** 현재 선택된 노드 ID */
       selectedNodeId: null,
 
+      /**
+       * TTS 재생 중인 노드 ID (null이면 없음).
+       * persist 제외 대상 — 새로고침 시 항상 null로 시작.
+       * 값이 바뀌면 MindmapNode의 data.isPlaying을 통해 앰버 톤 하이라이트가 이동한다.
+       */
+      playingNodeId: null,
+
+      /**
+       * TTS 전역 상태: 'idle' | 'playing' | 'paused'.
+       * 컨트롤 버튼(재생/일시정지/정지)의 UI 상태 결정 및 훅 내부 로직 분기에 사용.
+       * persist 제외 대상.
+       */
+      ttsStatus: 'idle',
+
       /** 마지막 저장 타임스탬프 (로컬 편집 기준) */
       lastSavedAt: null,
 
@@ -292,6 +306,11 @@ const useMindmapStore = create(
       },
 
       selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+
+      // ── TTS 상태 setter ──
+      setPlayingNode: (nodeId) => set({ playingNodeId: nodeId }),
+      setTtsStatus: (status) => set({ ttsStatus: status }),
+      resetTts: () => set({ playingNodeId: null, ttsStatus: 'idle' }),
 
       markSaved: () => set({ lastSavedAt: Date.now() }),
 
@@ -551,6 +570,8 @@ const useMindmapStore = create(
           activeMapId: null,
           lastActiveByMode: {},
           selectedNodeId: null,
+          playingNodeId: null,
+          ttsStatus: 'idle',
           lastSavedAt: null,
           syncStatus: {},
           lastServerSyncAt: {},
