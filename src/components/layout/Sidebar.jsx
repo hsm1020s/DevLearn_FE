@@ -22,8 +22,10 @@ import {
   User,
   LogOut,
   ChevronUp,
+  FileUp,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
+import DocumentUploadModal from '../common/DocumentUploadModal';
 import LoginModal from '../common/LoginModal';
 import useAuthStore from '../../stores/useAuthStore';
 import useAppStore from '../../stores/useAppStore';
@@ -75,6 +77,7 @@ export default function Sidebar() {
 
   // 모달 상태
   const [showSuggestion, setShowSuggestion] = useState(false);
+  const [showDocUpload, setShowDocUpload] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
   // 로그아웃 드롭다운 상태
@@ -92,6 +95,7 @@ export default function Sidebar() {
 
   // 사이드바 하단 버튼 ref (팝오버 앵커용)
   const suggestionBtnRef = useRef(null);
+  const docUploadBtnRef = useRef(null);
   const loginBtnRef = useRef(null);
 
   // 새 채팅명 입력 상태
@@ -542,6 +546,15 @@ export default function Sidebar() {
       {!collapsed && (
         <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
           <button
+            ref={docUploadBtnRef}
+            onClick={() => setShowDocUpload(true)}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <FileUp size={18} />
+            <span>문서 업로드</span>
+          </button>
+          <button
             ref={suggestionBtnRef}
             onClick={() => setShowSuggestion(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
@@ -612,6 +625,7 @@ export default function Sidebar() {
       )}
 
       <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
+      <DocumentUploadModal isOpen={showDocUpload} onClose={() => setShowDocUpload(false)} anchorRef={docUploadBtnRef} />
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} anchorRef={loginBtnRef} />
 
       {/* 삭제 확인 팝오버 — 삭제 버튼 바로 옆에 fixed로 표시 */}
