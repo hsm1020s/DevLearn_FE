@@ -20,7 +20,7 @@
 | **1** | 설계 | `docs/designs/<task-id>.md` 의 `목표` 섹션 채움 | `/phase-advance design-done` |
 | **2** | 구현 + 단위 테스트 | `.claude/state/evidence/<task-id>/unit/` 에 스크린샷 1장 이상 | `/phase-advance unit-done` |
 | **3** | 회귀(기능) 테스트 | `.claude/state/evidence/<task-id>/regression/` 에 스크린샷 1장 이상 | `/phase-advance regression-done` |
-| **4** | 내 브랜치 병합 | 워크트리 → `master` 병합 완료 | `/phase-advance merged` → `/phase-end` |
+| **4** | 내 브랜치 병합 + 사후 검증 | 워크트리 → `master` 병합 후 **한 번 더 테스트** → 이상 없으면 커밋 & `git push` | `/phase-advance merged` → `/phase-end` |
 
 ### 단계별 차단 규칙 (훅이 자동 강제)
 - **Step 0 미완:** 활성 태스크가 있는데 워크트리 밖 파일을 `Edit|Write` → 차단
@@ -36,6 +36,7 @@
 3. **단위 테스트는 스크린샷 필수** — Step 2 완료 조건은 `.claude/state/evidence/<task-id>/unit/` 디렉토리에 실제 파일 존재. Playwright 스크린샷 혹은 수동 캡처를 해당 경로에 저장.
 4. **회귀 테스트 범위** — Step 3에서는 이번 변경과 무관한 주요 기능(채팅/마인드맵/문서/인증 등) 1개 이상을 실제 사용해보고 스크린샷 저장.
 5. **상태 확인은 `/phase-status`** — 현재 어느 단계인지 헷갈리면 먼저 호출.
+6. **병합 후 재검증 + 푸시** — Step 4에서 `master` 병합이 끝나면 반드시 한 번 더 주요 기능을 실제로 돌려보고(스모크 테스트), 이상 없음을 확인한 뒤 커밋 & `git push`로 원격에 반영한다. 병합만 하고 푸시를 빼먹지 말 것.
 
 ### 하네스를 우회하는 경우
 - 간단한 문서/설정 수정: `/phase-start` 없이 바로 편집 (활성 태스크 없으면 훅이 허용)

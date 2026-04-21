@@ -2,31 +2,13 @@
  * @fileoverview 자격증 모드 — 채팅 기반 학습 화면.
  * EmptyChatView로 빈 상태를 공통 처리하고, 대화 시작 후 하단 입력창 레이아웃을 사용한다.
  */
-import { FileText, BarChart3 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import useStreamingChat from '../../hooks/useStreamingChat';
-import useAppStore from '../../stores/useAppStore';
 import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
 import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import EmptyChatView from '../chat/EmptyChatView';
 import JumpToBottomButton from '../chat/JumpToBottomButton';
-
-/** 상단 우측 "통계 보기" 트리거 — 누적 통계 모달(certStats)을 연다. */
-function CertStatsTrigger() {
-  return (
-    <div className="flex justify-end px-4 pt-2">
-      <button
-        type="button"
-        onClick={() => useAppStore.getState().setActiveModal('certStats')}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-bg-secondary transition-colors"
-        aria-label="학습 통계 보기"
-      >
-        <BarChart3 className="w-4 h-4" />
-        <span className="hidden md:inline">통계 보기</span>
-      </button>
-    </div>
-  );
-}
 
 const EXAMPLE_QUESTIONS = [
   '정보처리기사 핵심 개념 알려줘',
@@ -54,7 +36,6 @@ export default function CertMode() {
   if (isEmpty) {
     return (
       <div className="flex flex-col h-full">
-        <CertStatsTrigger />
         <EmptyChatView
           icon={FileText}
           title="자격증 모드"
@@ -70,7 +51,6 @@ export default function CertMode() {
 
   return (
     <div className="flex flex-col h-full">
-      <CertStatsTrigger />
       <div className="flex-1 relative min-h-0">
         <div
           ref={scrollRef}
