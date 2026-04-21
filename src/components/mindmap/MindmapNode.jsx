@@ -2,12 +2,12 @@
  * @fileoverview 마인드맵 개별 노드 컴포넌트.
  * - 더블클릭으로 라벨 인라인 편집
  * - hover 시 우상단 오버레이(연필 + X)
- * - description이 있으면 500ms 호버 지연 후 상단 툴팁(ReactFlow NodeToolbar)으로 설명 표시
- * - 연필 클릭 시 하단 NodeToolbar에 textarea 편집 팝오버
+ * - description이 있으면 짧은 호버 지연 후 툴팁을 body에 portal로 띄움 (ReactFlow pane overflow 회피)
+ * - 연필 클릭 시 화면 중앙 portal 모달에 textarea 편집 팝오버
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Handle, Position, NodeToolbar } from 'reactflow';
+import { Handle, Position } from 'reactflow';
 import { X, Pencil } from 'lucide-react';
 import useMindmapStore from '../../stores/useMindmapStore';
 
@@ -48,7 +48,10 @@ export default function MindmapNode({ id, data, selected }) {
   const descTextareaRef = useRef(null);
 
   // hover → 지연 후 툴팁 노출 (마우스 벗어나면 즉시 숨김)
+  // rect는 포털로 띄울 툴팁의 앵커 좌표 (호버 시작 시점의 노드 위치, viewport 기준)
+  const nodeRootRef = useRef(null);
   const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [tooltipRect, setTooltipRect] = useState(null);
   const tooltipTimerRef = useRef(null);
 
   // 편집 모드 진입 시 입력 필드에 포커스
@@ -103,10 +106,14 @@ export default function MindmapNode({ id, data, selected }) {
     setEditingDesc(false);
   }, [data.description]);
 
-  // hover 진입 — 지연 후 툴팁 활성화
+  // hover 진입 — 지연 후 툴팁 활성화 + 현재 노드의 viewport 좌표 캡쳐
   const handleMouseEnter = useCallback(() => {
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
     tooltipTimerRef.current = setTimeout(() => {
+      if (nodeRootRef.current) {
+        const r = nodeRootRef.current.getBoundingClientRect();
+        setTooltipRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      }
       setTooltipOpen(true);
     }, TOOLTIP_HOVER_DELAY);
   }, []);
@@ -132,6 +139,7 @@ export default function MindmapNode({ id, data, selected }) {
 
   return (
     <div
+      ref={nodeRootRef}
       onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -176,16 +184,31 @@ export default function MindmapNode({ id, data, selected }) {
         </div>
       )}
 
-      {/* 설명 툴팁 — hover 지연 후 위쪽에 노출 */}
-      <NodeToolbar isVisible={showTooltip} position={Position.Top} offset={10}>
+      {/* 설명 툴팁 — ReactFlow pane의 overflow:hidden 에 잘리지 않도록 body에 portal 렌더링.
+          rect는 hover 시작 시점 viewport 좌표 (팬·줌 중엔 이탈로 자연스럽게 닫힘). */}
+      {showTooltip && tooltipRect && createPortal(
         <div
           role="tooltip"
-          className="max-w-[240px] px-3 py-2 rounded-lg bg-bg-primary border border-border-light
+          className="fixed z-[90] pointer-events-none
+                     px-3 py-2 rounded-lg bg-bg-primary border border-border-light
                      shadow-lg text-xs text-text-primary whitespace-pre-wrap break-words"
+          style={{
+            // 노드 중앙에 앵커
+            left: tooltipRect.left + tooltipRect.width / 2,
+            // 위쪽 공간이 너무 좁으면(뷰포트 상단 근접) 아래쪽으로 flip
+            top: tooltipRect.top > 120
+              ? tooltipRect.top - 10
+              : tooltipRect.top + tooltipRect.height + 10,
+            transform: tooltipRect.top > 120
+              ? 'translate(-50%, -100%)'
+              : 'translate(-50%, 0)',
+            maxWidth: 'min(240px, 90vw)',
+          }}
         >
           {data.description}
-        </div>
-      </NodeToolbar>
+        </div>,
+        document.body,
+      )}
 
       {/* 설명 편집 모달 — ReactFlow pane 경계(overflow)로 잘리지 않도록 body에 portal 렌더링 */}
       {editingDesc && createPortal(
