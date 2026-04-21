@@ -1,5 +1,12 @@
 # 개발 로그
 
+## 2026-04-21 (5차) — 마인드맵 fitView race 수정 + 하네스 증거 포맷 변경
+- 루트 노드 접었다 펼치면 일부 자식이 뷰 밖에 남는 버그 수정 ([MindmapCanvas.jsx](../src/components/mindmap/MindmapCanvas.jsx))
+  - 단일 `useEffect` 에서 count 비교와 fitView 실행을 동시에 처리하던 구조가 `useNodesInitialized` 의 stale true 와 결합해 측정 전에 fit 이 한 번 실행되고 `lastFittedCount` 가 선갱신되면서 재-fit 기회를 잃는 race 를 만들었음.
+  - "감지 effect" 와 "실행 effect" 로 분리. 감지 측은 `pendingFit` 플래그만 세우고, 실행 측은 `nodesInitialized === true` 이면서 플래그가 켜진 순간에만 fit 을 실행 후 플래그 해제.
+- 하네스 증거 포맷 변경: 스크린샷 → `notes.md` 텍스트 기록으로 완화 (맥북 환경에서 헤드리스 스크린샷 자동화가 불안정). [phase.sh](../.claude/hooks/phase.sh) 게이트와 [CLAUDE.md](../CLAUDE.md) 동시 업데이트.
+- 설계 문서: [docs/designs/2026-04-21-fix-mindmap-collapse-fitview.md](designs/2026-04-21-fix-mindmap-collapse-fitview.md)
+
 ## 2026-04-16 (1차)
 - 이전 코드 전부 삭제, 새 명세서(wiki/project.md) 기반 클린 스타트
 - 분산된 md 5개 → wiki/project.md 1개로 통합 (중복 제거, React 19 통일)

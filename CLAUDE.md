@@ -18,8 +18,8 @@
 |------|------|--------|-----------|
 | **0** | 워크트리 격리 | `git worktree` 생성 + 상태파일 활성화 | `/phase-start <slug>` |
 | **1** | 설계 | `docs/designs/<task-id>.md` 의 `목표` 섹션 채움 | `/phase-advance design-done` |
-| **2** | 구현 + 단위 테스트 | `.claude/state/evidence/<task-id>/unit/` 에 스크린샷 1장 이상 | `/phase-advance unit-done` |
-| **3** | 회귀(기능) 테스트 | `.claude/state/evidence/<task-id>/regression/` 에 스크린샷 1장 이상 | `/phase-advance regression-done` |
+| **2** | 구현 + 단위 테스트 | `.claude/state/evidence/<task-id>/unit/notes.md` 에 검증 시나리오/결과 기록 | `/phase-advance unit-done` |
+| **3** | 회귀(기능) 테스트 | `.claude/state/evidence/<task-id>/regression/notes.md` 에 다른 주요 기능 동작 확인 기록 | `/phase-advance regression-done` |
 | **4** | 내 브랜치 병합 + 사후 검증 | 워크트리 → `master` 병합 후 **한 번 더 테스트** → 이상 없으면 커밋 & `git push` | `/phase-advance merged` → `/phase-end` |
 
 ### 단계별 차단 규칙 (훅이 자동 강제)
@@ -33,8 +33,8 @@
 ### 규칙
 1. **항상 `/phase-start`로 시작** — 사용자가 "X 기능 만들어줘" 등 구체 작업을 지시하면, 제일 먼저 슬러그를 뽑아 `/phase-start <slug>` 실행.
 2. **자유 편집이 필요하면 `/phase-end`** — 오탈자/문서/설정 수정 등 정식 태스크가 아닌 경우, 먼저 `/phase-end`로 활성 태스크를 종료하거나 애초에 `/phase-start`를 쓰지 않는다.
-3. **단위 테스트는 스크린샷 필수** — Step 2 완료 조건은 `.claude/state/evidence/<task-id>/unit/` 디렉토리에 실제 파일 존재. Playwright 스크린샷 혹은 수동 캡처를 해당 경로에 저장.
-4. **회귀 테스트 범위** — Step 3에서는 이번 변경과 무관한 주요 기능(채팅/마인드맵/문서/인증 등) 1개 이상을 실제 사용해보고 스크린샷 저장.
+3. **단위 테스트 노트 필수** — Step 2 완료 조건은 `.claude/state/evidence/<task-id>/unit/notes.md` 파일이 존재하고 내용이 있음. 검증한 시나리오·결과를 텍스트로 간단히 기록한다(형식 자유). 스크린샷은 선택 사항.
+4. **회귀 테스트 범위** — Step 3에서는 이번 변경과 무관한 주요 기능(채팅/마인드맵/문서/인증 등) 1개 이상을 실제 사용해보고 `regression/notes.md` 에 결과를 기록.
 5. **상태 확인은 `/phase-status`** — 현재 어느 단계인지 헷갈리면 먼저 호출.
 6. **병합 후 재검증 + 푸시** — Step 4에서 `master` 병합이 끝나면 반드시 한 번 더 주요 기능을 실제로 돌려보고(스모크 테스트), 이상 없음을 확인한 뒤 커밋 & `git push`로 원격에 반영한다. 병합만 하고 푸시를 빼먹지 말 것.
 
