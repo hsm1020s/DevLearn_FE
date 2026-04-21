@@ -36,6 +36,9 @@ export default function MindmapPanel() {
   const activeMap = activeMapId ? maps[activeMapId] : null;
   const nodes = activeMap ? activeMap.nodes : [];
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  // 맵당 루트는 하나만 — 이미 있으면 루트 추가 UI를 막는다.
+  const hasRoot = nodes.some((n) => n.parentId == null);
+  const rootBlocked = !selectedNode && hasRoot;
 
   // 현재 모드의 마인드맵 목록
   const modeMapList = getMapsByMode(mainMode);
@@ -301,12 +304,24 @@ export default function MindmapPanel() {
             onChange={(e) => setNodeInput(e.target.value.slice(0, 200))}
             onKeyDown={handleKeyDown}
             maxLength={200}
-            placeholder={selectedNode ? '하위 노드 이름' : '루트 노드 이름'}
+            placeholder={
+              selectedNode
+                ? '하위 노드 이름'
+                : hasRoot
+                  ? '루트가 이미 있습니다 — 부모를 선택하세요'
+                  : '루트 노드 이름'
+            }
             className="flex-1 px-3 py-1.5 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-secondary
                        focus:outline-none focus:border-primary transition-colors"
           />
-          <Button variant="primary" size="sm" onClick={handleAddNode} disabled={!nodeInput.trim()} title="노드 추가">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleAddNode}
+            disabled={!nodeInput.trim() || rootBlocked}
+            title={rootBlocked ? '루트가 이미 있습니다 — 부모를 선택하세요' : '노드 추가'}
+          >
             <Plus size={16} />
           </Button>
         </div>
