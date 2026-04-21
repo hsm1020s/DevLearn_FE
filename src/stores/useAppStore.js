@@ -5,7 +5,7 @@ import useMindmapStore from './useMindmapStore';
 const useAppStore = create((set) => ({
   // 현재 선택된 LLM 모델
   selectedLLM: 'gpt-4o',
-  // 현재 앱 모드 (general, cert, rag 등)
+  // 현재 앱 모드 (general, study)
   mainMode: 'general',
   // 마인드맵 패널 표시 여부
   isMindmapOn: false,

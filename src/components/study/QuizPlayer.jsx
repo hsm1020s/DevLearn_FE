@@ -6,19 +6,19 @@
 import { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Brain, Lightbulb } from 'lucide-react';
 import Button from '../common/Button';
-import useCertStore from '../../stores/useCertStore';
+import useStudyStore from '../../stores/useStudyStore';
 import useMindmapStore from '../../stores/useMindmapStore';
 import useAppStore from '../../stores/useAppStore';
-import { submitAnswer as apiSubmitAnswer } from '../../services/certApi';
+import { submitAnswer as apiSubmitAnswer } from '../../services/studyApi';
 
 /** 퀴즈 풀이 화면. 문제 탐색, 답안 제출, 해설 확인, 마인드맵 연동을 담당한다. */
 export default function QuizPlayer() {
-  const currentQuiz = useCertStore((s) => s.currentQuiz);
-  const index = useCertStore((s) => s.currentQuestionIndex);
-  const answers = useCertStore((s) => s.answers);
-  const setQuestionIndex = useCertStore((s) => s.setQuestionIndex);
-  const submitAnswer = useCertStore((s) => s.submitAnswer);
-  const setCertStep = useCertStore((s) => s.setCertStep);
+  const currentQuiz = useStudyStore((s) => s.currentQuiz);
+  const index = useStudyStore((s) => s.currentQuestionIndex);
+  const answers = useStudyStore((s) => s.answers);
+  const setQuestionIndex = useStudyStore((s) => s.setQuestionIndex);
+  const submitAnswer = useStudyStore((s) => s.submitAnswer);
+  const setStudyStep = useStudyStore((s) => s.setStudyStep);
 
   const addNode = useMindmapStore((s) => s.addNode);
   const activeMapId = useMindmapStore((s) => s.activeMapId);
@@ -36,8 +36,8 @@ export default function QuizPlayer() {
   // 현재 문제를 마인드맵 노드로 추가하고, 마인드맵 패널이 닫혀있으면 열기
   const handleAddToMindmap = useCallback(() => {
     if (!question) return;
-    // 활성 맵이 없으면 자격증 모드로 자동 생성
-    if (!activeMapId) createMap('cert');
+    // 활성 맵이 없으면 학습 모드로 자동 생성
+    if (!activeMapId) createMap('study');
     const label = question.question.length > 40
       ? question.question.slice(0, 40) + '...'
       : question.question;
@@ -69,7 +69,7 @@ export default function QuizPlayer() {
   // 문제 이동. 마지막 문제 다음이면 결과 화면으로 전환
   const goTo = (nextIdx) => {
     if (nextIdx >= total) {
-      setCertStep('result');
+      setStudyStep('result');
       return;
     }
     setQuestionIndex(nextIdx);

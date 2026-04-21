@@ -8,8 +8,8 @@ import { Settings, ArrowLeft, Play } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
 import useDocStore from '../../stores/useDocStore';
-import useCertStore from '../../stores/useCertStore';
-import { generateQuiz } from '../../services/certApi';
+import useStudyStore from '../../stores/useStudyStore';
+import { generateQuiz } from '../../services/studyApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
 import { showError } from '../../utils/errorHandler';
 
@@ -26,8 +26,8 @@ const MOCK_CHAPTERS = [
 /** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형을 선택한다. */
 export default function QuizSettings() {
   const docs = useDocStore((s) => s.docs);
-  const setCertStep = useCertStore((s) => s.setCertStep);
-  const setQuiz = useCertStore((s) => s.setQuiz);
+  const setStudyStep = useStudyStore((s) => s.setStudyStep);
+  const setQuiz = useStudyStore((s) => s.setQuiz);
 
   const completedDocs = docs.filter((d) => d.status === 'completed');
   const docOptions = completedDocs.map((d) => ({ value: d.id, label: d.fileName }));
@@ -72,7 +72,7 @@ export default function QuizSettings() {
         types: settings.types,
       });
       setQuiz(result);
-      setCertStep('quiz');
+      setStudyStep('quiz');
     } catch {
       showError(null, '퀴즈 생성에 실패했습니다');
     } finally {
@@ -139,7 +139,7 @@ export default function QuizSettings() {
       </div>
 
       <div className="flex justify-between">
-        <Button variant="ghost" onClick={() => setCertStep('upload')}>
+        <Button variant="ghost" onClick={() => setStudyStep('upload')}>
           <ArrowLeft className="w-4 h-4" /> 이전
         </Button>
         <Button onClick={handleGenerate} disabled={loading || !settings.types.length}>

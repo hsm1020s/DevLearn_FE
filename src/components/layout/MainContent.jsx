@@ -2,7 +2,7 @@
  * @fileoverview 메인 콘텐츠 영역 컴포넌트
  * 현재 모드에 해당하는 컴포넌트를 lazy 로딩하고,
  * 마인드맵 패널과 SplitView로 좌우 분할 레이아웃을 구성한다.
- * 모달(PDF 업로드, 문서 관리, 학습 현황)도 이곳에서 렌더링한다.
+ * 모달(학습 현황, 학습 통계)도 이곳에서 렌더링한다.
  */
 import { lazy, Suspense, useMemo } from 'react';
 import useAppStore from '../../stores/useAppStore';
@@ -12,16 +12,12 @@ import SplitView from './SplitView';
 import Modal from '../common/Modal';
 
 const MindmapPanel = lazy(() => import('../mindmap/MindmapPanel'));
-const RagUploader = lazy(() => import('../work/RagUploader'));
-const DocumentList = lazy(() => import('../work/DocumentList'));
-const StudyStats = lazy(() => import('../cert/StudyStats'));
-const CertStatsPanel = lazy(() => import('../cert/CertStatsPanel'));
+const StudyStats = lazy(() => import('../study/StudyStats'));
+const StudyStatsPanel = lazy(() => import('../study/StudyStatsPanel'));
 
 const MODAL_CONFIG = {
-  ragUpload: { title: 'PDF 문서 업로드', Component: RagUploader },
-  docManage: { title: '문서 관리', Component: DocumentList },
   studyStats: { title: '학습 현황', Component: StudyStats },
-  certStats: { title: '학습 통계', Component: CertStatsPanel },
+  studyStatsPanel: { title: '학습 통계', Component: StudyStatsPanel },
 };
 
 function LoadingFallback() {

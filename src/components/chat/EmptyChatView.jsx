@@ -1,7 +1,7 @@
 /**
  * @fileoverview 채팅 빈 상태 공통 컴포넌트
  * 대화가 없을 때 화면 중앙에 모드 전환 탭, 입력창, 예시 질문을 표시한다.
- * 일반/자격증/업무학습 모드에서 공통으로 사용한다.
+ * 일반/학습 모드에서 공통으로 사용한다.
  */
 import { Brain } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';

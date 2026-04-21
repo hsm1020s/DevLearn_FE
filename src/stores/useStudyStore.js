@@ -1,13 +1,13 @@
-/** @fileoverview 자격증 모드 상태 관리 스토어 (문서 업로드, 퀴즈 진행, 답안 관리) */
+/** @fileoverview 학습 모드 상태 관리 스토어 (문서 업로드, 퀴즈 진행, 답안 관리) */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/helpers';
 
-const useCertStore = create(
+const useStudyStore = create(
   persist(
     (set) => ({
-      // 업로드된 자격증 학습 문서 목록
-      certDocs: [],
+      // 업로드된 학습 문서 목록
+      studyDocs: [],
       // 현재 진행 중인 퀴즈 데이터
       currentQuiz: null,
       // 현재 풀고 있는 문제 인덱스
@@ -15,21 +15,21 @@ const useCertStore = create(
       // 문제별 사용자 답안 (questionId -> answer)
       answers: {},
       // 현재 단계 (upload -> quiz -> result)
-      certStep: 'upload',
+      studyStep: 'upload',
 
-      setCertStep: (step) => set({ certStep: step }),
+      setStudyStep: (step) => set({ studyStep: step }),
 
       /** 새 문서를 추가하고 처리 상태로 초기화 */
       addDoc: (doc) => {
         const newDoc = { id: generateId(), status: 'processing', progress: 0, ...doc };
-        set((state) => ({ certDocs: [...state.certDocs, newDoc] }));
+        set((state) => ({ studyDocs: [...state.studyDocs, newDoc] }));
         return newDoc;
       },
 
       /** 문서의 처리 상태와 진행률 업데이트 */
       updateDocStatus: (id, status, progress) =>
         set((state) => ({
-          certDocs: state.certDocs.map((d) =>
+          studyDocs: state.studyDocs.map((d) =>
             d.id === id ? { ...d, status, progress } : d
           ),
         })),
@@ -37,7 +37,7 @@ const useCertStore = create(
       /** 문서 삭제 */
       removeDoc: (id) =>
         set((state) => ({
-          certDocs: state.certDocs.filter((d) => d.id !== id),
+          studyDocs: state.studyDocs.filter((d) => d.id !== id),
         })),
 
       // 퀴즈를 설정하고 진행 상태 초기화
@@ -50,24 +50,24 @@ const useCertStore = create(
         set((state) => ({ answers: { ...state.answers, [questionId]: answer } })),
 
       // 퀴즈 전체 초기화 (업로드 단계로 복귀)
-      resetQuiz: () => set({ currentQuiz: null, currentQuestionIndex: 0, answers: {}, certStep: 'upload' }),
+      resetQuiz: () => set({ currentQuiz: null, currentQuestionIndex: 0, answers: {}, studyStep: 'upload' }),
 
       /** 로그아웃 시 호출 — 문서·퀴즈 진행 상태 모두 초기화 */
       reset: () => set({
-        certDocs: [],
+        studyDocs: [],
         currentQuiz: null,
         currentQuestionIndex: 0,
         answers: {},
-        certStep: 'upload',
+        studyStep: 'upload',
       }),
     }),
     {
-      name: 'cert-store',
+      name: 'study-store',
       partialize: (state) => ({
-        certDocs: state.certDocs,
+        studyDocs: state.studyDocs,
       }),
     },
   ),
 );
 
-export default useCertStore;
+export default useStudyStore;

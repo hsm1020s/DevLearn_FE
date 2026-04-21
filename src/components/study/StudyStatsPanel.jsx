@@ -1,6 +1,6 @@
 /**
- * @fileoverview 자격증 학습 누적 통계 패널 (모달 컨테이너).
- * GET /cert/stats 응답을 받아 loading / error / empty(총 풀이 0) / data 의 4-state로 렌더한다.
+ * @fileoverview 학습 모드 누적 통계 패널 (모달 컨테이너).
+ * GET /study/stats 응답을 받아 loading / error / empty(총 풀이 0) / data 의 4-state로 렌더한다.
  * 기존 세션 전용 StudyStats.jsx와 목적이 다르며, 별도 모달로 노출된다.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -8,7 +8,7 @@ import { BarChart3, RefreshCw } from 'lucide-react';
 import Button from '../common/Button';
 import StatsSummaryCards from './StatsSummaryCards';
 import StatsBreakdownChart from './StatsBreakdownChart';
-import { getCertStats } from '../../services/certApi';
+import { getStudyStats } from '../../services/studyApi';
 import { showError } from '../../utils/errorHandler';
 import { formatDate } from '../../utils/formatters';
 import {
@@ -16,7 +16,7 @@ import {
   STATS_TYPE_LABELS,
 } from '../../utils/constants';
 import useAppStore from '../../stores/useAppStore';
-import useCertStore from '../../stores/useCertStore';
+import useStudyStore from '../../stores/useStudyStore';
 
 /**
  * 서버 응답 `byDifficulty` 항목을 StatsBreakdownChart 표준 스키마로 변환한다.
@@ -45,10 +45,10 @@ function adaptType(arr) {
 }
 
 /**
- * 자격증 누적 학습 통계 화면.
+ * 학습 누적 학습 통계 화면.
  * @param {Function} onDone - 닫기 콜백 (모달에서 주입)
  */
-export default function CertStatsPanel({ onDone }) {
+export default function StudyStatsPanel({ onDone }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,13 +56,13 @@ export default function CertStatsPanel({ onDone }) {
 
   const setActiveModal = useAppStore((s) => s.setActiveModal);
   const setMainMode = useAppStore((s) => s.setMainMode);
-  const setCertStep = useCertStore((s) => s.setCertStep);
+  const setStudyStep = useStudyStore((s) => s.setStudyStep);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getCertStats();
+      const res = await getStudyStats();
       setData(res);
       setLastUpdatedAt(Date.now());
     } catch (err) {
@@ -78,11 +78,11 @@ export default function CertStatsPanel({ onDone }) {
     load();
   }, [load]);
 
-  // 빈 상태에서 "퀴즈 설정 바로가기" 클릭 시 모달을 닫고 자격증 모드 업로드 단계로 이동
+  // 빈 상태에서 "퀴즈 설정 바로가기" 클릭 시 모달을 닫고 학습 모드 업로드 단계로 이동
   const handleGoToQuizSetup = () => {
     setActiveModal(null);
-    setMainMode('cert');
-    setCertStep('upload');
+    setMainMode('study');
+    setStudyStep('upload');
   };
 
   // ---------- loading ----------
