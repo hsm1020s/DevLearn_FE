@@ -172,6 +172,11 @@ const useMindmapStore = create(
         const { activeMapId, maps } = get();
         if (!activeMapId || !maps[activeMapId]) return null;
 
+        // 루트는 맵당 단 하나. 부모 없이(parentId=null) 추가 시 이미 루트가 있으면 거부.
+        if (parentId == null && maps[activeMapId].nodes.some((n) => n.parentId == null)) {
+          return null;
+        }
+
         const id = generateId();
         const node = { id, label, parentId, position: { x: 0, y: 0 }, color: null };
         const now = Date.now();
