@@ -46,8 +46,13 @@ const useAppStore = create(
     }),
     {
       name: 'app-store',
-      // ephemeral UI 상태(모달, 모바일 드로어)는 저장하지 않고 사용자 선호만 보존
-      partialize: (state) => ({ splitLeftPct: state.splitLeftPct }),
+      // ephemeral UI 상태(모달, 모바일 드로어)는 저장하지 않고 사용자 선호만 보존.
+      // mainMode/isMindmapOn은 새로고침 후에도 직전 세션을 이어가도록 저장.
+      partialize: (state) => ({
+        splitLeftPct: state.splitLeftPct,
+        mainMode: state.mainMode,
+        isMindmapOn: state.isMindmapOn,
+      }),
     },
   ),
 );
