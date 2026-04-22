@@ -208,6 +208,9 @@ const useStudyStore = create(
             return {
               id: generateId(),
               quizId: quiz.quizId || 'local-quiz',
+              // 과목 집계 연계를 위해 문제의 part 태그를 오답 엔트리에도 보존(optional).
+              // 나중에 "과목별 오답 필터" 등에 사용.
+              part: q.part,
               question: q.question,
               options: q.options || [],
               correctAnswer: a?.correctAnswer ?? q.correctAnswer,

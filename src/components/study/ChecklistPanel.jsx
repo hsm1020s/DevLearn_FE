@@ -20,6 +20,8 @@ import { BookOpen, CheckCircle2 } from 'lucide-react';
  *   프로젝트 헤더 우측 액션 슬롯 (예: 삭제 버튼). 없으면 렌더하지 않음.
  * @param {(project:object) => import('react').ReactNode} [props.renderProjectFooter]
  *   프로젝트 카드 하단에 붙는 액션 슬롯 (예: 항목 추가 입력).
+ * @param {(project:object) => import('react').ReactNode} [props.renderProjectMeta]
+ *   프로젝트 타이틀 옆에 붙는 메타 슬롯 (예: "10문항·10점"). 없으면 렌더 안 함.
  * @param {import('react').ReactNode} [props.emptyFallback] 비어있을 때 표시할 fallback UI
  * @param {import('react').ReactNode} [props.footer] 마지막 프로젝트 카드 아래에 렌더할 요소(예: 프로젝트 추가 버튼)
  */
@@ -28,6 +30,7 @@ export default function ChecklistPanel({
   onToggleChapter,
   renderProjectActions,
   renderProjectFooter,
+  renderProjectMeta,
   emptyFallback,
   footer,
 }) {
@@ -59,11 +62,12 @@ export default function ChecklistPanel({
             className="flex flex-col gap-3 p-4 rounded-lg border border-border-light bg-bg-primary"
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
-                <BookOpen size={16} className="text-primary" />
-                {book.title}
+              <div className="flex items-center gap-2 text-sm font-medium text-text-primary min-w-0">
+                <BookOpen size={16} className="text-primary shrink-0" />
+                <span className="truncate">{book.title}</span>
+                {renderProjectMeta?.(book)}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs tabular-nums text-text-secondary">
                   {done}/{total} ({rate}%)
                 </span>

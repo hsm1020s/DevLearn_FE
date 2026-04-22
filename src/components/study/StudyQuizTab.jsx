@@ -12,6 +12,8 @@ import useStudyStore from '../../stores/useStudyStore';
 import { generateQuiz } from '../../services/studyApi';
 import QuizSettings from './QuizSettings';
 import QuizPlayer from './QuizPlayer';
+import QuizResultByParts from './QuizResultByParts';
+import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
 /** 결과 화면 — 점수 + 오답 요약 + 다음 액션 */
 function QuizResult() {
@@ -133,11 +135,15 @@ export default function StudyQuizTab() {
     }
   }, [studySubTab, currentQuiz, studyStep, setQuizPaused]);
 
+  // 결과 화면은 과목 카탈로그에 parts가 있으면 과목별 집계 버전으로, 없으면 심플 버전으로.
+  const subjectMeta = useActiveSubjectMeta();
+  const ResultComponent = subjectMeta.parts ? QuizResultByParts : QuizResult;
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6">
       {studyStep === 'settings' && <QuizSettings />}
       {studyStep === 'quiz' && <QuizPlayer />}
-      {studyStep === 'result' && <QuizResult />}
+      {studyStep === 'result' && <ResultComponent />}
     </div>
   );
 }

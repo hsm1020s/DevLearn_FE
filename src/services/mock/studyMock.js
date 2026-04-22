@@ -2,6 +2,8 @@
  * @fileoverview 학습 API Mock - PDF 업로드, 퀴즈 생성, 답안 채점 시뮬레이션
  */
 import { generateId } from '../../utils/helpers';
+import { getSubject } from '../../registry/subjects';
+import { distributeCountsByParts } from '../../utils/examScoring';
 
 const MOCK_DELAY = 500;
 
@@ -27,21 +29,41 @@ const SUBJECT_PREFIX = {
 
 /**
  * 지정된 조건에 맞는 Mock 퀴즈 문제를 생성한다.
- * subject가 주어지면 문제 텍스트에 프리픽스를 덧붙여 과목 분기가 작동함을 가시화한다.
+ *
+ * 카탈로그에 `parts`가 있는 과목(SQLP/DAP)은 실제 시험처럼 과목별 비율로 문항을
+ * 배분하고 각 문제에 `part` id 태그를 붙여 결과 화면의 과목별 집계가 가능하게 한다.
+ * parts가 없는 과목(정보관리기술사/custom 등)은 기존 균등 생성으로 폴백.
  */
-export async function generateQuiz({ subject, docIds, chapters, count, difficulty, types }) {
+export async function generateQuiz({ subject, chapters, count, types }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
 
   const prefix = SUBJECT_PREFIX[subject] || '[Mock]';
-  const questions = Array.from({ length: count }, (_, i) => ({
-    id: `q${i + 1}`,
-    type: types[i % types.length],
-    question: `${prefix} 샘플 문제 ${i + 1}번입니다. 다음 중 올바른 것은?`,
-    options: ['보기 1', '보기 2', '보기 3', '보기 4'],
-    answer: Math.floor(Math.random() * 4),
-    explanation: `문제 ${i + 1}의 해설입니다. 정답은 해당 보기가 올바른 설명이기 때문입니다.`,
-    chapter: chapters?.[i % (chapters?.length || 1)] || 1,
-  }));
+  const meta = subject ? getSubject(subject) : null;
+  const parts = meta?.parts;
+
+  // parts 존재 시: 과목별 비율로 배분 → [{partId, count}] → 순차 확장하며 part 태그 부여.
+  // 없으면: 기존처럼 part 태그 없이 count만큼 균등 생성.
+  const partAssignments = parts
+    ? distributeCountsByParts(parts, count).flatMap((row) => {
+        const partLabel = parts.find((p) => p.id === row.partId)?.label || row.partId;
+        return Array.from({ length: row.count }, () => ({ partId: row.partId, partLabel }));
+      })
+    : Array.from({ length: count }, () => ({ partId: null, partLabel: null }));
+
+  const questions = partAssignments.map((assign, i) => {
+    const partSuffix = assign.partLabel ? ` · ${assign.partLabel}` : '';
+    return {
+      id: `q${i + 1}`,
+      type: types[i % types.length],
+      question: `${prefix}${partSuffix} — 샘플 문제 ${i + 1}번입니다. 다음 중 올바른 것은?`,
+      options: ['보기 1', '보기 2', '보기 3', '보기 4'],
+      answer: Math.floor(Math.random() * 4),
+      explanation: `문제 ${i + 1}의 해설입니다. 정답은 해당 보기가 올바른 설명이기 때문입니다.`,
+      chapter: chapters?.[i % (chapters?.length || 1)] || 1,
+      // 과목 집계용 — parts 없으면 undefined로 남아 computePartsScore가 null 반환
+      part: assign.partId || undefined,
+    };
+  });
 
   return { quizId: generateId(), subject, questions };
 }
