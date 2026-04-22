@@ -7,23 +7,42 @@
  *
  * 새 과목 추가 시 이 파일에 엔트리만 더하면 되도록 설계한다. 실제 기출/커리큘럼
  * 데이터는 후속 태스크에서 백엔드로 이관 예정.
+ *
+ * 프리셋 값의 근거(실제 시험 규격, 2026-04 확인):
+ * - SQLP : 72문항(객관식 70 + 실기 2), 180분, 100점 (과목별 40% + 총점 75점)
+ * - DAP  : 76문항(객관식 75 + 실기 1), 240분, 100점 (과목별 40% + 총점 75점)
+ * - 정보관리기술사(필기): 4교시·교시당 100분(총 400분) 전면 논술형.
+ *   앱의 객관식 mock 구조상 1교시(13중 10선택, 단답/약술) 기준으로 근사한다.
+ *   2~4교시 논술·모범답안 키워드 매칭은 별도 태스크에서 설계.
  */
 
-/** SQLP (SQL 전문가) — 90분, 40문항 기준 모의고사 */
+/** SQLP (SQL 전문가) — 72문항·180분 모의고사 */
 const SQLP = {
   id: 'sqlp',
   label: 'SQLP',
-  description: 'SQL 전문가',
-  examPreset: { count: 40, difficulty: 'mixed', timerSec: 90 * 60 },
+  description: 'SQL 전문가 · 72문항 180분 · 과목별 40% / 총점 75점',
+  examPreset: { count: 72, difficulty: 'mixed', timerSec: 180 * 60 },
   examples: [
     '옵티마이저 실행 계획 읽는 법 알려줘',
     'B-Tree 인덱스와 비트맵 인덱스 차이 설명해줘',
     '조인 수행 원리(NL/Sort Merge/Hash) 정리해줘',
   ],
+  // 실제 3과목 구조(데이터 모델링의 이해 / SQL 기본 및 활용 / SQL 고급 활용 및 튜닝).
+  // 기존 chapter id(`sqlp-1-*`, `sqlp-2-*`)는 사용자의 체크 상태 보존을 위해 유지한다.
   checklist: [
     {
+      id: 'sqlp-pm',
+      title: '1과목 · 데이터 모델링의 이해',
+      chapters: [
+        { id: 'sqlp-m-1', label: '데이터 모델링 개요', done: false },
+        { id: 'sqlp-m-2', label: '엔티티·속성·관계', done: false },
+        { id: 'sqlp-m-3', label: '정규화', done: false },
+        { id: 'sqlp-m-4', label: '반정규화와 성능 데이터 모델링', done: false },
+      ],
+    },
+    {
       id: 'sqlp-p1',
-      title: '1과목 · SQL 기본과 활용',
+      title: '2과목 · SQL 기본 및 활용',
       chapters: [
         { id: 'sqlp-1-1', label: '관계형 DB 개요', done: false },
         { id: 'sqlp-1-2', label: 'DML/DDL/DCL', done: false },
@@ -34,7 +53,7 @@ const SQLP = {
     },
     {
       id: 'sqlp-p2',
-      title: '2과목 · SQL 고급 활용 및 튜닝',
+      title: '3과목 · SQL 고급 활용 및 튜닝',
       chapters: [
         { id: 'sqlp-2-1', label: '옵티마이저와 실행계획', done: false },
         { id: 'sqlp-2-2', label: '인덱스 튜닝', done: false },
@@ -46,12 +65,12 @@ const SQLP = {
   ],
 };
 
-/** DAP (데이터아키텍처 전문가) — 100분, 50문항 기준 모의고사 */
+/** DAP (데이터아키텍처 전문가) — 76문항·240분 모의고사. 2024년 이후 개편 6과목. */
 const DAP = {
   id: 'dap',
   label: 'DAP',
-  description: '데이터아키텍처 전문가',
-  examPreset: { count: 50, difficulty: 'mixed', timerSec: 100 * 60 },
+  description: '데이터아키텍처 전문가 · 76문항 240분 · 과목별 40% / 총점 75점',
+  examPreset: { count: 76, difficulty: 'mixed', timerSec: 240 * 60 },
   examples: [
     '정규화와 반정규화 판단 기준은?',
     '데이터 표준화 절차를 단계별로 정리해줘',
@@ -99,16 +118,30 @@ const DAP = {
         { id: 'dap-5-2', label: '분산/백업/복구', done: false },
       ],
     },
+    // 2024 개편으로 추가된 6번째 과목.
+    {
+      id: 'dap-p6',
+      title: '6과목 · 데이터 품질 관리 이해',
+      chapters: [
+        { id: 'dap-6-1', label: '데이터 품질 기준과 지표', done: false },
+        { id: 'dap-6-2', label: '품질 진단·개선 절차', done: false },
+        { id: 'dap-6-3', label: '메타데이터·데이터 거버넌스', done: false },
+      ],
+    },
   ],
 };
 
-/** 정보관리기술사 — 논술 1교시 100분, 4문제 기준 프리셋 */
+/**
+ * 정보관리기술사 필기 — 4교시·교시당 100분 전면 논술형, 총 400점 중 240점 합격.
+ * 앱은 객관식 mock 구조이므로 프리셋은 **1교시(13중 10선택, 단답/약술)** 기준으로
+ * 근사한다. 시간은 교시 1회분(100분) 그대로.
+ */
 const ENG = {
   id: 'eng',
   label: '정보관리기술사',
-  description: '정보관리기술사(논술·면접)',
-  // 실제 시험은 4교시제이지만, 앱에서는 1교시(100분·4문제) 기준으로 시뮬레이션.
-  examPreset: { count: 4, difficulty: 'hard', timerSec: 100 * 60 },
+  description: '정보관리기술사 필기 · 4교시(교시당 100분) 논술형 · 240점 합격',
+  // 프리셋은 1교시 기준 — 10문제 선택(단답/약술). 2~4교시 논술 모드는 후속 태스크.
+  examPreset: { count: 10, difficulty: 'hard', timerSec: 100 * 60 },
   examples: [
     'MSA 전환 전략 — 논술 개요(서론/본론/결론) 잡아줘',
     '데이터 거버넌스 체계 수립 시 핵심 토픽 정리',
