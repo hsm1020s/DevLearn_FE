@@ -72,6 +72,10 @@ const useStudyStore = create(
       chatStyle: 'general',
       chatStyleLocked: false,
 
+      // 파인만 대화형 학습 — 선택된 챕터/문서 (null이면 비활성)
+      feynmanDocId: null,
+      feynmanChapter: null,
+
       /** 활성 과목 전환. 유효하지 않은 id면 무시. */
       setActiveSubject: (subjectId) => {
         if (!get().subjects[subjectId]) return;
@@ -183,6 +187,11 @@ const useStudyStore = create(
       resetChatStyleIfNotLocked: () => {
         if (!get().chatStyleLocked) set({ chatStyle: 'general' });
       },
+
+      /** 파인만 대화형 학습 챕터 선택. */
+      setFeynmanSession: (docId, chapter) => set({ feynmanDocId: docId, feynmanChapter: chapter }),
+      /** 파인만 세션 종료 — 챕터 선택 해제. */
+      clearFeynmanSession: () => set({ feynmanDocId: null, feynmanChapter: null }),
 
       // ────────── 오답노트 / 통계 ──────────
       /**

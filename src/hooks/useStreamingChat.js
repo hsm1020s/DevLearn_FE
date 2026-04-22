@@ -2,6 +2,10 @@
  * @fileoverview SSE 기반 스트리밍 채팅 커스텀 훅.
  * 메시지 전송, 토큰 단위 스트리밍 수신, 중단 처리, 스마트 오토스크롤을 관리한다.
  *
+ * 파인만 대화형 학습 지원:
+ *   - useStudyStore의 feynmanChapter가 설정되어 있으면 /api/feynman/stream 으로 라우팅.
+ *   - 새 대화 시작 시 AI가 먼저 첫 질문을 생성하도록 빈 메시지를 전송.
+ *
  * 스마트 오토스크롤:
  *   - 사용자가 하단 근접(임계 120px) 상태일 때만 새 토큰/메시지에 맞춰 자동 스크롤.
  *   - 위로 올려 이전 대화를 읽는 중이면 오토스크롤을 멈추고 `hasNewBelow` 플래그로
@@ -12,6 +16,7 @@ import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
 import useStudyStore from '../stores/useStudyStore';
 import { streamMessage } from '../services/chatApi';
+import { streamFeynmanChat } from '../services/feynmanApi';
 import { showError } from '../utils/errorHandler';
 import { isLearningMode } from '../registry/modes';
 import { STYLE_PROMPT } from '../registry/stylePrompts';
@@ -39,6 +44,9 @@ export default function useStreamingChat(mode) {
   const [streamingContent, setStreamingContent] = useState('');
   const scrollRef = useRef(null);
   const abortControllerRef = useRef(null);
+
+  // 파인만 초기 질문 트리거 방지용 — 대화가 이미 시작된 경우 재트리거 방지
+  const feynmanInitRef = useRef(false);
 
   // 하단 근접 여부. ref는 effect/콜백에서 즉시 참조, state는 UI(버튼 노출)용.
   const isAtBottomRef = useRef(true);
@@ -100,11 +108,44 @@ export default function useStreamingChat(mode) {
     isAtBottomRef.current = true;
     setIsAtBottom(true);
     setHasNewBelow(false);
+    feynmanInitRef.current = false;
     requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     });
   }, [currentConversationId]);
+
+  // 파인만 스트리밍 요청 실행 헬퍼
+  const doFeynmanStream = useCallback(
+    async (content, convId, controller, feynmanDocId, feynmanChapter) => {
+      await streamFeynmanChat({
+        docId: feynmanDocId,
+        chapter: feynmanChapter,
+        message: content || '',
+        conversationId: convId,
+        llm: selectedLLM,
+        signal: controller.signal,
+        onToken: (accumulated) => {
+          if (!controller.signal.aborted) setStreamingContent(accumulated);
+        },
+        onDone: (result) => {
+          if (!controller.signal.aborted) {
+            addMessage({
+              role: 'assistant',
+              content: result.content,
+              meta: { style: 'feynman' },
+            });
+          }
+          if (result?.conversationId) {
+            useChatStore.getState().reconcileConversation(result.conversationId);
+          }
+          setStreamingContent('');
+          setStreaming(false);
+        },
+      });
+    },
+    [selectedLLM, addMessage, setStreaming],
+  );
 
   // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
   // style: 학습 모드에서 다음 턴에 적용할 스타일(general|feynman|summary). 메시지 meta + 프리픽스에 사용.
@@ -141,15 +182,95 @@ export default function useStreamingChat(mode) {
     [mode, selectedLLM, addMessage, setStreaming],
   );
 
+  // 파인만 세션 시작 시 AI 첫 질문 자동 트리거
+  const feynmanDocId = useStudyStore((s) => s.feynmanDocId);
+  const feynmanChapter = useStudyStore((s) => s.feynmanChapter);
+
+  useEffect(() => {
+    if (!feynmanDocId || !feynmanChapter) {
+      feynmanInitRef.current = false;
+      return;
+    }
+    // 이미 초기화 완료 또는 스트리밍 중이면 재트리거 방지
+    if (feynmanInitRef.current || isStreaming) return;
+    feynmanInitRef.current = true;
+
+    // 항상 새 대화를 만들어 파인만 세션 시작 — 기존 대화가 있어도 새 대화로 전환
+    (async () => {
+      const convId = createConversation(mode, selectedLLM);
+      setStreaming(true);
+      setStreamingContent('');
+      scrollToBottomNow();
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        await doFeynmanStream('', convId, controller, feynmanDocId, feynmanChapter);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('[useStreamingChat] Feynman init error:', err);
+        showError(err);
+        setStreamingContent('');
+        setStreaming(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feynmanDocId, feynmanChapter]);
+
   // 사용자 메시지 전송 및 SSE 스트리밍 수신 처리
   const handleSend = useCallback(
     async (content) => {
-      // 학습 계열 모드(자격증·업무학습)에서만 현재 스타일을 읽어 프리픽스/메타에 사용.
-      // 일반 모드는 무시 — 스타일 칩 자체가 학습 계열 UI에만 존재한다.
       const studyState = useStudyStore.getState();
+      const { feynmanDocId: fDocId, feynmanChapter: fChapter } = studyState;
+
+      // 파인만 대화형 학습 모드 — feynman/stream 엔드포인트로 라우팅
+      if (fDocId && fChapter) {
+        let convId = currentConversationId;
+        if (!convId) {
+          convId = createConversation(mode, selectedLLM);
+        }
+        addMessage({
+          role: 'user',
+          content,
+          meta: { style: 'feynman' },
+        });
+        setStreaming(true);
+        setStreamingContent('');
+        scrollToBottomNow();
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        try {
+          await doFeynmanStream(content, convId, controller, fDocId, fChapter);
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          if (err.status === 409) {
+            console.warn('[useStreamingChat] 409 Conflict on feynman, 새 대화로 재시도');
+            const { deleteConversations: removeConvs } = useChatStore.getState();
+            removeConvs([convId]);
+            const newConvId = createConversation(mode, selectedLLM);
+            addMessage({ role: 'user', content, meta: { style: 'feynman' } });
+            try {
+              await doFeynmanStream(content, newConvId, controller, fDocId, fChapter);
+              return;
+            } catch (retryErr) {
+              if (retryErr.name === 'AbortError') return;
+              showError(retryErr);
+            }
+          } else {
+            showError(err);
+          }
+          setStreamingContent('');
+          setStreaming(false);
+        }
+        return; // 파인만 모드에서는 스타일 리셋 불필요 (고정됨)
+      }
+
+      // 일반/한줄요약 — 기존 흐름
       const style = isLearningMode(mode) ? studyState.chatStyle : 'general';
 
-      // 대화가 없으면 새로 생성
       let convId = currentConversationId;
       if (!convId) {
         convId = createConversation(mode, selectedLLM);
@@ -161,7 +282,6 @@ export default function useStreamingChat(mode) {
       });
       setStreaming(true);
       setStreamingContent('');
-      // 사용자가 방금 전송했으니 무조건 맨 아래로 복귀.
       scrollToBottomNow();
 
       const controller = new AbortController();
@@ -170,7 +290,7 @@ export default function useStreamingChat(mode) {
       try {
         await doStream(content, convId, controller, style);
       } catch (err) {
-        if (err.name === 'AbortError') return; // 정상 중단
+        if (err.name === 'AbortError') return;
 
         // 409 Conflict — 로컬 대화 ID가 서버에 없거나 충돌. 대화를 새로 만들어 재시도
         if (err.status === 409) {
@@ -178,7 +298,6 @@ export default function useStreamingChat(mode) {
           const { deleteConversations: removeConvs } = useChatStore.getState();
           removeConvs([convId]);
           const newConvId = createConversation(mode, selectedLLM);
-          // 재시도 시 최초 addMessage와 동일한 meta를 전파해야 스타일 뱃지가 유지된다.
           addMessage({
             role: 'user',
             content,
@@ -205,7 +324,7 @@ export default function useStreamingChat(mode) {
         }
       }
     },
-    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream, scrollToBottomNow],
+    [currentConversationId, createConversation, mode, selectedLLM, addMessage, setStreaming, doStream, doFeynmanStream, scrollToBottomNow],
   );
 
   // 스트리밍 중단: SSE 연결을 끊고 현재까지 수신된 내용을 메시지로 확정
