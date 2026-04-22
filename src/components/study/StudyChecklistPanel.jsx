@@ -5,8 +5,8 @@
  * `useStudyStore`의 활성 과목 체크리스트를 구독해 prop으로 주입한다.
  *
  * 추가로 `SUBJECT_CATALOG[activeSubject].parts`에서 과목별 문항수/배점 메타를 꺼내
- * 각 과목 제목 옆에 "(N문항 · M점)" 형태로 노출한다. parts가 없는 과목
- * (정보관리기술사·custom)은 메타가 비어 기본 UI 그대로.
+ * 각 과목 제목 옆에 "(N문항 · M점)" 형태로 노출한다. parts가 없는 과목(custom 등)은
+ * 메타가 비어 기본 UI 그대로.
  */
 import useStudyStore from '../../stores/useStudyStore';
 import ChecklistPanel from './ChecklistPanel';

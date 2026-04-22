@@ -25,7 +25,7 @@ export async function getAdminDashboard() {
       { id: 'c-005', title: 'DAP 정규화 핵심 요약', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 12 },
       { id: 'c-006', title: '신규 인력 온보딩 체크리스트', mode: 'worklearn', updatedAt: Date.now() - 1000 * 60 * 60 * 30 },
       { id: 'c-007', title: 'HTTP 상태 코드 질문', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 60 * 48 },
-      { id: 'c-008', title: '정보관리기술사 논술 토픽', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 72 },
+      { id: 'c-008', title: 'DAP 데이터 표준화 핵심 정리', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 72 },
     ],
     // 문서 현황 (status 3종 모두 포함)
     documents: [

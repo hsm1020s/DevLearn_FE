@@ -40,7 +40,7 @@ export const CHAT_STYLES = [
 ];
 
 // 모의고사 프리셋은 과목별로 분기되어 `src/registry/subjects.js` 에 정의한다.
-// (SQLP 90분/40문항, DAP 100분/50문항, 정보관리기술사 100분/4문항, custom 30분/30문항)
+// (SQLP 180분/72문항, DAP 240분/76문항, custom 30분/30문항)
 
 // 문서 처리 상태별 라벨 및 색상 매핑
 export const DOC_STATUS = {

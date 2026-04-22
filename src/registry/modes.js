@@ -24,7 +24,7 @@ export const MODES = {
     value: 'study',
     label: '자격증',
     icon: GraduationCap,
-    description: 'SQLP · DAP · 정보관리기술사 퀴즈 학습',
+    description: 'SQLP · DAP 퀴즈 학습',
     component: () => import('../components/study/StudyMode'),
     actions: [],
   },
