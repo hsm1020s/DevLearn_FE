@@ -39,6 +39,7 @@
 6. **병합 후 재검증 + 푸시** — Step 4에서 `master` 병합이 끝나면 반드시 한 번 더 주요 기능을 실제로 돌려보고(스모크 테스트), 이상 없음을 확인한 뒤 커밋 & `git push`로 원격에 반영한다. 병합만 하고 푸시를 빼먹지 말 것.
 7. **작업 완료 후 워크트리/브랜치 정리** — `/phase-end` 이후 `git worktree list`로 확인하고, master에 병합이 끝난 워크트리와 task 브랜치는 `git worktree remove --force <path>` + `git branch -d task/<id>` 로 정리한다. 병합되지 않은 워크트리는 보존한다.
 8. **설계 문서는 task 브랜치에 커밋** — `phase.sh start`가 설계 문서를 워크트리 안(`<worktree>/docs/designs/<task-id>.md`)에 생성하므로, src/ 변경과 함께 `git add docs/designs/<task-id>.md`로 커밋해야 병합 시 master에 포함된다. 누락 시 `/phase-advance merged`가 차단한다.
+9. **git에 올리면 안 되는 파일은 즉시 제외** — 새 파일이 추적 대상이 되기 전에 판정한다. 제외 대상: 빌드/캐시(`dist/`, `.vite/`, `*.tsbuildinfo`), 로그(`*.log`), 비밀(`.env*`, `*.pem`, `*_rsa`, `secrets.*`, `credentials.*`, `service-account*.json`), OS/에디터(`.DS_Store`, `.vscode/`, `.idea/`), DB 덤프(`*.sql`, `*.sqlite*`), 백업(`*.bak`, `*.orig`, `*.tmp`), 개인 스크립트·실험 폴더, 바이너리 산출물. 판단되면 `.gitignore`에 즉시 추가하고, **이미 추적 중이면 `git rm --cached <path>`로 추적 해제 후 함께 커밋**한다. `.gitignore`에 추가만 하고 `rm --cached`를 빠뜨리면 파일이 계속 추적되니 주의.
 
 ---
 
