@@ -138,20 +138,26 @@ export async function streamMessage(params) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let accumulated = '';
+  let buffer = '';
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter((l) => l.startsWith('data:'));
-      for (const line of lines) {
-        const parsed = JSON.parse(line.slice(5));
-        if (parsed.type === 'token') {
-          accumulated = parsed.content;
-          onToken?.(accumulated);
-        } else if (parsed.type === 'done') {
-          onDone?.({ conversationId: parsed.conversationId, content: parsed.content || accumulated, sources: parsed.sources });
-        }
+      buffer += decoder.decode(value, { stream: true });
+      // SSE 청크가 중간에 잘려 도착할 수 있으므로 완전한 줄만 처리하고 나머지는 버퍼에 보존
+      const parts = buffer.split('\n');
+      buffer = parts.pop(); // 마지막(불완전할 수 있는) 조각은 다음 청크와 합침
+      for (const line of parts) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(5));
+          if (parsed.type === 'token') {
+            accumulated = parsed.content;
+            onToken?.(accumulated);
+          } else if (parsed.type === 'done') {
+            onDone?.({ conversationId: parsed.conversationId, content: parsed.content || accumulated, sources: parsed.sources });
+          }
+        } catch { /* 파싱 불가능한 줄은 건너뜀 */ }
       }
     }
   } finally {
