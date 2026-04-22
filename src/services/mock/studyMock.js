@@ -102,8 +102,7 @@ export async function getStudyStats(params = {}) {
       { difficulty: 'hard',  total: Math.round(s.totalSolved * 0.20), correct: Math.round(s.correctCount * 0.15), rate: s.hardRate },
     ],
     byType: [
-      { type: 'multiple', total: Math.round(s.totalSolved * 0.80), correct: Math.round(s.correctCount * 0.82), rate: 0.76 },
-      { type: 'short',    total: Math.round(s.totalSolved * 0.20), correct: Math.round(s.correctCount * 0.18), rate: 0.58 },
+      { type: 'multiple', total: s.totalSolved, correct: s.correctCount, rate: s.correctRate },
     ],
   };
 }

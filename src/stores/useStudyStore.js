@@ -36,7 +36,7 @@ const emptySubjectState = () => ({
     totalSolved: 0,
     correctCount: 0,
     byDifficulty: { easy: 0, mixed: 0, hard: 0 },
-    byType: { multiple: 0, short: 0 },
+    byType: { multiple: 0 },
   },
 });
 
@@ -263,7 +263,7 @@ const useStudyStore = create(
     }),
     {
       name: 'study-store',
-      version: 6,
+      version: 7,
       /**
        * 마이그레이션 히스토리:
        * - v1: `{ studyDocs }`만 persist
@@ -290,6 +290,11 @@ const useStudyStore = create(
        * 오답·통계 중심으로 단순화하고, 과목별 진도 체크는 가치 대비 비용이 큼.
        * subjects[*].checklist 필드를 드롭하며 사용자가 체크한 챕터 상태는 소실.
        * 업무학습 모드의 체크리스트는 별도 스토어(`useWorkLearnStore`)라 무관.
+       *
+       * v6→v7: 단답형(`short`) 문제 유형 제거 — SQLP/DAP 실제 시험에 단답형이
+       * 없어 4지선다만 남긴다. 각 subjects 버킷의 stats.byType에서 short 키를
+       * 삭제한다(기존 오답노트의 type==='short' 엔트리는 STATS_TYPE_LABELS
+       * 폴백으로 "4지선다"처럼 보이지만 데이터 자체는 보존).
        */
       migrate: (persisted, version) => {
         if (!persisted) return persisted;
@@ -347,6 +352,20 @@ const useStudyStore = create(
             // eslint-disable-next-line no-unused-vars
             const { checklist: _dropped, ...rest } = bucket;
             nextSubjects[id] = rest;
+          }
+          state = { ...state, subjects: nextSubjects };
+        }
+
+        // v<7: 단답형 제거 — 각 과목 버킷의 stats.byType에서 short 카운트 제거
+        if (version < 7) {
+          const nextSubjects = {};
+          for (const [id, bucket] of Object.entries(state.subjects || {})) {
+            const byType = { ...(bucket.stats?.byType || {}) };
+            delete byType.short;
+            nextSubjects[id] = {
+              ...bucket,
+              stats: { ...bucket.stats, byType },
+            };
           }
           state = { ...state, subjects: nextSubjects };
         }

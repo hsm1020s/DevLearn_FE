@@ -25,10 +25,10 @@ export const QUIZ_DIFFICULTIES = [
   { value: 'hard', label: '어려움' },
 ];
 
-// 퀴즈 유형 옵션 — 실제 자격증 시험과 정합(4지선다 + 단답형 위주). OX는 학습 가치가 낮아 제거됨.
+// 퀴즈 유형 옵션 — SQLP/DAP 실제 시험 구성이 객관식 + 실기(서술형)이고 단답형이
+// 없어 4지선다만 제공한다. 실기 서술형은 앱의 객관식 mock 구조 밖(후속 태스크).
 export const QUIZ_TYPES = [
   { value: 'multiple', label: '4지선다' },
-  { value: 'short', label: '단답형' },
 ];
 
 // 학습 채팅 스타일 (그룹 D — 이해도 점검용 프롬프트 프리셋)
@@ -59,5 +59,4 @@ export const STATS_DIFFICULTY_LABELS = {
 // 통계 화면에서 사용하는 문제 유형 key → 한글 라벨 매핑
 export const STATS_TYPE_LABELS = {
   multiple: '4지선다',
-  short: '단답형',
 };

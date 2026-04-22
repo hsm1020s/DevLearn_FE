@@ -1,7 +1,10 @@
 /**
  * @fileoverview 퀴즈 설정 컴포넌트.
- * 교재, 문제 수, 난이도, 출제 범위, 문제 유형을 선택하여 퀴즈 생성을 요청한다.
+ * 교재, 문제 수, 난이도, 출제 범위를 선택해 퀴즈 생성을 요청한다.
  * 🎯 모의고사 프리셋 버튼도 포함한다.
+ *
+ * 문제 유형은 SQLP/DAP 실제 시험 구성에 맞춰 4지선다만 지원하므로 UI 선택지
+ * 없이 내부에서 `['multiple']`로 고정 전송한다(실기 서술형은 별도 태스크 대상).
  */
 import { useState } from 'react';
 import { Settings, Play, Sparkles } from 'lucide-react';
@@ -24,7 +27,7 @@ const MOCK_CHAPTERS = [
   { value: 'ch5', label: '5장: 종합 문제' },
 ];
 
-/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형/모의고사 프리셋을 선택한다. */
+/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/출제 범위/모의고사 프리셋을 선택한다. */
 export default function QuizSettings() {
   const docs = useDocStore((s) => s.docs);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
@@ -37,11 +40,14 @@ export default function QuizSettings() {
   const completedDocs = docs.filter((d) => d.status === 'completed');
   const docOptions = completedDocs.map((d) => ({ value: d.id, label: d.fileName }));
 
+  // 문제 유형은 현재 4지선다 하나로 고정 전송 (QUIZ_TYPES가 1개짜리).
+  // 나중에 서술형 등이 추가될 때 settings.types로 승격한다.
+  const FIXED_TYPES = QUIZ_TYPES.map((t) => t.value);
+
   const [settings, setSettings] = useState({
     docIds: completedDocs[0]?.id || '',
     count: String(QUIZ_COUNTS[0]),
     difficulty: QUIZ_DIFFICULTIES[1].value, // 기본 '혼합'
-    types: [QUIZ_TYPES[0].value],
     chapters: [],
   });
   // 모의고사 모드 여부 — on이면 과목별 프리셋(문항수·시간·난이도)을 자동 세팅
@@ -49,14 +55,6 @@ export default function QuizSettings() {
   const [loading, setLoading] = useState(false);
 
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
-
-  const toggleType = (typeValue) => {
-    setSettings((prev) => {
-      const exists = prev.types.includes(typeValue);
-      const next = exists ? prev.types.filter((t) => t !== typeValue) : [...prev.types, typeValue];
-      return { ...prev, types: next.length ? next : prev.types };
-    });
-  };
 
   const toggleChapter = (ch) => {
     setSettings((prev) => {
@@ -72,9 +70,8 @@ export default function QuizSettings() {
       ...prev,
       count: String(examPreset.count),
       difficulty: examPreset.difficulty,
-      // 모의고사는 전 범위 + 전 유형
+      // 모의고사는 전 범위 (유형은 FIXED_TYPES 고정)
       chapters: [],
-      types: QUIZ_TYPES.map((t) => t.value),
     }));
   };
 
@@ -84,7 +81,6 @@ export default function QuizSettings() {
 
   // 설정값으로 퀴즈 생성 API 호출 후 퀴즈 풀이 단계로 전환
   const handleGenerate = async () => {
-    if (!settings.types.length) return;
     // 문서가 없어도 mock이 동작하므로 진행 허용 (백엔드 연결 전 UX 보존)
     setLoading(true);
     try {
@@ -94,7 +90,7 @@ export default function QuizSettings() {
         chapters: settings.chapters.length ? settings.chapters : null,
         count: Number(settings.count),
         difficulty: settings.difficulty,
-        types: settings.types,
+        types: FIXED_TYPES,
       });
       // 모의고사면 과목별 examPreset.timerSec 적용
       setQuiz(result, { timerSec: examMode ? examPreset.timerSec : null });
@@ -106,7 +102,7 @@ export default function QuizSettings() {
     }
   };
 
-  const disabledStart = loading || !settings.types.length;
+  const disabledStart = loading;
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full">
@@ -133,7 +129,7 @@ export default function QuizSettings() {
           <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1">
             <p className="text-text-primary font-medium">{subjectMeta.label} 모의고사</p>
-            <p>{examPreset.count}문제 · 혼합 난이도 · 전체 범위 · 전체 유형 · {Math.floor(examPreset.timerSec / 60)}분 타이머</p>
+            <p>{examPreset.count}문제 · 혼합 난이도 · 전체 범위 · 4지선다 · {Math.floor(examPreset.timerSec / 60)}분 타이머</p>
             {subjectMeta.passingCriteria && (
               <p>
                 합격 기준 · 총점 {subjectMeta.passingCriteria.totalMin}점 이상 + 과목별{' '}
@@ -198,23 +194,6 @@ export default function QuizSettings() {
           )}
         </div>
 
-        {/* 문제 유형 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-text-secondary">문제 유형</label>
-          <div className="flex flex-col gap-2">
-            {QUIZ_TYPES.map((type) => (
-              <label key={type.value} className="flex items-center gap-2 cursor-pointer text-sm text-text-primary">
-                <input
-                  type="checkbox"
-                  checked={settings.types.includes(type.value)}
-                  onChange={() => toggleType(type.value)}
-                  className="w-4 h-4 rounded border-border-light accent-primary"
-                />
-                {type.label}
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="flex justify-end">
