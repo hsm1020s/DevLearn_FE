@@ -13,6 +13,7 @@ import SourceCard from './SourceCard';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
 import { CHAT_STYLES } from '../../utils/constants';
+import { isLearningMode } from '../../registry/modes';
 
 // 스타일 key → 뱃지 표시 정보
 const STYLE_INFO = Object.fromEntries(CHAT_STYLES.map((s) => [s.value, s]));
@@ -51,9 +52,9 @@ export default function ChatMessage({ message, isStreaming }) {
     }
   }, [message.content]);
 
-  // "한 줄 요약" 단축 액션 — 학습 모드 어시스턴트 메시지에 노출.
+  // "한 줄 요약" 단축 액션 — 학습 계열 모드(자격증·업무학습) 어시스턴트 메시지에 노출.
   // 다음 턴에 summary 스타일을 켜두고, 사용자가 입력창에 바로 "요약해줘"를 쓸 수 있게 한다.
-  const canSummarize = !isUser && !isStreaming && mainMode === 'study' && style !== 'summary';
+  const canSummarize = !isUser && !isStreaming && isLearningMode(mainMode) && style !== 'summary';
   const handleSummarize = () => {
     setChatStyle('summary');
     // 입력창으로 포커스 이동은 ChatInput이 마운트되어 있으면 자연스럽게 다음 턴에 적용됨.

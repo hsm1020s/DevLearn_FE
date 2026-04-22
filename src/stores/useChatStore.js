@@ -27,7 +27,7 @@ const useChatStore = create(
       // 현재 활성 대화 ID
       currentConversationId: null,
       // 모드별 마지막으로 보던 대화 id — 모드 전환 시 자동 복원용
-      lastActiveByMode: { general: null, study: null },
+      lastActiveByMode: { general: null, study: null, worklearn: null },
       // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
       // 서버 대화 목록 동기화 상태
@@ -263,7 +263,7 @@ const useChatStore = create(
       reset: () => set({
         conversations: [],
         currentConversationId: null,
-        lastActiveByMode: { general: null, study: null },
+        lastActiveByMode: { general: null, study: null, worklearn: null },
         isStreaming: false,
         isConversationsLoading: false,
         conversationsError: null,
@@ -272,13 +272,18 @@ const useChatStore = create(
     }),
     {
       name: 'chat-store',
-      version: 3,
+      version: 4,
       partialize: (state) => ({
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
         lastActiveByMode: state.lastActiveByMode,
       }),
-      /** v1: messages가 전역 배열 → 대화별. v3: lastActiveByMode 기본값 주입 */
+      /**
+       * 마이그레이션:
+       * - v1 → v2: messages가 전역 배열 → 대화별 배열 구조로 이관
+       * - v2 → v3: lastActiveByMode 기본값 주입 `{general, study}`
+       * - v3 → v4: lastActiveByMode 에 `worklearn` 슬롯 추가 (업무학습 모드 도입)
+       */
       migrate: (persisted, version) => {
         try {
           if (version < 2) {
@@ -293,14 +298,23 @@ const useChatStore = create(
             }
           }
           if (version < 3) {
-            persisted.lastActiveByMode = { general: null, study: null };
+            persisted.lastActiveByMode = { general: null, study: null, worklearn: null };
+          }
+          if (version < 4) {
+            // v3은 {general, study}만 가진 객체였을 수 있음 — worklearn 슬롯 추가.
+            persisted.lastActiveByMode = {
+              general: null,
+              study: null,
+              worklearn: null,
+              ...(persisted.lastActiveByMode || {}),
+            };
           }
           return persisted;
         } catch {
           return {
             conversations: [],
             currentConversationId: null,
-            lastActiveByMode: { general: null, study: null },
+            lastActiveByMode: { general: null, study: null, worklearn: null },
           };
         }
       },

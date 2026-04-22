@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { BookMarked, CheckSquare, BarChart3 } from 'lucide-react';
 import WrongAnswerPanel from './WrongAnswerPanel';
-import ChecklistPanel from './ChecklistPanel';
+import StudyChecklistPanel from './StudyChecklistPanel';
 import StudyStatsTab from './StudyStatsTab';
 
 const SUB_TABS = [
@@ -47,7 +47,7 @@ export default function StudyRecordTab() {
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="max-w-3xl mx-auto">
           {subTab === 'wrong' && <WrongAnswerPanel />}
-          {subTab === 'checklist' && <ChecklistPanel />}
+          {subTab === 'checklist' && <StudyChecklistPanel />}
           {subTab === 'stats' && <StudyStatsTab />}
         </div>
       </div>

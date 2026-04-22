@@ -13,8 +13,10 @@ import useAppStore from '../stores/useAppStore';
 import useStudyStore from '../stores/useStudyStore';
 import { streamMessage } from '../services/chatApi';
 import { showError } from '../utils/errorHandler';
+import { isLearningMode } from '../registry/modes';
 
-// 학습 모드 스타일별 프리픽스 — mock/백엔드에서 이 토큰을 보고 응답 스타일을 결정.
+// 학습 계열 모드(자격증 + 업무학습)의 스타일별 프리픽스.
+// mock/백엔드가 이 토큰을 보고 응답 스타일을 결정한다. 일반 모드는 무시.
 const STYLE_PREFIX = {
   feynman: '[파인만 모드] ',
   summary: '[한줄요약] ',
@@ -148,9 +150,10 @@ export default function useStreamingChat(mode) {
   // 사용자 메시지 전송 및 SSE 스트리밍 수신 처리
   const handleSend = useCallback(
     async (content) => {
-      // 학습 모드에서만 현재 스타일을 읽어 프리픽스/메타에 사용. 일반 모드는 무시.
+      // 학습 계열 모드(자격증·업무학습)에서만 현재 스타일을 읽어 프리픽스/메타에 사용.
+      // 일반 모드는 무시 — 스타일 칩 자체가 학습 계열 UI에만 존재한다.
       const studyState = useStudyStore.getState();
-      const style = mode === 'study' ? studyState.chatStyle : 'general';
+      const style = isLearningMode(mode) ? studyState.chatStyle : 'general';
 
       // 대화가 없으면 새로 생성
       let convId = currentConversationId;
@@ -160,7 +163,7 @@ export default function useStreamingChat(mode) {
       addMessage({
         role: 'user',
         content,
-        meta: mode === 'study' && style !== 'general' ? { style } : undefined,
+        meta: isLearningMode(mode) && style !== 'general' ? { style } : undefined,
       });
       setStreaming(true);
       setStreamingContent('');
@@ -198,7 +201,7 @@ export default function useStreamingChat(mode) {
         setStreaming(false);
       } finally {
         // 턴 종료 — 고정되지 않은 스타일은 'general'로 리셋
-        if (mode === 'study') {
+        if (isLearningMode(mode)) {
           useStudyStore.getState().resetChatStyleIfNotLocked();
         }
       }
