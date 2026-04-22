@@ -1,7 +1,7 @@
 /**
- * @fileoverview 모드 헤더 컴포넌트
- * 현재 선택된 모드의 아이콘·이름·설명을 표시한다.
- * 모바일에서는 사이드바 열기 햄버거 버튼을 표시한다.
+ * @fileoverview 모드 헤더 컴포넌트.
+ * 현재 선택된 모드의 아이콘·이름만 표시한다(설명은 의도적으로 숨김 — 라벨만으로
+ * 충분하고 헤더가 덜 번잡해진다). 모바일에서는 사이드바 열기 햄버거 버튼을 표시.
  */
 import { Menu } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
@@ -27,8 +27,6 @@ export default function ModeHeader() {
         </button>
         {IconComponent && <IconComponent className="h-5 w-5 text-text-secondary shrink-0" />}
         <span className="font-medium text-text-primary truncate">{modeConfig.label}</span>
-        <span className="text-text-secondary hidden md:inline">—</span>
-        <span className="text-sm text-text-secondary hidden md:inline">{modeConfig.description}</span>
       </div>
     </header>
   );
