@@ -134,9 +134,20 @@ export default function QuizSettings() {
       {examMode && (
         <div className="flex items-start gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs text-text-secondary">
           <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <div>
+          <div className="flex flex-col gap-1">
             <p className="text-text-primary font-medium">{subjectMeta.label} 모의고사</p>
             <p>{examPreset.count}문제 · 혼합 난이도 · 전체 범위 · 전체 유형 · {Math.floor(examPreset.timerSec / 60)}분 타이머</p>
+            {subjectMeta.passingCriteria && (
+              <p>
+                합격 기준 · 총점 {subjectMeta.passingCriteria.totalMin}점 이상 + 과목별{' '}
+                {subjectMeta.passingCriteria.partMinPercent}% 이상
+              </p>
+            )}
+            {subjectMeta.parts && (
+              <p className="text-text-tertiary">
+                과목별 출제: {subjectMeta.parts.map((p) => `${p.label}(${p.questionCount})`).join(' · ')}
+              </p>
+            )}
           </div>
         </div>
       )}

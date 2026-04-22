@@ -22,6 +22,13 @@ const SQLP = {
   label: 'SQLP',
   description: 'SQL 전문가 · 72문항 180분 · 과목별 40% / 총점 75점',
   examPreset: { count: 72, difficulty: 'mixed', timerSec: 180 * 60 },
+  // 객관식 70문항 + 실기 2문항 중 객관식만 카운팅. 실기 30점은 이번 스코프 밖.
+  parts: [
+    { id: 'sqlp-pm', label: '데이터 모델링의 이해',   questionCount: 10, points: 10 },
+    { id: 'sqlp-p1', label: 'SQL 기본 및 활용',       questionCount: 20, points: 20 },
+    { id: 'sqlp-p2', label: 'SQL 고급 활용 및 튜닝',  questionCount: 40, points: 40 },
+  ],
+  passingCriteria: { totalMin: 75, partMinPercent: 40 },
   examples: [
     '옵티마이저 실행 계획 읽는 법 알려줘',
     'B-Tree 인덱스와 비트맵 인덱스 차이 설명해줘',
@@ -71,6 +78,16 @@ const DAP = {
   label: 'DAP',
   description: '데이터아키텍처 전문가 · 76문항 240분 · 과목별 40% / 총점 75점',
   examPreset: { count: 76, difficulty: 'mixed', timerSec: 240 * 60 },
+  // 객관식 75문항(60점) + 실기 1문항(40점) 중 객관식 부분만 집계. 실기 40점은 이번 스코프 밖.
+  parts: [
+    { id: 'dap-p1', label: '전사아키텍처 이해',        questionCount: 10, points: 8 },
+    { id: 'dap-p2', label: '데이터 요건 분석',          questionCount: 10, points: 8 },
+    { id: 'dap-p3', label: '데이터 표준화',             questionCount: 10, points: 8 },
+    { id: 'dap-p4', label: '데이터 모델링',             questionCount: 25, points: 20 },
+    { id: 'dap-p5', label: '데이터베이스 설계와 이용',  questionCount: 10, points: 8 },
+    { id: 'dap-p6', label: '데이터 품질 관리 이해',     questionCount: 10, points: 8 },
+  ],
+  passingCriteria: { totalMin: 75, partMinPercent: 40 },
   examples: [
     '정규화와 반정규화 판단 기준은?',
     '데이터 표준화 절차를 단계별로 정리해줘',
@@ -142,6 +159,10 @@ const ENG = {
   description: '정보관리기술사 필기 · 4교시(교시당 100분) 논술형 · 240점 합격',
   // 프리셋은 1교시 기준 — 10문제 선택(단답/약술). 2~4교시 논술 모드는 후속 태스크.
   examPreset: { count: 10, difficulty: 'hard', timerSec: 100 * 60 },
+  // 전면 논술형이라 객관식 과목 집계가 의미 없음 → parts/passingCriteria 없음.
+  // 결과 화면은 기본(심플) 경로로 폴백.
+  parts: null,
+  passingCriteria: null,
   examples: [
     'MSA 전환 전략 — 논술 개요(서론/본론/결론) 잡아줘',
     '데이터 거버넌스 체계 수립 시 핵심 토픽 정리',
@@ -184,6 +205,9 @@ const CUSTOM = {
   label: '기타/사용자 정의',
   description: '사용자가 직접 업로드한 PDF 기반 학습',
   examPreset: { count: 30, difficulty: 'mixed', timerSec: 30 * 60 },
+  // 사용자 임의 PDF라 과목 분류가 없음 → 과목별 집계 비활성.
+  parts: null,
+  passingCriteria: null,
   examples: [
     '핵심 개념 3개로 요약해줘',
     '이 문서의 토픽을 트리로 정리해줘',
