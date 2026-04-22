@@ -16,6 +16,7 @@ import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import JumpToBottomButton from '../chat/JumpToBottomButton';
 import StudyStyleChips from './StudyStyleChips';
 import StudyHomeCards from './StudyHomeCards';
+import ModeSwitcher from '../common/ModeSwitcher';
 import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
 /**
@@ -72,6 +73,9 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
             <h2 className="text-lg font-semibold text-text-primary">{resolvedTitle}</h2>
             <p className="text-sm text-text-secondary">{resolvedSubtitle}</p>
           </div>
+
+          {/* 다른 모드·마인드맵으로의 이동 경로 — 일반 모드 EmptyChatView와 대칭 */}
+          <ModeSwitcher />
 
           {resolvedHomeCards}
 
