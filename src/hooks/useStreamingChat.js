@@ -15,11 +15,21 @@ import { streamMessage } from '../services/chatApi';
 import { showError } from '../utils/errorHandler';
 import { isLearningMode } from '../registry/modes';
 
-// 학습 계열 모드(자격증 + 업무학습)의 스타일별 프리픽스.
-// mock/백엔드가 이 토큰을 보고 응답 스타일을 결정한다. 일반 모드는 무시.
-const STYLE_PREFIX = {
-  feynman: '[파인만 모드] ',
-  summary: '[한줄요약] ',
+// 학습 계열 모드(자격증 + 업무학습)에서 다음 턴 메시지 앞에 붙일 자연어 시스템 지시문.
+// 이전 구현은 `[파인만 모드] ` 같은 한글 태그만 붙여 mock의 detectStyle은 동작했으나,
+// 실제 LLM(VITE_MOCK_API=false)은 태그를 의미 없는 문자열로 간주해 스타일이 반영되지
+// 않았다. LLM이 그대로 이해 가능한 자연어 지시문으로 교체해 백엔드 수정 없이도 동작.
+// Mock 쪽은 `[학습 모드 지시문]` 앞단 토큰 + 키워드로 detectStyle이 분기(chatMock.js).
+const STYLE_PROMPT = {
+  feynman:
+    '[학습 모드 지시문] 아래 사용자 메시지에 대해 "파인만 기법"으로 응답해줘. ' +
+    '즉, 사용자가 개념을 스스로 설명했다면 빠진 부분·잘못 이해한 부분을 짚어주고, ' +
+    '설명을 요청한 경우 아이에게 가르치듯 단계별 쉬운 비유로 풀어서 설명해줘.\n\n' +
+    '사용자 메시지:\n',
+  summary:
+    '[학습 모드 지시문] 아래 사용자 메시지에 대해 "한 문장 요약" 스타일로 응답해줘. ' +
+    '핵심만 남긴 한 문장을 먼저 주고, 그 뒤에 근거를 불릿 2~3줄로 덧붙여줘.\n\n' +
+    '사용자 메시지:\n',
 };
 
 // 하단 근접 판정 임계값(px). 이 거리 이내면 "맨 아래로 따라가기" 모드로 간주.
@@ -116,7 +126,7 @@ export default function useStreamingChat(mode) {
   // style: 학습 모드에서 다음 턴에 적용할 스타일(general|feynman|summary). 메시지 meta + 프리픽스에 사용.
   const doStream = useCallback(
     async (content, convId, controller, style) => {
-      const prefixed = style && STYLE_PREFIX[style] ? STYLE_PREFIX[style] + content : content;
+      const prefixed = style && STYLE_PROMPT[style] ? STYLE_PROMPT[style] + content : content;
       await streamMessage({
         message: prefixed,
         mode,
@@ -184,7 +194,12 @@ export default function useStreamingChat(mode) {
           const { deleteConversations: removeConvs } = useChatStore.getState();
           removeConvs([convId]);
           const newConvId = createConversation(mode, selectedLLM);
-          addMessage({ role: 'user', content });
+          // 재시도 시 최초 addMessage와 동일한 meta를 전파해야 스타일 뱃지가 유지된다.
+          addMessage({
+            role: 'user',
+            content,
+            meta: isLearningMode(mode) && style !== 'general' ? { style } : undefined,
+          });
           try {
             await doStream(content, newConvId, controller, style);
             return;
