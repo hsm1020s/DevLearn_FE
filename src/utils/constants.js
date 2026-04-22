@@ -25,10 +25,9 @@ export const QUIZ_DIFFICULTIES = [
   { value: 'hard', label: '어려움' },
 ];
 
-// 퀴즈 유형 옵션
+// 퀴즈 유형 옵션 — 실제 자격증 시험과 정합(4지선다 + 단답형 위주). OX는 학습 가치가 낮아 제거됨.
 export const QUIZ_TYPES = [
   { value: 'multiple', label: '4지선다' },
-  { value: 'ox', label: 'OX' },
   { value: 'short', label: '단답형' },
 ];
 
@@ -60,6 +59,5 @@ export const STATS_DIFFICULTY_LABELS = {
 // 통계 화면에서 사용하는 문제 유형 key → 한글 라벨 매핑
 export const STATS_TYPE_LABELS = {
   multiple: '4지선다',
-  ox: 'OX',
   short: '단답형',
 };
