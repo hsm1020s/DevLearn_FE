@@ -1,10 +1,10 @@
 /**
- * @fileoverview 퀴즈 설정 컴포넌트
+ * @fileoverview 퀴즈 설정 컴포넌트.
  * 교재, 문제 수, 난이도, 출제 범위, 문제 유형을 선택하여 퀴즈 생성을 요청한다.
- * 🎯 모의고사 프리셋 버튼과 🎚️ 적응형 출제 토글을 포함한다.
+ * 🎯 모의고사 프리셋 버튼도 포함한다.
  */
 import { useState } from 'react';
-import { Settings, Play, Sparkles, Gauge } from 'lucide-react';
+import { Settings, Play, Sparkles } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
 import useDocStore from '../../stores/useDocStore';
@@ -24,7 +24,7 @@ const MOCK_CHAPTERS = [
   { value: 'ch5', label: '5장: 종합 문제' },
 ];
 
-/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형/적응형/모의고사 프리셋을 선택한다. */
+/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/범위/유형/모의고사 프리셋을 선택한다. */
 export default function QuizSettings() {
   const docs = useDocStore((s) => s.docs);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
@@ -44,9 +44,7 @@ export default function QuizSettings() {
     types: [QUIZ_TYPES[0].value],
     chapters: [],
   });
-  // 적응형 출제 토글 — on이면 난이도 드롭다운은 시각적으로 비활성화, 'mixed'로 전송
-  const [adaptive, setAdaptive] = useState(false);
-  // 모의고사 모드 여부 — on이면 타이머 30분 + 30문제 + 혼합
+  // 모의고사 모드 여부 — on이면 과목별 프리셋(문항수·시간·난이도)을 자동 세팅
   const [examMode, setExamMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -70,7 +68,6 @@ export default function QuizSettings() {
   // 모의고사 프리셋 적용 — 활성 과목의 examPreset(시간/문항/난이도)을 세팅
   const applyExamPreset = () => {
     setExamMode(true);
-    setAdaptive(false);
     setSettings((prev) => ({
       ...prev,
       count: String(examPreset.count),
@@ -96,7 +93,7 @@ export default function QuizSettings() {
         docIds: settings.docIds ? [settings.docIds] : [],
         chapters: settings.chapters.length ? settings.chapters : null,
         count: Number(settings.count),
-        difficulty: adaptive ? 'mixed' : settings.difficulty,
+        difficulty: settings.difficulty,
         types: settings.types,
       });
       // 모의고사면 과목별 examPreset.timerSec 적용
@@ -166,26 +163,13 @@ export default function QuizSettings() {
           onChange={(v) => update('count', v)}
         />
 
-        {/* 난이도 + 적응형 */}
-        <div className="flex flex-col gap-2">
-          <Dropdown
-            label="난이도"
-            options={QUIZ_DIFFICULTIES}
-            value={adaptive ? 'mixed' : settings.difficulty}
-            onChange={(v) => update('difficulty', v)}
-            disabled={adaptive}
-          />
-          <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={adaptive}
-              onChange={(e) => setAdaptive(e.target.checked)}
-              className="w-4 h-4 rounded border-border-light accent-primary"
-            />
-            <Gauge className="w-3.5 h-3.5 text-primary" />
-            🎚️ 적응형 출제 — 맞힐수록 난이도 상승
-          </label>
-        </div>
+        {/* 난이도 */}
+        <Dropdown
+          label="난이도"
+          options={QUIZ_DIFFICULTIES}
+          value={settings.difficulty}
+          onChange={(v) => update('difficulty', v)}
+        />
 
         {/* 출제 범위 Chip */}
         <div className="flex flex-col gap-2">
