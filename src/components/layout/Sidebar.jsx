@@ -11,7 +11,6 @@ import {
   Plus,
   Settings,
   BookOpen,
-  Brain,
   MessageSquare,
   Trash2,
   X,
@@ -271,12 +270,18 @@ export default function Sidebar() {
       {/* Header: Logo + Collapse */}
       <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-4 border-b border-border-light`}>
         {!collapsed && (
-          <div className="flex items-center gap-2 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 overflow-hidden rounded px-1 py-0.5 -mx-1 hover:bg-bg-secondary transition-colors"
+            aria-label="페이지 새로고침"
+            title="새로고침"
+          >
             <BookOpen size={20} className="text-primary shrink-0" />
             <span className="text-sm font-bold text-text-primary whitespace-nowrap">
               DevLearn
             </span>
-          </div>
+          </button>
         )}
         <button
           onClick={toggleSidebar}
