@@ -19,8 +19,9 @@ function formatMMSS(totalSec) {
  * @param {Function} [onExpire] - 남은 시간 0초 도달 시 호출
  */
 export default function QuizTimer({ onExpire }) {
-  const timerSec = useStudyStore((s) => s.quizTimerSec);
-  const paused = useStudyStore((s) => s.quizPaused);
+  // 타이머/일시정지는 활성 과목 버킷의 세션 상태
+  const timerSec = useStudyStore((s) => s.subjects[s.activeSubject].quizTimerSec);
+  const paused = useStudyStore((s) => s.subjects[s.activeSubject].quizPaused);
   const tick = useStudyStore((s) => s.tickQuizTimer);
   const setPaused = useStudyStore((s) => s.setQuizPaused);
 

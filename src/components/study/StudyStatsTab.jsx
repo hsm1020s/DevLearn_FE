@@ -21,9 +21,9 @@ function Bar({ label, value, max }) {
   );
 }
 
-/** 기록 탭 > 통계 — 누적 학습 통계 요약. */
+/** 기록 탭 > 통계 — 누적 학습 통계 요약. 활성 과목 기준. */
 export default function StudyStatsTab() {
-  const stats = useStudyStore((s) => s.stats);
+  const stats = useStudyStore((s) => s.subjects[s.activeSubject].stats);
   const { totalSolved, correctCount, byDifficulty, byType } = stats;
   const correctRate = totalSolved > 0 ? correctCount / totalSolved : 0;
 

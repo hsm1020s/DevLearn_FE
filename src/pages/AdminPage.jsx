@@ -39,7 +39,12 @@ export default function AdminPage() {
 
   // 폴백용 로컬 스토어 구독 (서버 실패 시에만 사용)
   const conversations = useChatStore((s) => s.conversations);
-  const answers = useStudyStore((s) => s.answers);
+  // 과목 축 도입 후: 모든 과목 버킷의 answers를 합산해 폴백 카운트에 사용
+  const allSubjects = useStudyStore((s) => s.subjects);
+  const answerCount = useMemo(
+    () => Object.values(allSubjects).reduce((n, b) => n + Object.keys(b.answers || {}).length, 0),
+    [allSubjects],
+  );
   const docs = useDocStore((s) => s.docs);
   const maps = useMindmapStore((s) => s.maps);
 
@@ -59,9 +64,9 @@ export default function AdminPage() {
         (s, m) => s + (m.nodes?.length || 0),
         0,
       ),
-      totalQuizSolved: Object.keys(answers).length,
+      totalQuizSolved: answerCount,
     }),
-    [conversations, docs, maps, answers],
+    [conversations, docs, maps, answerCount],
   );
 
   // 서버 우선, 실패/미도착 시 폴백 사용
@@ -99,7 +104,7 @@ export default function AdminPage() {
   // 서버 에러 + 폴백조차 유의미하지 않은 경우(= 아무 로컬 데이터도 없을 때)만 전체 에러 화면
   const hasAnyFallback =
     conversations.length > 0 || docs.length > 0 ||
-    Object.keys(maps).length > 0 || Object.keys(answers).length > 0;
+    Object.keys(maps).length > 0 || answerCount > 0;
 
   if (error && !data && !hasAnyFallback) {
     return (

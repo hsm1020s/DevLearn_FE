@@ -11,14 +11,9 @@ import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import JumpToBottomButton from '../chat/JumpToBottomButton';
 import StudyStyleChips from './StudyStyleChips';
 import StudyHomeCards from './StudyHomeCards';
+import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
-const EXAMPLE_QUESTIONS = [
-  '정보처리기사 핵심 개념 알려줘',
-  'OSI 7계층 설명해줘',
-  'SQL 기본 문법 정리해줘',
-];
-
-/** 학습 채팅 탭 — 스타일 칩 + 채팅 본문 + 빈 상태 런처. */
+/** 학습 채팅 탭 — 스타일 칩 + 채팅 본문 + 빈 상태 런처. 예시 질문은 활성 과목별로 달라진다. */
 export default function StudyChatTab() {
   const {
     messages,
@@ -33,6 +28,9 @@ export default function StudyChatTab() {
     scrollToBottomNow,
   } = useStreamingChat('study');
 
+  const subjectMeta = useActiveSubjectMeta();
+  const exampleQuestions = subjectMeta.examples || [];
+
   const isEmpty = messages.length === 0 && !streamingContent;
 
   return (
@@ -46,8 +44,8 @@ export default function StudyChatTab() {
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
               <FileText size={22} className="text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-text-primary">학습 모드</h2>
-            <p className="text-sm text-text-secondary">오늘은 무엇을 해볼까요?</p>
+            <h2 className="text-lg font-semibold text-text-primary">학습 · {subjectMeta.label}</h2>
+            <p className="text-sm text-text-secondary">{subjectMeta.description}</p>
           </div>
 
           <StudyHomeCards />
@@ -57,7 +55,7 @@ export default function StudyChatTab() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-            {EXAMPLE_QUESTIONS.map((q) => (
+            {exampleQuestions.map((q) => (
               <button
                 key={q}
                 onClick={() => handleSend(q)}

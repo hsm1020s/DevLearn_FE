@@ -6,6 +6,7 @@
 import { Target, Brain, BookMarked, Scissors } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
+import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
 const CARDS = [
   {
@@ -34,10 +35,11 @@ const CARDS = [
   },
 ];
 
-/** 학습 모드 빈 화면의 3개 기능 런처 카드. */
+/** 학습 모드 빈 화면의 3개 기능 런처 카드. 상단에 현재 선택된 과목 안내 배너. */
 export default function StudyHomeCards() {
   const setStudySubTab = useAppStore((s) => s.setStudySubTab);
   const setChatStyle = useStudyStore((s) => s.setChatStyle);
+  const subjectMeta = useActiveSubjectMeta();
 
   const handleClick = (action) => {
     if (action.type === 'tab') {
@@ -49,7 +51,14 @@ export default function StudyHomeCards() {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-3xl mx-auto">
+    <div className="flex flex-col gap-3 w-full max-w-3xl mx-auto">
+      <div className="flex items-center justify-center gap-2 text-xs text-text-secondary">
+        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+          {subjectMeta.label}
+        </span>
+        <span>과목으로 학습 · 상단에서 과목 전환</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {CARDS.map(({ id, icon: Icon, title, description, subtitle, action }) => (
         <button
           key={id}
@@ -77,6 +86,7 @@ export default function StudyHomeCards() {
           )}
         </button>
       ))}
+      </div>
     </div>
   );
 }

@@ -10,8 +10,9 @@ import Dropdown from '../common/Dropdown';
 import useDocStore from '../../stores/useDocStore';
 import useStudyStore from '../../stores/useStudyStore';
 import { generateQuiz } from '../../services/studyApi';
-import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES, EXAM_PRESET } from '../../utils/constants';
+import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
 import { showError } from '../../utils/errorHandler';
+import { useActiveSubjectId, useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
 const countOptions = QUIZ_COUNTS.map((n) => ({ value: String(n), label: `${n}문제` }));
 
@@ -28,6 +29,10 @@ export default function QuizSettings() {
   const docs = useDocStore((s) => s.docs);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
   const setQuiz = useStudyStore((s) => s.setQuiz);
+  const activeSubject = useActiveSubjectId();
+  const subjectMeta = useActiveSubjectMeta();
+  // 과목별 모의고사 프리셋 (SQLP 90분/40문항, DAP 100분/50문항, …)
+  const examPreset = subjectMeta.examPreset;
 
   const completedDocs = docs.filter((d) => d.status === 'completed');
   const docOptions = completedDocs.map((d) => ({ value: d.id, label: d.fileName }));
@@ -62,14 +67,14 @@ export default function QuizSettings() {
     });
   };
 
-  // 모의고사 프리셋 적용 — 문제 수/난이도를 EXAM_PRESET으로 세팅
+  // 모의고사 프리셋 적용 — 활성 과목의 examPreset(시간/문항/난이도)을 세팅
   const applyExamPreset = () => {
     setExamMode(true);
     setAdaptive(false);
     setSettings((prev) => ({
       ...prev,
-      count: String(EXAM_PRESET.count),
-      difficulty: EXAM_PRESET.difficulty,
+      count: String(examPreset.count),
+      difficulty: examPreset.difficulty,
       // 모의고사는 전 범위 + 전 유형
       chapters: [],
       types: QUIZ_TYPES.map((t) => t.value),
@@ -87,14 +92,15 @@ export default function QuizSettings() {
     setLoading(true);
     try {
       const result = await generateQuiz({
+        subject: activeSubject,
         docIds: settings.docIds ? [settings.docIds] : [],
         chapters: settings.chapters.length ? settings.chapters : null,
         count: Number(settings.count),
         difficulty: adaptive ? 'mixed' : settings.difficulty,
         types: settings.types,
       });
-      // 모의고사면 타이머 함께 세팅
-      setQuiz(result, { timerSec: examMode ? EXAM_PRESET.timerSec : null });
+      // 모의고사면 과목별 examPreset.timerSec 적용
+      setQuiz(result, { timerSec: examMode ? examPreset.timerSec : null });
       setStudyStep('quiz');
     } catch {
       showError(null, '퀴즈 생성에 실패했습니다');
@@ -129,8 +135,8 @@ export default function QuizSettings() {
         <div className="flex items-start gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs text-text-secondary">
           <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div>
-            <p className="text-text-primary font-medium">모의고사 모드</p>
-            <p>{EXAM_PRESET.count}문제 · 혼합 난이도 · 전체 범위 · 전체 유형 · {Math.floor(EXAM_PRESET.timerSec / 60)}분 타이머</p>
+            <p className="text-text-primary font-medium">{subjectMeta.label} 모의고사</p>
+            <p>{examPreset.count}문제 · 혼합 난이도 · 전체 범위 · 전체 유형 · {Math.floor(examPreset.timerSec / 60)}분 타이머</p>
           </div>
         </div>
       )}

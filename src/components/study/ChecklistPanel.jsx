@@ -6,9 +6,9 @@
 import { BookOpen, CheckCircle2 } from 'lucide-react';
 import useStudyStore from '../../stores/useStudyStore';
 
-/** 교재/챕터 체크리스트 패널. */
+/** 교재/챕터 체크리스트 패널. 활성 과목의 체크리스트만 표시. */
 export default function ChecklistPanel() {
-  const checklist = useStudyStore((s) => s.checklist);
+  const checklist = useStudyStore((s) => s.subjects[s.activeSubject].checklist);
   const toggleChapter = useStudyStore((s) => s.toggleChecklistChapter);
 
   if (!checklist.length) {

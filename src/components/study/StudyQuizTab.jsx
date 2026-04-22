@@ -15,8 +15,8 @@ import QuizPlayer from './QuizPlayer';
 
 /** 결과 화면 — 점수 + 오답 요약 + 다음 액션 */
 function QuizResult() {
-  const currentQuiz = useStudyStore((s) => s.currentQuiz);
-  const answers = useStudyStore((s) => s.answers);
+  const currentQuiz = useStudyStore((s) => s.subjects[s.activeSubject].currentQuiz);
+  const answers = useStudyStore((s) => s.subjects[s.activeSubject].answers);
   const resetQuiz = useStudyStore((s) => s.resetQuiz);
   const setStudySubTab = useAppStore((s) => s.setStudySubTab);
 
@@ -69,11 +69,12 @@ function QuizResult() {
 
 /** 학습 퀴즈 탭 — 설정 / 풀이 / 결과 단계 분기 + 탭 이동 시 자동 일시정지. */
 export default function StudyQuizTab() {
-  const studyStep = useStudyStore((s) => s.studyStep);
+  const activeSubject = useStudyStore((s) => s.activeSubject);
+  const studyStep = useStudyStore((s) => s.subjects[s.activeSubject].studyStep);
+  const currentQuiz = useStudyStore((s) => s.subjects[s.activeSubject].currentQuiz);
+  const quizSeed = useStudyStore((s) => s.subjects[s.activeSubject].quizSeed);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
   const setQuiz = useStudyStore((s) => s.setQuiz);
-  const currentQuiz = useStudyStore((s) => s.currentQuiz);
-  const quizSeed = useStudyStore((s) => s.quizSeed);
   const clearQuizSeed = useStudyStore((s) => s.clearQuizSeed);
   const setQuizPaused = useStudyStore((s) => s.setQuizPaused);
 
@@ -87,6 +88,7 @@ export default function StudyQuizTab() {
       // 일단 4문제(신규) 뽑고 seed 문제를 맨 앞에 끼워넣는다.
       try {
         const base = await generateQuiz({
+          subject: activeSubject,
           docIds: [],
           count: 4,
           difficulty: quizSeed.difficulty || 'mixed',
@@ -122,7 +124,7 @@ export default function StudyQuizTab() {
       }
     })();
     return () => { cancelled = true; };
-  }, [quizSeed, setQuiz, setStudyStep, clearQuizSeed]);
+  }, [quizSeed, setQuiz, setStudyStep, clearQuizSeed, activeSubject]);
 
   // 퀴즈 탭 아닌 곳으로 이동 시 자동 일시정지 (세션이 있고 결과 화면이 아닐 때만)
   useEffect(() => {

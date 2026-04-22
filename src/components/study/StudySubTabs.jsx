@@ -6,6 +6,7 @@
 import { MessageCircle, Target, BookMarked } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
+import SubjectSelector from './SubjectSelector';
 
 const TABS = [
   { value: 'chat', label: '학습 채팅', icon: MessageCircle },
@@ -18,9 +19,10 @@ export default function StudySubTabs() {
   const studySubTab = useAppStore((s) => s.studySubTab);
   const setStudySubTab = useAppStore((s) => s.setStudySubTab);
 
-  const currentQuiz = useStudyStore((s) => s.currentQuiz);
-  const currentQuestionIndex = useStudyStore((s) => s.currentQuestionIndex);
-  const wrongAnswers = useStudyStore((s) => s.wrongAnswers);
+  // 활성 과목 기준 진행/오답 뱃지
+  const currentQuiz = useStudyStore((s) => s.subjects[s.activeSubject].currentQuiz);
+  const currentQuestionIndex = useStudyStore((s) => s.subjects[s.activeSubject].currentQuestionIndex);
+  const wrongAnswers = useStudyStore((s) => s.subjects[s.activeSubject].wrongAnswers);
 
   const total = currentQuiz?.questions?.length || 0;
   // 퀴즈 진행 뱃지: 세션 있으면 "● 7/15"
@@ -37,8 +39,11 @@ export default function StudySubTabs() {
   return (
     <div
       role="tablist"
-      className="flex items-center gap-1 px-4 pt-3 pb-2 border-b border-border-light bg-bg-primary"
+      className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border-light bg-bg-primary"
     >
+      {/* 과목 선택기 — 탭 바 좌측에 별도 배치, 가벼운 구분선으로 분리 */}
+      <SubjectSelector />
+      <div className="w-px h-5 bg-border-light" aria-hidden />
       {TABS.map(({ value, label, icon: Icon }) => {
         const active = studySubTab === value;
         const badge = getBadge(value);
