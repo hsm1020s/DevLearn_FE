@@ -1,5 +1,16 @@
 # 개발 로그
 
+## 2026-04-22 — 채팅 LLM 선택지 가성비 모델로 교체
+- 사이드바 LLM 드롭다운의 클라우드 3종을 각 벤더의 가성비 티어로 교체 ([constants.js](../src/utils/constants.js)):
+  - GPT-4o → **GPT-4o mini** (`gpt-4o-mini`)
+  - Claude 3.5 → **Claude Haiku 4.5** (`claude-haiku-4-5`)
+  - Gemini Pro → **Gemini 2.5 Flash** (`gemini-2.5-flash`)
+- 로컬 3종(Llama/EXAONE/GPT-OSS)은 `value` 그대로 두어 기존 대화 메타 호환성을 유지하고, 라벨 뒤에 " (로컬)" 꼬리표만 부착해 클라우드/로컬 구분을 한눈에 드러냄.
+- 앱 기본 선택 모델을 `gpt-4o` → `claude-haiku-4-5` 로 변경 ([useAppStore.js](../src/stores/useAppStore.js)).
+- `docs/FEATURES.md` 의 LLM 선택 기능 설명을 새 구성으로 갱신.
+- 백엔드 라우팅은 본 작업 범위 외(프론트 표시/선택 계층만 변경).
+- 설계 문서: [docs/designs/2026-04-22-chat-llm-cost-effective-swap.md](designs/2026-04-22-chat-llm-cost-effective-swap.md)
+
 ## 2026-04-21 (6차) — 마인드맵 fitView 재설계 (StrictMode race 해소)
 - 5차 수정(`pendingFit` ref + 분리된 두 effect) 이 StrictMode 의 이중 effect 실행 + cleanup 경로에서 RAF 가 취소된 뒤 플래그가 false 로 고착되어 fit 이 누락되는 문제가 있었음.
 - 단일 `useEffect` + 180ms setTimeout 디바운스 구조로 단순화 ([MindmapCanvas.jsx](../src/components/mindmap/MindmapCanvas.jsx)).
