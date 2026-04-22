@@ -38,7 +38,7 @@ const emptySubjectState = () => ({
     totalSolved: 0,
     correctCount: 0,
     byDifficulty: { easy: 0, mixed: 0, hard: 0 },
-    byType: { multiple: 0, ox: 0, short: 0 },
+    byType: { multiple: 0, short: 0 },
   },
 });
 
@@ -291,13 +291,14 @@ const useStudyStore = create(
     }),
     {
       name: 'study-store',
-      version: 4,
+      version: 5,
       /**
        * 마이그레이션 히스토리:
        * - v1: `{ studyDocs }`만 persist
        * - v2: 루트에 wrongAnswers/checklist/stats/chatStyleLocked 추가
        * - v3: 과목 축 도입 — 기존 루트 필드를 `subjects.custom` 버킷으로 이동
        * - v4: 정보관리기술사(`eng`) 과목 제거 — 버킷 드롭 + activeSubject 폴백
+       * - v5: OX 문제 유형 제거 — 각 subjects 버킷의 stats.byType.ox 드롭
        *
        * v2→v3에서 custom으로 옮긴 이유: 기존 사용자의 오답·체크·통계는 어느
        * 자격증 과목에 속하는지 판단할 근거가 없어 custom(사용자 정의) 버킷으로
@@ -306,6 +307,11 @@ const useStudyStore = create(
        * v3→v4: 정보관리기술사는 논술형이라 현재 객관식 구조와 맞지 않아 제거.
        * subjects.eng 버킷은 드롭되고(연관 오답/체크/통계도 함께 사라짐),
        * activeSubject === 'eng' 사용자는 SQLP로 폴백된다.
+       *
+       * v4→v5: OX는 실제 SQLP/DAP 시험 유형이 아니라 학습 가치가 낮아 제거.
+       * 각 과목 버킷의 stats.byType에서 ox 카운트만 삭제한다(오답노트의
+       * type==='ox' 엔트리는 STATS_TYPE_LABELS 폴백으로 "4지선다"처럼
+       * 보이지만 데이터는 보존).
        */
       migrate: (persisted, version) => {
         if (!persisted) return persisted;
@@ -340,6 +346,20 @@ const useStudyStore = create(
             activeSubject:
               state.activeSubject === 'eng' ? DEFAULT_SUBJECT_ID : state.activeSubject,
           };
+        }
+
+        // v<5: 각 과목 버킷의 stats.byType에서 ox 카운트 제거
+        if (version < 5) {
+          const nextSubjects = {};
+          for (const [id, bucket] of Object.entries(state.subjects || {})) {
+            const byType = { ...(bucket.stats?.byType || {}) };
+            delete byType.ox;
+            nextSubjects[id] = {
+              ...bucket,
+              stats: { ...bucket.stats, byType },
+            };
+          }
+          state = { ...state, subjects: nextSubjects };
         }
 
         return state;
