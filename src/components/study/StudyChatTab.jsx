@@ -106,7 +106,7 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
               onScroll={handleScroll}
               className="absolute inset-0 overflow-y-auto px-4 py-6"
             >
-              <div className="max-w-3xl mx-auto flex flex-col gap-4">
+              <div className="max-w-4xl mx-auto flex flex-col gap-4">
                 {messages.map((msg) => (
                   <ChatMessage key={msg.id} message={msg} />
                 ))}
@@ -125,7 +125,7 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
               onClick={scrollToBottomNow}
             />
           </div>
-          <div className="max-w-3xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full">
             <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
           </div>
         </>

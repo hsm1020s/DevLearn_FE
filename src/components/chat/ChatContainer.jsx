@@ -60,7 +60,7 @@ export default function ChatContainer() {
           onScroll={handleScroll}
           className="absolute inset-0 overflow-y-auto px-2 md:px-4 py-4 md:py-6"
         >
-          <div className="max-w-3xl mx-auto flex flex-col gap-3 md:gap-4">
+          <div className="max-w-4xl mx-auto flex flex-col gap-3 md:gap-4">
             {messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))}
@@ -79,7 +79,7 @@ export default function ChatContainer() {
           onClick={scrollToBottomNow}
         />
       </div>
-      <div className="max-w-3xl mx-auto w-full">
+      <div className="max-w-4xl mx-auto w-full">
         <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
       </div>
     </div>
