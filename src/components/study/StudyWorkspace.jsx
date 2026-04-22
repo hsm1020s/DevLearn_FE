@@ -9,6 +9,7 @@ import StudySubTabs from './StudySubTabs';
 import StudyChatTab from './StudyChatTab';
 import StudyQuizTab from './StudyQuizTab';
 import StudyRecordTab from './StudyRecordTab';
+import FeynmanPipelineTab from '../feynman/FeynmanPipelineTab';
 
 /** 학습 워크스페이스 — 탭 바 + 현재 탭 본문. */
 export default function StudyWorkspace() {
@@ -28,6 +29,7 @@ export default function StudyWorkspace() {
         {studySubTab === 'chat' && <StudyChatTab />}
         {studySubTab === 'quiz' && <StudyQuizTab />}
         {studySubTab === 'record' && <StudyRecordTab />}
+        {studySubTab === 'pipeline' && <FeynmanPipelineTab />}
       </div>
     </div>
   );

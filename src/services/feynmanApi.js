@@ -5,12 +5,54 @@
 import api from './api';
 
 /**
+ * 임베딩 완료된 학습 가능 문서 목록을 조회한다.
+ * @returns {Promise<Array<{id: string, fileName: string, pages: number, chunks: number}>>}
+ */
+export async function fetchDocs() {
+  const { data } = await api.get('/feynman/docs');
+  return data.data;
+}
+
+/**
  * 문서의 학습 가능한 챕터(주제) 목록을 조회한다.
  * @param {string} docId - 문서 UUID
  * @returns {Promise<Array<{chapter: string, chunkCount: number}>>}
  */
 export async function fetchTopics(docId) {
   const { data } = await api.get('/feynman/topics', { params: { docId } });
+  return data.data;
+}
+
+/**
+ * 사용자의 모든 문서를 상태와 함께 조회한다 (파이프라인 관리용).
+ * @returns {Promise<Array<{id: string, fileName: string, pages: number, chunks: number, status: string, progress: number}>>}
+ */
+export async function fetchAllDocs() {
+  const { data } = await api.get('/feynman/docs/all');
+  return data.data;
+}
+
+/**
+ * PDF 파일을 업로드한다.
+ * @param {File} file - PDF 파일
+ * @returns {Promise<{id: string, fileName: string, status: string}>}
+ */
+export async function uploadPdf(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post('/feynman/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data.data;
+}
+
+/**
+ * 문서의 파이프라인(추출→그룹핑→임베딩)을 실행한다.
+ * @param {string} docId - 문서 UUID
+ * @returns {Promise<{docId: string, message: string}>}
+ */
+export async function runPipeline(docId) {
+  const { data } = await api.post(`/feynman/pipeline/${docId}`);
   return data.data;
 }
 

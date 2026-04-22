@@ -3,7 +3,7 @@
  * [💬 학습 채팅] [🎯 퀴즈] [📚 기록] 3개의 워크스페이스 탭을 제공하고,
  * 각 탭에 진행/미확인 뱃지를 노출한다. 탭 이동은 useAppStore.studySubTab으로만 관리.
  */
-import { MessageCircle, Target, BookMarked } from 'lucide-react';
+import { MessageCircle, Target, BookMarked, Cpu } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
 import SubjectSelector from './SubjectSelector';
@@ -12,6 +12,7 @@ const TABS = [
   { value: 'chat', label: '학습 채팅', icon: MessageCircle },
   { value: 'quiz', label: '퀴즈', icon: Target },
   { value: 'record', label: '기록', icon: BookMarked },
+  { value: 'pipeline', label: '파이프라인', icon: Cpu },
 ];
 
 /** 학습 워크스페이스 상단 탭 바 — 탭 뱃지로 진행중/미확인 수 표시. */
