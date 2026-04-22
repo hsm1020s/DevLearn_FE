@@ -8,7 +8,7 @@
  * 학습 계열 모드는 스타일 칩(파인만/요약)·요약 액션 등을 공유한다. 판단 기준이
  * 여러 곳에 흩어지지 않도록 `LEARNING_MODES` / `isLearningMode`를 한 곳에 둔다.
  */
-import { Search, GraduationCap, Briefcase } from 'lucide-react';
+import { Search, GraduationCap, Briefcase, Brain } from 'lucide-react';
 
 /** 모드별 설정 레지스트리 (컴포넌트는 dynamic import로 지연 로드) */
 export const MODES = {
@@ -34,6 +34,14 @@ export const MODES = {
     icon: Briefcase,
     description: '업무 지식 기록 · 체크리스트 · 학습 채팅',
     component: () => import('../components/worklearn/WorkLearnMode'),
+    actions: [],
+  },
+  feynman: {
+    value: 'feynman',
+    label: '파인만',
+    icon: Brain,
+    description: 'PDF 기반 개념 설명 → AI 검증',
+    component: () => import('../components/feynman/FeynmanMode'),
     actions: [],
   },
 };
