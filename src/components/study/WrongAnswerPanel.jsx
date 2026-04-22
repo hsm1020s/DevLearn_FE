@@ -13,7 +13,8 @@ import { STATS_DIFFICULTY_LABELS, STATS_TYPE_LABELS } from '../../utils/constant
 
 /** 오답노트 탭 — 카드 리스트 + 다시 풀기 / 변형 출제 / 랜덤 5문항 인출 연습. */
 export default function WrongAnswerPanel() {
-  const wrongAnswers = useStudyStore((s) => s.wrongAnswers);
+  // 활성 과목의 오답만 표시 — 과목 스위칭 시 즉시 교체됨
+  const wrongAnswers = useStudyStore((s) => s.subjects[s.activeSubject].wrongAnswers);
   const removeWrongAnswer = useStudyStore((s) => s.removeWrongAnswer);
   const setQuizSeed = useStudyStore((s) => s.setQuizSeed);
   const resetQuiz = useStudyStore((s) => s.resetQuiz);

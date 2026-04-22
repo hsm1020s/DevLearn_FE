@@ -17,6 +17,7 @@ import {
 } from '../../utils/constants';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
+import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
 /**
  * 서버 응답 `byDifficulty` 항목을 StatsBreakdownChart 표준 스키마로 변환한다.
@@ -57,12 +58,14 @@ export default function StudyStatsPanel({ onDone }) {
   const setActiveModal = useAppStore((s) => s.setActiveModal);
   const setMainMode = useAppStore((s) => s.setMainMode);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
+  const activeSubject = useStudyStore((s) => s.activeSubject);
+  const subjectMeta = useActiveSubjectMeta();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getStudyStats();
+      const res = await getStudyStats({ subject: activeSubject });
       setData(res);
       setLastUpdatedAt(Date.now());
     } catch (err) {
@@ -71,7 +74,7 @@ export default function StudyStatsPanel({ onDone }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeSubject]);
 
   // 마운트 시 1회 로드
   useEffect(() => {
@@ -138,6 +141,12 @@ export default function StudyStatsPanel({ onDone }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-2 text-xs text-text-secondary">
+        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+          {subjectMeta.label}
+        </span>
+        <span>과목 누적 통계</span>
+      </div>
       <StatsSummaryCards
         totalSolved={data.totalSolved}
         correctCount={data.correctCount}

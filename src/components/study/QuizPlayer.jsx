@@ -15,15 +15,17 @@ import QuizTimer from './QuizTimer';
 
 /** 퀴즈 풀이 화면. 문제 탐색, 답안 제출, 해설 확인, 마인드맵 연동, 타이머를 담당한다. */
 export default function QuizPlayer() {
-  const currentQuiz = useStudyStore((s) => s.currentQuiz);
-  const index = useStudyStore((s) => s.currentQuestionIndex);
-  const answers = useStudyStore((s) => s.answers);
+  // 활성 과목 기반 세션 필드
+  const currentQuiz = useStudyStore((s) => s.subjects[s.activeSubject].currentQuiz);
+  const index = useStudyStore((s) => s.subjects[s.activeSubject].currentQuestionIndex);
+  const answers = useStudyStore((s) => s.subjects[s.activeSubject].answers);
+  const quizPaused = useStudyStore((s) => s.subjects[s.activeSubject].quizPaused);
+  const activeSubject = useStudyStore((s) => s.activeSubject);
   const setQuestionIndex = useStudyStore((s) => s.setQuestionIndex);
   const submitAnswer = useStudyStore((s) => s.submitAnswer);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
   const resetQuiz = useStudyStore((s) => s.resetQuiz);
   const addWrongAnswersFromSession = useStudyStore((s) => s.addWrongAnswersFromSession);
-  const quizPaused = useStudyStore((s) => s.quizPaused);
   const setQuizPaused = useStudyStore((s) => s.setQuizPaused);
 
   const addNode = useMindmapStore((s) => s.addNode);
@@ -83,6 +85,7 @@ export default function QuizPlayer() {
     setLoading(true);
     try {
       const res = await apiSubmitAnswer({
+        subject: activeSubject,
         quizId: currentQuiz.quizId,
         questionId: question.id,
         userAnswer: optIdx,

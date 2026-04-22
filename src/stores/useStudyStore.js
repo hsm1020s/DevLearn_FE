@@ -1,182 +1,200 @@
 /**
- * @fileoverview 학습 모드 상태 관리 스토어.
- * 문서 업로드, 퀴즈 세션(진행/일시정지/시드 재출제), 채팅 스타일(파인만/요약),
- * 누적 오답노트, 교재 체크리스트, 누적 통계까지 학습 워크스페이스 전반을 관리한다.
- * 백엔드 연결 전이므로 일부는 목업 시드 데이터를 초기값으로 제공한다.
+ * @fileoverview 학습 모드 상태 관리 스토어 (subject 축 네임스페이스 버전).
+ *
+ * 학습 모드는 컨테이너이고, 과목(subject)은 그 안의 네임스페이스다.
+ * 오답노트·체크리스트·통계·문서·현재 퀴즈 세션은 `subjects[id]` 버킷 안에서
+ * 과목별로 격리 관리되고, 채팅 스타일·스타일 고정 여부만 과목 공유 전역 상태로
+ * 남겨둔다.
+ *
+ * 액션들은 명시적으로 subject id를 받지 않는다 — 기본적으로 **현재 activeSubject**
+ * 에 대해 동작한다. 필요한 경우에만 id를 파라미터로 노출한다(setActiveSubject 등).
+ *
+ * persist v2 → v3 마이그레이션: 기존 루트 필드는 `subjects.custom` 버킷으로 이동
+ * 해 데이터 손실 없이 과목 축 구조로 흡수된다.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/helpers';
+import {
+  SUBJECT_CATALOG,
+  SUBJECT_LIST,
+  DEFAULT_SUBJECT_ID,
+  getSubject,
+} from '../registry/subjects';
 
-// 체크리스트 초기 시드 — 화면 확인용. 실제 교재 연동 시 서버에서 대체.
-const DEFAULT_CHECKLIST = [
-  {
-    id: 'book-info',
-    title: '정보처리기사 핵심 요약',
-    chapters: [
-      { id: 'info-ch1', label: '1장 · 소프트웨어 설계', done: false },
-      { id: 'info-ch2', label: '2장 · 소프트웨어 개발', done: false },
-      { id: 'info-ch3', label: '3장 · 데이터베이스 구축', done: false },
-      { id: 'info-ch4', label: '4장 · 프로그래밍 언어', done: false },
-      { id: 'info-ch5', label: '5장 · 정보시스템 구축관리', done: false },
-    ],
+/** 과목 버킷 하나의 빈 상태. 과목 스위칭 시 이 shape로 초기화된다. */
+const emptySubjectState = () => ({
+  studyDocs: [],
+  currentQuiz: null,
+  currentQuestionIndex: 0,
+  answers: {},
+  studyStep: 'settings',
+  quizPaused: false,
+  quizSeed: null,
+  quizTimerSec: null,
+  wrongAnswers: [],
+  checklist: [],
+  stats: {
+    totalSolved: 0,
+    correctCount: 0,
+    byDifficulty: { easy: 0, mixed: 0, hard: 0 },
+    byType: { multiple: 0, ox: 0, short: 0 },
   },
-  {
-    id: 'book-network',
-    title: '네트워크 기초',
-    chapters: [
-      { id: 'net-ch1', label: '1장 · OSI 7계층', done: false },
-      { id: 'net-ch2', label: '2장 · TCP/IP', done: false },
-      { id: 'net-ch3', label: '3장 · HTTP/HTTPS', done: false },
-    ],
-  },
-];
+});
 
-// 오답노트 시드 — 최초 실행 시 화면이 비어보이지 않도록 2건 기본 제공.
-const DEFAULT_WRONG_ANSWERS = [
-  {
-    id: 'seed-wa-1',
-    quizId: 'seed-quiz',
-    question: 'TCP 3-way handshake의 순서로 올바른 것은?',
-    options: [
-      'SYN → ACK → SYN-ACK',
-      'SYN → SYN-ACK → ACK',
-      'ACK → SYN → SYN-ACK',
-      'SYN-ACK → SYN → ACK',
-    ],
-    correctAnswer: 1,
-    userAnswer: 0,
-    explanation: '클라이언트가 SYN을 보내면, 서버가 SYN-ACK로 응답하고, 클라이언트가 ACK로 마무리합니다.',
-    difficulty: 'mixed',
-    type: 'multiple',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'seed-wa-2',
-    quizId: 'seed-quiz',
-    question: '관계형 데이터베이스에서 정규화의 주된 목적은?',
-    options: ['성능 향상', '중복 제거', '보안 강화', '인덱스 최적화'],
-    correctAnswer: 1,
-    userAnswer: 0,
-    explanation: '정규화의 핵심 목적은 데이터 중복을 제거하여 이상(anomaly)을 방지하는 것입니다.',
-    difficulty: 'easy',
-    type: 'multiple',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-];
+/** 레지스트리 기반 초기 과목 버킷 세트 — 각 과목의 기본 체크리스트를 시드로 주입한다. */
+const initialSubjects = () => {
+  const out = {};
+  for (const s of SUBJECT_LIST) {
+    out[s.id] = {
+      ...emptySubjectState(),
+      // 카탈로그 체크리스트는 참조 공유를 피하기 위해 깊은 복사
+      checklist: JSON.parse(JSON.stringify(s.checklist || [])),
+    };
+  }
+  return out;
+};
+
+/** 활성 과목 버킷 하나만 패치하는 얕은 업데이트 헬퍼. */
+function patchActive(state, patch) {
+  const id = state.activeSubject;
+  return {
+    subjects: {
+      ...state.subjects,
+      [id]: { ...state.subjects[id], ...patch },
+    },
+  };
+}
 
 const useStudyStore = create(
   persist(
     (set, get) => ({
-      // 업로드된 학습 문서 목록
-      studyDocs: [],
-      // 현재 진행 중인 퀴즈 데이터
-      currentQuiz: null,
-      // 현재 풀고 있는 문제 인덱스
-      currentQuestionIndex: 0,
-      // 문제별 사용자 답안 (questionId -> answer)
-      answers: {},
-      // 현재 단계 (settings | quiz | result)
-      studyStep: 'settings',
-      // 탭 이동 시 자동 일시정지되는 퀴즈 세션 플래그
-      quizPaused: false,
-      // 오답노트 → 퀴즈 재출제 seed (액티브 리콜)
-      quizSeed: null,
-      // 모의고사 타이머 (초 단위, null이면 비활성)
-      quizTimerSec: null,
+      // 현재 활성 과목 — 컴포넌트는 이 값을 따라 자신이 볼 버킷을 결정한다
+      activeSubject: DEFAULT_SUBJECT_ID,
+      // 과목별 세션 네임스페이스
+      subjects: initialSubjects(),
 
-      // 다음 턴 채팅 스타일 (general | feynman | summary)
+      // 채팅 스타일은 과목 공유 전역 (학습 모드 어디서든 동일)
       chatStyle: 'general',
-      // 스타일 고정 여부 (고정 시 턴마다 자동 리셋되지 않음)
       chatStyleLocked: false,
 
-      // 누적 오답노트
-      wrongAnswers: DEFAULT_WRONG_ANSWERS,
-      // 교재별 체크리스트
-      checklist: DEFAULT_CHECKLIST,
-      // 누적 통계 (풀이 시 증가)
-      stats: {
-        totalSolved: 0,
-        correctCount: 0,
-        byDifficulty: { easy: 0, mixed: 0, hard: 0 },
-        byType: { multiple: 0, ox: 0, short: 0 },
+      /** 활성 과목 전환. 유효하지 않은 id면 무시. */
+      setActiveSubject: (subjectId) => {
+        if (!get().subjects[subjectId]) return;
+        set({ activeSubject: subjectId });
       },
 
-      setStudyStep: (step) => set({ studyStep: step }),
+      /** (셀렉터) 현재 활성 과목 버킷 — 외부에서도 재사용. */
+      getActiveSubjectState: () => {
+        const s = get();
+        return s.subjects[s.activeSubject];
+      },
 
-      /** 새 문서를 추가하고 처리 상태로 초기화 */
+      // ────────── 문서 ──────────
+      /** 새 문서를 활성 과목에 추가. */
       addDoc: (doc) => {
         const newDoc = { id: generateId(), status: 'processing', progress: 0, ...doc };
-        set((state) => ({ studyDocs: [...state.studyDocs, newDoc] }));
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, { studyDocs: [...active.studyDocs, newDoc] });
+        });
         return newDoc;
       },
 
-      /** 문서의 처리 상태와 진행률 업데이트 */
       updateDocStatus: (id, status, progress) =>
-        set((state) => ({
-          studyDocs: state.studyDocs.map((d) =>
-            d.id === id ? { ...d, status, progress } : d
-          ),
-        })),
-
-      /** 문서 삭제 */
-      removeDoc: (id) =>
-        set((state) => ({
-          studyDocs: state.studyDocs.filter((d) => d.id !== id),
-        })),
-
-      // 퀴즈를 설정하고 진행 상태 초기화 (타이머 옵션 포함)
-      setQuiz: (quiz, options = {}) =>
-        set({
-          currentQuiz: quiz,
-          currentQuestionIndex: 0,
-          answers: {},
-          quizPaused: false,
-          quizTimerSec: options.timerSec ?? null,
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, {
+            studyDocs: active.studyDocs.map((d) =>
+              d.id === id ? { ...d, status, progress } : d,
+            ),
+          });
         }),
 
-      setQuestionIndex: (index) => set({ currentQuestionIndex: index }),
+      removeDoc: (id) =>
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, {
+            studyDocs: active.studyDocs.filter((d) => d.id !== id),
+          });
+        }),
 
-      // 특정 문제에 대한 답안 제출
+      // ────────── 퀴즈 세션 ──────────
+      /** 활성 과목의 퀴즈 단계 이동 (settings ↔ quiz ↔ result). */
+      setStudyStep: (step) => set((state) => patchActive(state, { studyStep: step })),
+
+      /** 퀴즈 세션 세팅 — 진행 상태/답안/일시정지/타이머 일괄 초기화. */
+      setQuiz: (quiz, options = {}) =>
+        set((state) =>
+          patchActive(state, {
+            currentQuiz: quiz,
+            currentQuestionIndex: 0,
+            answers: {},
+            quizPaused: false,
+            quizTimerSec: options.timerSec ?? null,
+          }),
+        ),
+
+      /** 문제 이동. 이미 답한 문제로 돌아가면 QuizPlayer가 저장된 결과를 복원한다. */
+      setQuestionIndex: (index) => set((state) => patchActive(state, { currentQuestionIndex: index })),
+
+      /** 특정 문제 답안 저장 — 채점 결과(correct/explanation/correctAnswer 포함)를 통째로 보관. */
       submitAnswer: (questionId, answer) =>
-        set((state) => ({ answers: { ...state.answers, [questionId]: answer } })),
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, {
+            answers: { ...active.answers, [questionId]: answer },
+          });
+        }),
 
-      // 탭 이동 등으로 세션 일시정지/재개
-      setQuizPaused: (paused) => set({ quizPaused: paused }),
+      /** 탭 이동·수동 토글 시 호출. 타이머 감소와 선택지 클릭이 이 플래그에 의해 막힌다. */
+      setQuizPaused: (paused) => set((state) => patchActive(state, { quizPaused: paused })),
 
-      // 모의고사 타이머 1초 감소
+      /** 모의고사 타이머 1초 감소. paused이거나 null이면 no-op. */
       tickQuizTimer: () =>
         set((state) => {
-          if (state.quizTimerSec === null || state.quizPaused) return {};
-          const next = Math.max(0, state.quizTimerSec - 1);
-          return { quizTimerSec: next };
+          const active = state.subjects[state.activeSubject];
+          if (active.quizTimerSec === null || active.quizPaused) return {};
+          return patchActive(state, {
+            quizTimerSec: Math.max(0, active.quizTimerSec - 1),
+          });
         }),
 
-      // 퀴즈 전체 초기화 (설정 단계로 복귀)
+      /** 퀴즈 세션 리셋 — 설정 단계로 복귀. */
       resetQuiz: () =>
-        set({
-          currentQuiz: null,
-          currentQuestionIndex: 0,
-          answers: {},
-          studyStep: 'settings',
-          quizPaused: false,
-          quizTimerSec: null,
-          quizSeed: null,
-        }),
+        set((state) =>
+          patchActive(state, {
+            currentQuiz: null,
+            currentQuestionIndex: 0,
+            answers: {},
+            studyStep: 'settings',
+            quizPaused: false,
+            quizTimerSec: null,
+            quizSeed: null,
+          }),
+        ),
 
-      // 오답노트에서 "다시 풀기" 시 seed 저장 → 퀴즈 탭에서 읽어 새 세션 생성
-      setQuizSeed: (seed) => set({ quizSeed: seed }),
-      clearQuizSeed: () => set({ quizSeed: null }),
+      /**
+       * 오답노트 → 퀴즈 재출제 seed 저장. StudyQuizTab의 useEffect가 seed를 감지해
+       * 새 세션(seed 문제 + 보조 4문제)을 생성한다 (액티브 리콜 전략).
+       */
+      setQuizSeed: (seed) => set((state) => patchActive(state, { quizSeed: seed })),
+      clearQuizSeed: () => set((state) => patchActive(state, { quizSeed: null })),
 
-      // 채팅 스타일 관련 액션
+      // ────────── 채팅 스타일 (전역) ──────────
+      // 스타일은 과목 전환과 무관해야 하므로 subjects 밖 루트 필드로 둔다.
       setChatStyle: (style) => set({ chatStyle: style }),
       setChatStyleLocked: (locked) => set({ chatStyleLocked: locked }),
-      // 턴 종료 후 자동 리셋 (고정 상태가 아니면 'general'로)
+      /** 턴 종료 후 호출. 📌 고정 상태가 아니면 'general'로 자동 복귀. */
       resetChatStyleIfNotLocked: () => {
         if (!get().chatStyleLocked) set({ chatStyle: 'general' });
       },
 
-      /** 퀴즈 완료 시 오답 묶음을 오답노트에 추가 + 통계 반영 */
+      // ────────── 오답노트 / 통계 ──────────
+      /**
+       * 퀴즈 완료 시 오답 묶음을 활성 과목 오답노트에 누적 + 통계 반영.
+       * quiz/answers는 세션 로컬 값이므로 외부에서 주입받는다.
+       */
       addWrongAnswersFromSession: ({ quiz, answers: sessionAnswers }) => {
         if (!quiz) return;
         const questions = quiz.questions || [];
@@ -201,11 +219,12 @@ const useStudyStore = create(
             };
           });
 
-        // 통계 누적 — 풀이된 문제만 반영
         const solvedQs = questions.filter((q) => sessionAnswers[q.id]);
         const correctQs = solvedQs.filter((q) => sessionAnswers[q.id]?.correct);
+
         set((state) => {
-          const s = state.stats;
+          const active = state.subjects[state.activeSubject];
+          const s = active.stats;
           const nextByDiff = { ...s.byDifficulty };
           const nextByType = { ...s.byType };
           solvedQs.forEach((q) => {
@@ -214,82 +233,109 @@ const useStudyStore = create(
             nextByDiff[d] = (nextByDiff[d] || 0) + 1;
             nextByType[t] = (nextByType[t] || 0) + 1;
           });
-          return {
-            wrongAnswers: [...wrongs, ...state.wrongAnswers],
+          return patchActive(state, {
+            wrongAnswers: [...wrongs, ...active.wrongAnswers],
             stats: {
               totalSolved: s.totalSolved + solvedQs.length,
               correctCount: s.correctCount + correctQs.length,
               byDifficulty: nextByDiff,
               byType: nextByType,
             },
-          };
+          });
         });
       },
 
-      /** 오답노트에서 특정 항목 제거 */
+      /** 오답노트에서 특정 항목 제거 (사용자가 🗑 클릭). 통계는 건드리지 않는다. */
       removeWrongAnswer: (id) =>
-        set((state) => ({ wrongAnswers: state.wrongAnswers.filter((w) => w.id !== id) })),
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, {
+            wrongAnswers: active.wrongAnswers.filter((w) => w.id !== id),
+          });
+        }),
 
-      /** 체크리스트 챕터 토글 */
+      // ────────── 체크리스트 ──────────
+      /**
+       * 체크리스트 챕터 완료 상태 토글. 활성 과목 기준으로만 동작한다.
+       * (체크리스트는 `SUBJECT_CATALOG`의 기본 시드 + 사용자 체크 상태를 합쳐 관리)
+       */
       toggleChecklistChapter: (bookId, chapterId) =>
-        set((state) => ({
-          checklist: state.checklist.map((book) =>
-            book.id !== bookId
-              ? book
-              : {
-                  ...book,
-                  chapters: book.chapters.map((ch) =>
-                    ch.id !== chapterId ? ch : { ...ch, done: !ch.done },
-                  ),
-                },
-          ),
-        })),
+        set((state) => {
+          const active = state.subjects[state.activeSubject];
+          return patchActive(state, {
+            checklist: active.checklist.map((book) =>
+              book.id !== bookId
+                ? book
+                : {
+                    ...book,
+                    chapters: book.chapters.map((ch) =>
+                      ch.id !== chapterId ? ch : { ...ch, done: !ch.done },
+                    ),
+                  },
+            ),
+          });
+        }),
 
-      /** 로그아웃 시 호출 — 문서·퀴즈 진행 상태 등 개인 정보 초기화 (시드는 유지) */
+      // ────────── 전체 리셋 ──────────
+      /** 로그아웃 시 호출 — 과목 전부 초기화(시드 체크리스트는 재주입). */
       reset: () =>
         set({
-          studyDocs: [],
-          currentQuiz: null,
-          currentQuestionIndex: 0,
-          answers: {},
-          studyStep: 'settings',
-          quizPaused: false,
-          quizTimerSec: null,
-          quizSeed: null,
+          activeSubject: DEFAULT_SUBJECT_ID,
+          subjects: initialSubjects(),
           chatStyle: 'general',
           chatStyleLocked: false,
-          wrongAnswers: DEFAULT_WRONG_ANSWERS,
-          checklist: DEFAULT_CHECKLIST,
-          stats: { totalSolved: 0, correctCount: 0, byDifficulty: { easy: 0, mixed: 0, hard: 0 }, byType: { multiple: 0, ox: 0, short: 0 } },
         }),
     }),
     {
       name: 'study-store',
-      version: 2,
-      // v1(studyDocs만 저장) → v2(워크스페이스 상태 확장) 마이그레이션.
-      // 구버전 키는 그대로 보존하고 신규 필드는 기본값을 채워 넣는다.
+      version: 3,
+      /**
+       * v1/v2 → v3 마이그레이션.
+       * - v1: `{ studyDocs }`만 persist
+       * - v2: 루트에 wrongAnswers/checklist/stats/chatStyleLocked 추가
+       * - v3: 과목 축 도입 — 기존 루트 필드를 `subjects.custom` 버킷으로 이동
+       *
+       * 왜 custom으로 옮기나: 기존 사용자의 오답·체크·통계는 어느 자격증 과목에
+       * 속하는지 판단할 근거가 없다. SQLP/DAP/정보관리기술사 중 하나로 강제 배치하면
+       * 통계가 오염된다. custom(사용자 정의) 버킷으로 이관해 데이터는 보존하되
+       * 분류는 사용자가 직접 재배치하도록 한다.
+       */
       migrate: (persisted, version) => {
         if (!persisted) return persisted;
-        if (version < 2) {
-          return {
-            studyDocs: persisted.studyDocs || [],
-            wrongAnswers: DEFAULT_WRONG_ANSWERS,
-            checklist: DEFAULT_CHECKLIST,
-            chatStyleLocked: false,
-            stats: { totalSolved: 0, correctCount: 0, byDifficulty: { easy: 0, mixed: 0, hard: 0 }, byType: { multiple: 0, ox: 0, short: 0 } },
-          };
-        }
-        return persisted;
+        if (version >= 3) return persisted;
+
+        const legacy = persisted;
+        const subjects = initialSubjects();
+        subjects.custom = {
+          ...emptySubjectState(),
+          studyDocs: legacy.studyDocs || [],
+          wrongAnswers: legacy.wrongAnswers || [],
+          // 기존 체크리스트에 사용자 진행이 있으면 custom 버킷에 보존.
+          // 없으면 custom은 빈 체크리스트 유지(사용자가 직접 추가).
+          checklist: legacy.checklist && legacy.checklist.length > 0 ? legacy.checklist : [],
+          stats: legacy.stats || emptySubjectState().stats,
+        };
+
+        return {
+          activeSubject: 'custom',
+          subjects,
+          chatStyleLocked: legacy.chatStyleLocked ?? false,
+        };
       },
       partialize: (state) => ({
-        studyDocs: state.studyDocs,
-        wrongAnswers: state.wrongAnswers,
-        checklist: state.checklist,
+        activeSubject: state.activeSubject,
+        subjects: state.subjects,
         chatStyleLocked: state.chatStyleLocked,
-        stats: state.stats,
       }),
     },
   ),
 );
 
+/** 활성 과목 버킷 상태를 반환하는 셀렉터 — 외부 컴포넌트의 반복 보일러플레이트 축소. */
+export const selectActiveSubjectState = (state) => state.subjects[state.activeSubject];
+
+/** 활성 과목 카탈로그(메타)를 반환하는 셀렉터. */
+export const selectActiveSubjectMeta = (state) => getSubject(state.activeSubject);
+
+export { SUBJECT_CATALOG, SUBJECT_LIST };
 export default useStudyStore;

@@ -19,7 +19,11 @@ export async function uploadPdf(file) {
   return data.data;
 }
 
-/** 업로드된 문서 기반으로 퀴즈를 생성한다 */
+/**
+ * 업로드된 문서 기반으로 퀴즈를 생성한다.
+ * `params.subject` (예: 'sqlp' | 'dap' | 'eng' | 'custom') — 과목 분류. 선택 필드이며
+ * 백엔드가 지원하기 전까지는 mock에서만 사용된다.
+ */
 export async function generateQuiz(params) {
   if (API_CONFIG.useMock) return mock.generateQuiz(params);
   const { data } = await api.post('/study/generate-quiz', params);
@@ -27,7 +31,10 @@ export async function generateQuiz(params) {
   return data.data;
 }
 
-/** 사용자의 퀴즈 답안을 제출하고 채점 결과를 반환한다 */
+/**
+ * 사용자의 퀴즈 답안을 제출하고 채점 결과를 반환한다.
+ * `params.subject` 는 선택. 백엔드 연결 전까지 mock에서만 의미가 있다.
+ */
 export async function submitAnswer(params) {
   if (API_CONFIG.useMock) return mock.submitAnswer(params);
   const { data } = await api.post('/study/submit', params);
@@ -36,14 +43,16 @@ export async function submitAnswer(params) {
 }
 
 /**
- * 학습 누적 통계를 조회한다.
+ * 학습 누적 통계를 조회한다. 과목별 분리가 가능해지면 `subject` 쿼리로 요청.
+ * @param {{subject?: string}} [params]
  * @returns {Promise<{totalSolved:number, correctCount:number, correctRate:number,
  *   byDifficulty: Array<{difficulty:string,total:number,correct:number,rate:number}>,
- *   byType: Array<{type:string,total:number,correct:number,rate:number}>}>}
+ *   byType: Array<{type:string,total:number,correct:number,rate:number}>,
+ *   subject?: string}>}
  */
-export async function getStudyStats() {
-  if (API_CONFIG.useMock) return mock.getStudyStats();
-  const { data } = await api.get('/study/stats');
+export async function getStudyStats(params = {}) {
+  if (API_CONFIG.useMock) return mock.getStudyStats(params);
+  const { data } = await api.get('/study/stats', { params });
   // 백엔드 ApiResponse 래핑 해제
   return data.data;
 }

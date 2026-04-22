@@ -1,0 +1,177 @@
+/**
+ * @fileoverview 학습 모드 과목 카탈로그 — SQLP · DAP · 정보관리기술사 · 사용자 정의.
+ *
+ * 과목 축 추상화: 학습 모드는 컨테이너이고, 과목(subject)은 그 안의 네임스페이스다.
+ * 오답노트·체크리스트·통계·문서·현재 퀴즈 세션은 과목별로 격리되고,
+ * 예시 질문·모의고사 프리셋·기본 체크리스트는 이 파일의 카탈로그에서 제공된다.
+ *
+ * 새 과목 추가 시 이 파일에 엔트리만 더하면 되도록 설계한다. 실제 기출/커리큘럼
+ * 데이터는 후속 태스크에서 백엔드로 이관 예정.
+ */
+
+/** SQLP (SQL 전문가) — 90분, 40문항 기준 모의고사 */
+const SQLP = {
+  id: 'sqlp',
+  label: 'SQLP',
+  description: 'SQL 전문가',
+  examPreset: { count: 40, difficulty: 'mixed', timerSec: 90 * 60 },
+  examples: [
+    '옵티마이저 실행 계획 읽는 법 알려줘',
+    'B-Tree 인덱스와 비트맵 인덱스 차이 설명해줘',
+    '조인 수행 원리(NL/Sort Merge/Hash) 정리해줘',
+  ],
+  checklist: [
+    {
+      id: 'sqlp-p1',
+      title: '1과목 · SQL 기본과 활용',
+      chapters: [
+        { id: 'sqlp-1-1', label: '관계형 DB 개요', done: false },
+        { id: 'sqlp-1-2', label: 'DML/DDL/DCL', done: false },
+        { id: 'sqlp-1-3', label: '조인과 서브쿼리', done: false },
+        { id: 'sqlp-1-4', label: '그룹 함수/집계', done: false },
+        { id: 'sqlp-1-5', label: '계층형 질의', done: false },
+      ],
+    },
+    {
+      id: 'sqlp-p2',
+      title: '2과목 · SQL 고급 활용 및 튜닝',
+      chapters: [
+        { id: 'sqlp-2-1', label: '옵티마이저와 실행계획', done: false },
+        { id: 'sqlp-2-2', label: '인덱스 튜닝', done: false },
+        { id: 'sqlp-2-3', label: '조인 튜닝', done: false },
+        { id: 'sqlp-2-4', label: 'SQL 옵티마이징 원리', done: false },
+        { id: 'sqlp-2-5', label: '파티셔닝과 병렬 처리', done: false },
+      ],
+    },
+  ],
+};
+
+/** DAP (데이터아키텍처 전문가) — 100분, 50문항 기준 모의고사 */
+const DAP = {
+  id: 'dap',
+  label: 'DAP',
+  description: '데이터아키텍처 전문가',
+  examPreset: { count: 50, difficulty: 'mixed', timerSec: 100 * 60 },
+  examples: [
+    '정규화와 반정규화 판단 기준은?',
+    '데이터 표준화 절차를 단계별로 정리해줘',
+    '주제영역 도출 방법과 CRUD 매트릭스 활용법',
+  ],
+  checklist: [
+    {
+      id: 'dap-p1',
+      title: '1과목 · 전사아키텍처 이해',
+      chapters: [
+        { id: 'dap-1-1', label: 'EA 개념과 프레임워크', done: false },
+        { id: 'dap-1-2', label: '데이터아키텍처 정의', done: false },
+      ],
+    },
+    {
+      id: 'dap-p2',
+      title: '2과목 · 데이터 요건 분석',
+      chapters: [
+        { id: 'dap-2-1', label: '정보 요구사항 수집', done: false },
+        { id: 'dap-2-2', label: '주제영역 도출', done: false },
+      ],
+    },
+    {
+      id: 'dap-p3',
+      title: '3과목 · 데이터 표준화',
+      chapters: [
+        { id: 'dap-3-1', label: '표준 용어/도메인', done: false },
+        { id: 'dap-3-2', label: '표준 코드/관리 절차', done: false },
+      ],
+    },
+    {
+      id: 'dap-p4',
+      title: '4과목 · 데이터 모델링',
+      chapters: [
+        { id: 'dap-4-1', label: '개념/논리/물리 모델', done: false },
+        { id: 'dap-4-2', label: '정규화/반정규화', done: false },
+        { id: 'dap-4-3', label: '엔티티·관계 설계', done: false },
+      ],
+    },
+    {
+      id: 'dap-p5',
+      title: '5과목 · 데이터베이스 설계와 이용',
+      chapters: [
+        { id: 'dap-5-1', label: '물리 설계 전략', done: false },
+        { id: 'dap-5-2', label: '분산/백업/복구', done: false },
+      ],
+    },
+  ],
+};
+
+/** 정보관리기술사 — 논술 1교시 100분, 4문제 기준 프리셋 */
+const ENG = {
+  id: 'eng',
+  label: '정보관리기술사',
+  description: '정보관리기술사(논술·면접)',
+  // 실제 시험은 4교시제이지만, 앱에서는 1교시(100분·4문제) 기준으로 시뮬레이션.
+  examPreset: { count: 4, difficulty: 'hard', timerSec: 100 * 60 },
+  examples: [
+    'MSA 전환 전략 — 논술 개요(서론/본론/결론) 잡아줘',
+    '데이터 거버넌스 체계 수립 시 핵심 토픽 정리',
+    'AI 전환(AX) 단계별 접근법과 조직 변화관리',
+  ],
+  checklist: [
+    {
+      id: 'eng-arch',
+      title: '소프트웨어 아키텍처',
+      chapters: [
+        { id: 'eng-a-1', label: 'MSA / 이벤트 기반 아키텍처', done: false },
+        { id: 'eng-a-2', label: 'DDD · CQRS · Saga', done: false },
+        { id: 'eng-a-3', label: '클라우드 네이티브 · 쿠버네티스', done: false },
+      ],
+    },
+    {
+      id: 'eng-data',
+      title: '데이터·AI',
+      chapters: [
+        { id: 'eng-d-1', label: '데이터 거버넌스·MDM', done: false },
+        { id: 'eng-d-2', label: 'ML Ops · LLM 서비스화', done: false },
+        { id: 'eng-d-3', label: 'RAG · 벡터 검색', done: false },
+      ],
+    },
+    {
+      id: 'eng-mgmt',
+      title: '프로젝트·거버넌스',
+      chapters: [
+        { id: 'eng-m-1', label: 'IT 거버넌스 · COBIT', done: false },
+        { id: 'eng-m-2', label: '정보보호 관리체계(ISMS-P)', done: false },
+        { id: 'eng-m-3', label: '프로젝트 리스크/일정 관리', done: false },
+      ],
+    },
+  ],
+};
+
+/** 사용자 정의 — 자유 업로드 PDF 기반 학습. 기존 data는 이 버킷으로 마이그레이션. */
+const CUSTOM = {
+  id: 'custom',
+  label: '기타/사용자 정의',
+  description: '사용자가 직접 업로드한 PDF 기반 학습',
+  examPreset: { count: 30, difficulty: 'mixed', timerSec: 30 * 60 },
+  examples: [
+    '핵심 개념 3개로 요약해줘',
+    '이 문서의 토픽을 트리로 정리해줘',
+    '헷갈릴 만한 용어 비교표 만들어줘',
+  ],
+  checklist: [],
+};
+
+/** 과목 레지스트리. key는 과목 id. */
+export const SUBJECT_CATALOG = {
+  sqlp: SQLP,
+  dap: DAP,
+  eng: ENG,
+  custom: CUSTOM,
+};
+
+/** 사이드 메뉴/드롭다운 렌더링용 배열 (선언 순서 유지). */
+export const SUBJECT_LIST = [SQLP, DAP, ENG, CUSTOM];
+
+/** 신규 사용자 기본 과목. 자격증 3종 중 가장 대표적인 SQLP로 시작. */
+export const DEFAULT_SUBJECT_ID = 'sqlp';
+
+/** 과목 id로 카탈로그 엔트리를 조회한다. 없으면 custom 폴백. */
+export const getSubject = (id) => SUBJECT_CATALOG[id] || SUBJECT_CATALOG.custom;
