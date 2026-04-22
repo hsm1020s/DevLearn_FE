@@ -1,17 +1,18 @@
 /**
- * @fileoverview 학습 워크스페이스 — 기록 탭 (그룹 C).
- * 내부에 세로 sub-탭 [오답노트 | 체크리스트 | 통계] 을 제공하고 각 패널을 렌더한다.
- * sub-탭은 URL/스토어까지 가지 않고 컴포넌트 로컬 state로 관리 (비교적 짧은 상태).
+ * @fileoverview 학습 워크스페이스 — 기록 탭.
+ * 내부에 세로 sub-탭 [오답노트 | 통계] 을 제공하고 각 패널을 렌더한다.
+ * sub-탭은 URL/스토어까지 가지 않고 컴포넌트 로컬 state로 관리(비교적 짧은 상태).
+ *
+ * 이전에는 체크리스트 서브탭도 있었지만, 자격증 학습에서 과목별 챕터 진도 체크는
+ * 오답·통계 대비 가치가 낮아 제거됨(업무학습 모드 체크리스트는 그대로 유지).
  */
 import { useState } from 'react';
-import { BookMarked, CheckSquare, BarChart3 } from 'lucide-react';
+import { BookMarked, BarChart3 } from 'lucide-react';
 import WrongAnswerPanel from './WrongAnswerPanel';
-import StudyChecklistPanel from './StudyChecklistPanel';
 import StudyStatsTab from './StudyStatsTab';
 
 const SUB_TABS = [
   { value: 'wrong', label: '오답노트', icon: BookMarked },
-  { value: 'checklist', label: '체크리스트', icon: CheckSquare },
   { value: 'stats', label: '통계', icon: BarChart3 },
 ];
 
@@ -47,7 +48,6 @@ export default function StudyRecordTab() {
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="max-w-3xl mx-auto">
           {subTab === 'wrong' && <WrongAnswerPanel />}
-          {subTab === 'checklist' && <StudyChecklistPanel />}
           {subTab === 'stats' && <StudyStatsTab />}
         </div>
       </div>
