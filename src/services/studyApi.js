@@ -21,7 +21,7 @@ export async function uploadPdf(file) {
 
 /**
  * 업로드된 문서 기반으로 퀴즈를 생성한다.
- * `params.subject` (예: 'sqlp' | 'dap' | 'eng' | 'custom') — 과목 분류. 선택 필드이며
+ * `params.subject` (예: 'sqlp' | 'dap' | 'custom') — 과목 분류. 선택 필드이며
  * 백엔드가 지원하기 전까지는 mock에서만 사용된다.
  */
 export async function generateQuiz(params) {

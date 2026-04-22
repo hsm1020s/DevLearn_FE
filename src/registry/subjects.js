@@ -1,5 +1,5 @@
 /**
- * @fileoverview 학습 모드 과목 카탈로그 — SQLP · DAP · 정보관리기술사 · 사용자 정의.
+ * @fileoverview 학습 모드 과목 카탈로그 — SQLP · DAP · 사용자 정의.
  *
  * 과목 축 추상화: 학습 모드는 컨테이너이고, 과목(subject)은 그 안의 네임스페이스다.
  * 오답노트·체크리스트·통계·문서·현재 퀴즈 세션은 과목별로 격리되고,
@@ -11,9 +11,9 @@
  * 프리셋 값의 근거(실제 시험 규격, 2026-04 확인):
  * - SQLP : 72문항(객관식 70 + 실기 2), 180분, 100점 (과목별 40% + 총점 75점)
  * - DAP  : 76문항(객관식 75 + 실기 1), 240분, 100점 (과목별 40% + 총점 75점)
- * - 정보관리기술사(필기): 4교시·교시당 100분(총 400분) 전면 논술형.
- *   앱의 객관식 mock 구조상 1교시(13중 10선택, 단답/약술) 기준으로 근사한다.
- *   2~4교시 논술·모범답안 키워드 매칭은 별도 태스크에서 설계.
+ *
+ * 정보관리기술사(논술형)는 객관식 mock과 맞지 않아 이번 단계에서 제거됨. 별도
+ * 논술 모드 설계 후 재도입 예정.
  */
 
 /** SQLP (SQL 전문가) — 72문항·180분 모의고사 */
@@ -148,57 +148,6 @@ const DAP = {
   ],
 };
 
-/**
- * 정보관리기술사 필기 — 4교시·교시당 100분 전면 논술형, 총 400점 중 240점 합격.
- * 앱은 객관식 mock 구조이므로 프리셋은 **1교시(13중 10선택, 단답/약술)** 기준으로
- * 근사한다. 시간은 교시 1회분(100분) 그대로.
- */
-const ENG = {
-  id: 'eng',
-  label: '정보관리기술사',
-  description: '정보관리기술사 필기 · 4교시(교시당 100분) 논술형 · 240점 합격',
-  // 프리셋은 1교시 기준 — 10문제 선택(단답/약술). 2~4교시 논술 모드는 후속 태스크.
-  examPreset: { count: 10, difficulty: 'hard', timerSec: 100 * 60 },
-  // 전면 논술형이라 객관식 과목 집계가 의미 없음 → parts/passingCriteria 없음.
-  // 결과 화면은 기본(심플) 경로로 폴백.
-  parts: null,
-  passingCriteria: null,
-  examples: [
-    'MSA 전환 전략 — 논술 개요(서론/본론/결론) 잡아줘',
-    '데이터 거버넌스 체계 수립 시 핵심 토픽 정리',
-    'AI 전환(AX) 단계별 접근법과 조직 변화관리',
-  ],
-  checklist: [
-    {
-      id: 'eng-arch',
-      title: '소프트웨어 아키텍처',
-      chapters: [
-        { id: 'eng-a-1', label: 'MSA / 이벤트 기반 아키텍처', done: false },
-        { id: 'eng-a-2', label: 'DDD · CQRS · Saga', done: false },
-        { id: 'eng-a-3', label: '클라우드 네이티브 · 쿠버네티스', done: false },
-      ],
-    },
-    {
-      id: 'eng-data',
-      title: '데이터·AI',
-      chapters: [
-        { id: 'eng-d-1', label: '데이터 거버넌스·MDM', done: false },
-        { id: 'eng-d-2', label: 'ML Ops · LLM 서비스화', done: false },
-        { id: 'eng-d-3', label: 'RAG · 벡터 검색', done: false },
-      ],
-    },
-    {
-      id: 'eng-mgmt',
-      title: '프로젝트·거버넌스',
-      chapters: [
-        { id: 'eng-m-1', label: 'IT 거버넌스 · COBIT', done: false },
-        { id: 'eng-m-2', label: '정보보호 관리체계(ISMS-P)', done: false },
-        { id: 'eng-m-3', label: '프로젝트 리스크/일정 관리', done: false },
-      ],
-    },
-  ],
-};
-
 /** 사용자 정의 — 자유 업로드 PDF 기반 학습. 기존 data는 이 버킷으로 마이그레이션. */
 const CUSTOM = {
   id: 'custom',
@@ -220,14 +169,13 @@ const CUSTOM = {
 export const SUBJECT_CATALOG = {
   sqlp: SQLP,
   dap: DAP,
-  eng: ENG,
   custom: CUSTOM,
 };
 
 /** 사이드 메뉴/드롭다운 렌더링용 배열 (선언 순서 유지). */
-export const SUBJECT_LIST = [SQLP, DAP, ENG, CUSTOM];
+export const SUBJECT_LIST = [SQLP, DAP, CUSTOM];
 
-/** 신규 사용자 기본 과목. 자격증 3종 중 가장 대표적인 SQLP로 시작. */
+/** 신규 사용자 기본 과목. 자격증 중 가장 대표적인 SQLP로 시작. */
 export const DEFAULT_SUBJECT_ID = 'sqlp';
 
 /** 과목 id로 카탈로그 엔트리를 조회한다. 없으면 custom 폴백. */

@@ -33,7 +33,7 @@
 
 /**
  * 문제 배열 + 답안 맵을 받아 과목별 집계를 계산한다.
- * parts가 없거나(subject가 정보관리기술사·custom 등) 문제에 `part` 태그가 없으면 null을 반환한다.
+ * parts가 없거나(subject가 custom 등) 문제에 `part` 태그가 없으면 null을 반환한다.
  *
  * @param {{questions: Array<{id:string, part?:string}>}} quiz
  * @param {Record<string, {correct?: boolean}>} answers

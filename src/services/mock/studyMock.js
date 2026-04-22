@@ -23,7 +23,6 @@ export async function uploadPdf(file) {
 const SUBJECT_PREFIX = {
   sqlp: '[SQLP]',
   dap: '[DAP]',
-  eng: '[정보관리기술사]',
   custom: '[사용자 PDF]',
 };
 
@@ -32,7 +31,7 @@ const SUBJECT_PREFIX = {
  *
  * 카탈로그에 `parts`가 있는 과목(SQLP/DAP)은 실제 시험처럼 과목별 비율로 문항을
  * 배분하고 각 문제에 `part` id 태그를 붙여 결과 화면의 과목별 집계가 가능하게 한다.
- * parts가 없는 과목(정보관리기술사/custom 등)은 기존 균등 생성으로 폴백.
+ * parts가 없는 과목(custom 등)은 기존 균등 생성으로 폴백.
  */
 export async function generateQuiz({ subject, chapters, count, types }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
@@ -89,7 +88,6 @@ export async function getStudyStats(params = {}) {
   const SAMPLE = {
     sqlp:   { totalSolved:  72, correctCount: 54, correctRate: 0.75, hardRate: 0.52 },
     dap:    { totalSolved:  40, correctCount: 28, correctRate: 0.70, hardRate: 0.40 },
-    eng:    { totalSolved:  18, correctCount:  9, correctRate: 0.50, hardRate: 0.30 },
     custom: { totalSolved: 128, correctCount: 92, correctRate: 0.72, hardRate: 0.428 },
   };
   const s = SAMPLE[subject] || SAMPLE.custom;

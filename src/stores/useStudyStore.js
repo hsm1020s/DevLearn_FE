@@ -291,39 +291,58 @@ const useStudyStore = create(
     }),
     {
       name: 'study-store',
-      version: 3,
+      version: 4,
       /**
-       * v1/v2 → v3 마이그레이션.
+       * 마이그레이션 히스토리:
        * - v1: `{ studyDocs }`만 persist
        * - v2: 루트에 wrongAnswers/checklist/stats/chatStyleLocked 추가
        * - v3: 과목 축 도입 — 기존 루트 필드를 `subjects.custom` 버킷으로 이동
+       * - v4: 정보관리기술사(`eng`) 과목 제거 — 버킷 드롭 + activeSubject 폴백
        *
-       * 왜 custom으로 옮기나: 기존 사용자의 오답·체크·통계는 어느 자격증 과목에
-       * 속하는지 판단할 근거가 없다. SQLP/DAP/정보관리기술사 중 하나로 강제 배치하면
-       * 통계가 오염된다. custom(사용자 정의) 버킷으로 이관해 데이터는 보존하되
-       * 분류는 사용자가 직접 재배치하도록 한다.
+       * v2→v3에서 custom으로 옮긴 이유: 기존 사용자의 오답·체크·통계는 어느
+       * 자격증 과목에 속하는지 판단할 근거가 없어 custom(사용자 정의) 버킷으로
+       * 이관해 데이터 보존하되 분류는 사용자가 직접 재배치하도록 한다.
+       *
+       * v3→v4: 정보관리기술사는 논술형이라 현재 객관식 구조와 맞지 않아 제거.
+       * subjects.eng 버킷은 드롭되고(연관 오답/체크/통계도 함께 사라짐),
+       * activeSubject === 'eng' 사용자는 SQLP로 폴백된다.
        */
       migrate: (persisted, version) => {
         if (!persisted) return persisted;
-        if (version >= 3) return persisted;
 
-        const legacy = persisted;
-        const subjects = initialSubjects();
-        subjects.custom = {
-          ...emptySubjectState(),
-          studyDocs: legacy.studyDocs || [],
-          wrongAnswers: legacy.wrongAnswers || [],
-          // 기존 체크리스트에 사용자 진행이 있으면 custom 버킷에 보존.
-          // 없으면 custom은 빈 체크리스트 유지(사용자가 직접 추가).
-          checklist: legacy.checklist && legacy.checklist.length > 0 ? legacy.checklist : [],
-          stats: legacy.stats || emptySubjectState().stats,
-        };
+        let state = persisted;
 
-        return {
-          activeSubject: 'custom',
-          subjects,
-          chatStyleLocked: legacy.chatStyleLocked ?? false,
-        };
+        // v<3: 루트 필드 → subjects.custom 이관
+        if (version < 3) {
+          const legacy = state;
+          const subjects = initialSubjects();
+          subjects.custom = {
+            ...emptySubjectState(),
+            studyDocs: legacy.studyDocs || [],
+            wrongAnswers: legacy.wrongAnswers || [],
+            checklist: legacy.checklist && legacy.checklist.length > 0 ? legacy.checklist : [],
+            stats: legacy.stats || emptySubjectState().stats,
+          };
+          state = {
+            activeSubject: 'custom',
+            subjects,
+            chatStyleLocked: legacy.chatStyleLocked ?? false,
+          };
+        }
+
+        // v<4: eng 버킷 드롭 + activeSubject 폴백
+        if (version < 4) {
+          const nextSubjects = { ...(state.subjects || {}) };
+          delete nextSubjects.eng;
+          state = {
+            ...state,
+            subjects: nextSubjects,
+            activeSubject:
+              state.activeSubject === 'eng' ? DEFAULT_SUBJECT_ID : state.activeSubject,
+          };
+        }
+
+        return state;
       },
       partialize: (state) => ({
         activeSubject: state.activeSubject,
