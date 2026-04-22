@@ -16,14 +16,16 @@ export async function getAdminDashboard() {
       totalMindmapNodes: 342,
       totalQuizSolved: 89,
     },
-    // 최근 대화 최대 8건 (id/title/mode/updatedAt)
+    // 최근 대화 최대 8건 (id/title/mode/updatedAt) — 3개 모드 고루 포함
     recentConversations: [
       { id: 'c-001', title: 'React 18 Suspense 정리', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 3 },
-      { id: 'c-002', title: '정보처리기사 필기 오답노트', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 32 },
-      { id: 'c-003', title: 'TypeScript 제네릭 복습', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 60 * 5 },
-      { id: 'c-004', title: 'SQLD 2과목 핵심 요약', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 12 },
-      { id: 'c-005', title: 'HTTP 상태 코드 질문', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 60 * 48 },
-      { id: 'c-006', title: '네트워크 기초 퀴즈 리뷰', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 72 },
+      { id: 'c-002', title: 'SQLP 튜닝 기출 오답노트', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 32 },
+      { id: 'c-003', title: '분기 회의록 정리', mode: 'worklearn', updatedAt: Date.now() - 1000 * 60 * 60 * 2 },
+      { id: 'c-004', title: 'TypeScript 제네릭 복습', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 60 * 5 },
+      { id: 'c-005', title: 'DAP 정규화 핵심 요약', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 12 },
+      { id: 'c-006', title: '신규 인력 온보딩 체크리스트', mode: 'worklearn', updatedAt: Date.now() - 1000 * 60 * 60 * 30 },
+      { id: 'c-007', title: 'HTTP 상태 코드 질문', mode: 'general', updatedAt: Date.now() - 1000 * 60 * 60 * 48 },
+      { id: 'c-008', title: '정보관리기술사 논술 토픽', mode: 'study', updatedAt: Date.now() - 1000 * 60 * 60 * 72 },
     ],
     // 문서 현황 (status 3종 모두 포함)
     documents: [
