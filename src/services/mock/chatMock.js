@@ -1,6 +1,9 @@
 /**
  * @fileoverview 채팅 API Mock - 개발/테스트용 채팅 응답 시뮬레이션.
- * 학습 모드의 스타일 프리픽스(`[파인만 모드]`, `[한줄요약]`)를 감지하여 응답을 변형한다.
+ *
+ * 학습 모드 스타일 지시문(`[학습 모드 지시문] … 파인만 기법 …`, `… 한 문장 요약 …`)을
+ * 문자열 시작 토큰 + 키워드 조합으로 감지해 응답을 변형한다. 지시문 포맷은
+ * `src/hooks/useStreamingChat.js`의 `STYLE_PROMPT`와 동기화되어야 한다.
  */
 import { generateId } from '../../utils/helpers';
 
@@ -17,7 +20,9 @@ const MOCK_RESPONSES = {
 
 /** 학습 스타일별 응답 빌더 — 실제 LLM 연동 전 UX 확인용 간이 응답. */
 function buildStyledResponse(topic, style) {
-  const cleanTopic = topic.replace(/\[파인만 모드\]\s*|\[한줄요약\]\s*/g, '').trim() || '해당 주제';
+  // 지시문 전체 블록을 떼어내고 실제 사용자 질문만 남긴다(`사용자 메시지:\n` 뒤 본문).
+  const m = topic.match(/사용자 메시지:\s*\n([\s\S]*)$/);
+  const cleanTopic = (m ? m[1] : topic).trim() || '해당 주제';
   if (style === 'feynman') {
     return [
       `🧠 **파인만 모드** — "${cleanTopic}"에 대해 본인의 말로 설명해보세요.`,
@@ -42,11 +47,15 @@ function buildStyledResponse(topic, style) {
   return null;
 }
 
-/** 메시지 내용에서 스타일 프리픽스를 감지한다. */
+/**
+ * 메시지 내용에서 학습 스타일 지시문을 감지한다.
+ * `STYLE_PROMPT` 포맷은 `[학습 모드 지시문] …` 으로 시작하고 본문에 "파인만 기법" 또는
+ * "한 문장 요약" 키워드를 포함한다. 시작 토큰이 없거나 키워드가 없으면 'general'.
+ */
 function detectStyle(message) {
-  if (!message) return 'general';
-  if (message.startsWith('[파인만 모드]')) return 'feynman';
-  if (message.startsWith('[한줄요약]')) return 'summary';
+  if (!message || !message.startsWith('[학습 모드 지시문]')) return 'general';
+  if (message.includes('파인만 기법')) return 'feynman';
+  if (message.includes('한 문장 요약')) return 'summary';
   return 'general';
 }
 
