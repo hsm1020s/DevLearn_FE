@@ -6,13 +6,16 @@ export { MODE_LIST as MAIN_MODES } from '../registry/modes';
 
 // LLM 모델 선택 옵션
 
+// 클라우드 3종은 각 벤더의 가성비 티어(2026-04 기준)로 정렬.
+// 로컬 3종은 value(ID)를 기존과 동일하게 두어 이전 대화 메타데이터 호환을 유지하고,
+// 사용자가 로컬/클라우드를 한눈에 구분할 수 있도록 라벨 뒤에 " (로컬)"만 덧붙인다.
 export const LLM_OPTIONS = [
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'claude-3.5', label: 'Claude 3.5' },
-  { value: 'gemini', label: 'Gemini Pro' },
-  { value: 'llama-8b', label: 'Llama 3.1 8B' },
-  { value: 'exaone-32b', label: 'EXAONE 3.5 32B' },
-  { value: 'gpt-oss-20b', label: 'GPT-OSS 20B' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'llama-8b', label: 'Llama 3.1 8B (로컬)' },
+  { value: 'exaone-32b', label: 'EXAONE 3.5 32B (로컬)' },
+  { value: 'gpt-oss-20b', label: 'GPT-OSS 20B (로컬)' },
 ];
 
 // 퀴즈 문항 수 선택지
