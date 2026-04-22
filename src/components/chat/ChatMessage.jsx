@@ -69,7 +69,7 @@ export default function ChatMessage({ message, isStreaming }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-1 max-w-[75%]">
+      <div className="flex flex-col gap-1 max-w-[75%] min-w-0">
         {/* 스타일 뱃지 — 메시지 버블 위에 표시 */}
         {style && style !== 'general' && (
           <div className={isUser ? 'self-end' : 'self-start'}>
@@ -77,8 +77,16 @@ export default function ChatMessage({ message, isStreaming }) {
           </div>
         )}
 
+        {/*
+          break-words: 긴 영단어·URL 등이 버블을 뚫고 나가지 않도록 강제 줄바꿈.
+          [&_pre]: / [&_code]: 선택자는 prose 내부 코드블록도 동일 규칙 적용 —
+          가로 스크롤 대신 줄바꿈으로 처리해 모바일·좁은 사이드바에서도 안전.
+        */}
         <div className={`
           rounded-2xl px-4 py-2.5 text-sm leading-relaxed
+          break-words
+          [&_pre]:whitespace-pre-wrap [&_pre]:break-words
+          [&_code]:break-words
           ${isUser
             ? 'bg-primary/10 text-text-primary rounded-br-md'
             : 'bg-bg-secondary text-text-primary rounded-bl-md'}
