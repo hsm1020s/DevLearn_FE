@@ -2,8 +2,8 @@
  * @fileoverview 학습 모드 과목 카탈로그 — SQLP · DAP · 사용자 정의.
  *
  * 과목 축 추상화: 학습 모드는 컨테이너이고, 과목(subject)은 그 안의 네임스페이스다.
- * 오답노트·체크리스트·통계·문서·현재 퀴즈 세션은 과목별로 격리되고,
- * 예시 질문·모의고사 프리셋·기본 체크리스트는 이 파일의 카탈로그에서 제공된다.
+ * 오답노트·통계·문서·현재 퀴즈 세션은 과목별로 격리되고, 예시 질문·모의고사
+ * 프리셋·과목별 배점(parts)은 이 파일의 카탈로그에서 제공된다.
  *
  * 새 과목 추가 시 이 파일에 엔트리만 더하면 되도록 설계한다. 실제 기출/커리큘럼
  * 데이터는 후속 태스크에서 백엔드로 이관 예정.
@@ -12,7 +12,7 @@
  * - SQLP : 72문항(객관식 70 + 실기 2), 180분, 100점 (과목별 40% + 총점 75점)
  * - DAP  : 76문항(객관식 75 + 실기 1), 240분, 100점 (과목별 40% + 총점 75점)
  *
- * 정보관리기술사(논술형)는 객관식 mock과 맞지 않아 이번 단계에서 제거됨. 별도
+ * 정보관리기술사(논술형)는 객관식 mock과 맞지 않아 이전 단계에서 제거됨. 별도
  * 논술 모드 설계 후 재도입 예정.
  */
 
@@ -33,42 +33,6 @@ const SQLP = {
     '옵티마이저 실행 계획 읽는 법 알려줘',
     'B-Tree 인덱스와 비트맵 인덱스 차이 설명해줘',
     '조인 수행 원리(NL/Sort Merge/Hash) 정리해줘',
-  ],
-  // 실제 3과목 구조(데이터 모델링의 이해 / SQL 기본 및 활용 / SQL 고급 활용 및 튜닝).
-  // 기존 chapter id(`sqlp-1-*`, `sqlp-2-*`)는 사용자의 체크 상태 보존을 위해 유지한다.
-  checklist: [
-    {
-      id: 'sqlp-pm',
-      title: '1과목 · 데이터 모델링의 이해',
-      chapters: [
-        { id: 'sqlp-m-1', label: '데이터 모델링 개요', done: false },
-        { id: 'sqlp-m-2', label: '엔티티·속성·관계', done: false },
-        { id: 'sqlp-m-3', label: '정규화', done: false },
-        { id: 'sqlp-m-4', label: '반정규화와 성능 데이터 모델링', done: false },
-      ],
-    },
-    {
-      id: 'sqlp-p1',
-      title: '2과목 · SQL 기본 및 활용',
-      chapters: [
-        { id: 'sqlp-1-1', label: '관계형 DB 개요', done: false },
-        { id: 'sqlp-1-2', label: 'DML/DDL/DCL', done: false },
-        { id: 'sqlp-1-3', label: '조인과 서브쿼리', done: false },
-        { id: 'sqlp-1-4', label: '그룹 함수/집계', done: false },
-        { id: 'sqlp-1-5', label: '계층형 질의', done: false },
-      ],
-    },
-    {
-      id: 'sqlp-p2',
-      title: '3과목 · SQL 고급 활용 및 튜닝',
-      chapters: [
-        { id: 'sqlp-2-1', label: '옵티마이저와 실행계획', done: false },
-        { id: 'sqlp-2-2', label: '인덱스 튜닝', done: false },
-        { id: 'sqlp-2-3', label: '조인 튜닝', done: false },
-        { id: 'sqlp-2-4', label: 'SQL 옵티마이징 원리', done: false },
-        { id: 'sqlp-2-5', label: '파티셔닝과 병렬 처리', done: false },
-      ],
-    },
   ],
 };
 
@@ -93,59 +57,6 @@ const DAP = {
     '데이터 표준화 절차를 단계별로 정리해줘',
     '주제영역 도출 방법과 CRUD 매트릭스 활용법',
   ],
-  checklist: [
-    {
-      id: 'dap-p1',
-      title: '1과목 · 전사아키텍처 이해',
-      chapters: [
-        { id: 'dap-1-1', label: 'EA 개념과 프레임워크', done: false },
-        { id: 'dap-1-2', label: '데이터아키텍처 정의', done: false },
-      ],
-    },
-    {
-      id: 'dap-p2',
-      title: '2과목 · 데이터 요건 분석',
-      chapters: [
-        { id: 'dap-2-1', label: '정보 요구사항 수집', done: false },
-        { id: 'dap-2-2', label: '주제영역 도출', done: false },
-      ],
-    },
-    {
-      id: 'dap-p3',
-      title: '3과목 · 데이터 표준화',
-      chapters: [
-        { id: 'dap-3-1', label: '표준 용어/도메인', done: false },
-        { id: 'dap-3-2', label: '표준 코드/관리 절차', done: false },
-      ],
-    },
-    {
-      id: 'dap-p4',
-      title: '4과목 · 데이터 모델링',
-      chapters: [
-        { id: 'dap-4-1', label: '개념/논리/물리 모델', done: false },
-        { id: 'dap-4-2', label: '정규화/반정규화', done: false },
-        { id: 'dap-4-3', label: '엔티티·관계 설계', done: false },
-      ],
-    },
-    {
-      id: 'dap-p5',
-      title: '5과목 · 데이터베이스 설계와 이용',
-      chapters: [
-        { id: 'dap-5-1', label: '물리 설계 전략', done: false },
-        { id: 'dap-5-2', label: '분산/백업/복구', done: false },
-      ],
-    },
-    // 2024 개편으로 추가된 6번째 과목.
-    {
-      id: 'dap-p6',
-      title: '6과목 · 데이터 품질 관리 이해',
-      chapters: [
-        { id: 'dap-6-1', label: '데이터 품질 기준과 지표', done: false },
-        { id: 'dap-6-2', label: '품질 진단·개선 절차', done: false },
-        { id: 'dap-6-3', label: '메타데이터·데이터 거버넌스', done: false },
-      ],
-    },
-  ],
 };
 
 /** 사용자 정의 — 자유 업로드 PDF 기반 학습. 기존 data는 이 버킷으로 마이그레이션. */
@@ -162,7 +73,6 @@ const CUSTOM = {
     '이 문서의 토픽을 트리로 정리해줘',
     '헷갈릴 만한 용어 비교표 만들어줘',
   ],
-  checklist: [],
 };
 
 /** 과목 레지스트리. key는 과목 id. */

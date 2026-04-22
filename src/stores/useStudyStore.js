@@ -2,9 +2,8 @@
  * @fileoverview 학습 모드 상태 관리 스토어 (subject 축 네임스페이스 버전).
  *
  * 학습 모드는 컨테이너이고, 과목(subject)은 그 안의 네임스페이스다.
- * 오답노트·체크리스트·통계·문서·현재 퀴즈 세션은 `subjects[id]` 버킷 안에서
- * 과목별로 격리 관리되고, 채팅 스타일·스타일 고정 여부만 과목 공유 전역 상태로
- * 남겨둔다.
+ * 오답노트·통계·문서·현재 퀴즈 세션은 `subjects[id]` 버킷 안에서 과목별로
+ * 격리 관리되고, 채팅 스타일·스타일 고정 여부만 과목 공유 전역 상태로 남겨둔다.
  *
  * 액션들은 명시적으로 subject id를 받지 않는다 — 기본적으로 **현재 activeSubject**
  * 에 대해 동작한다. 필요한 경우에만 id를 파라미터로 노출한다(setActiveSubject 등).
@@ -33,7 +32,6 @@ const emptySubjectState = () => ({
   quizSeed: null,
   quizTimerSec: null,
   wrongAnswers: [],
-  checklist: [],
   stats: {
     totalSolved: 0,
     correctCount: 0,
@@ -42,15 +40,11 @@ const emptySubjectState = () => ({
   },
 });
 
-/** 레지스트리 기반 초기 과목 버킷 세트 — 각 과목의 기본 체크리스트를 시드로 주입한다. */
+/** 레지스트리 기반 초기 과목 버킷 세트. */
 const initialSubjects = () => {
   const out = {};
   for (const s of SUBJECT_LIST) {
-    out[s.id] = {
-      ...emptySubjectState(),
-      // 카탈로그 체크리스트는 참조 공유를 피하기 위해 깊은 복사
-      checklist: JSON.parse(JSON.stringify(s.checklist || [])),
-    };
+    out[s.id] = { ...emptySubjectState() };
   }
   return out;
 };
@@ -257,30 +251,8 @@ const useStudyStore = create(
           });
         }),
 
-      // ────────── 체크리스트 ──────────
-      /**
-       * 체크리스트 챕터 완료 상태 토글. 활성 과목 기준으로만 동작한다.
-       * (체크리스트는 `SUBJECT_CATALOG`의 기본 시드 + 사용자 체크 상태를 합쳐 관리)
-       */
-      toggleChecklistChapter: (bookId, chapterId) =>
-        set((state) => {
-          const active = state.subjects[state.activeSubject];
-          return patchActive(state, {
-            checklist: active.checklist.map((book) =>
-              book.id !== bookId
-                ? book
-                : {
-                    ...book,
-                    chapters: book.chapters.map((ch) =>
-                      ch.id !== chapterId ? ch : { ...ch, done: !ch.done },
-                    ),
-                  },
-            ),
-          });
-        }),
-
       // ────────── 전체 리셋 ──────────
-      /** 로그아웃 시 호출 — 과목 전부 초기화(시드 체크리스트는 재주입). */
+      /** 로그아웃 시 호출 — 과목 전부 초기화. */
       reset: () =>
         set({
           activeSubject: DEFAULT_SUBJECT_ID,
@@ -291,7 +263,7 @@ const useStudyStore = create(
     }),
     {
       name: 'study-store',
-      version: 5,
+      version: 6,
       /**
        * 마이그레이션 히스토리:
        * - v1: `{ studyDocs }`만 persist
@@ -299,6 +271,7 @@ const useStudyStore = create(
        * - v3: 과목 축 도입 — 기존 루트 필드를 `subjects.custom` 버킷으로 이동
        * - v4: 정보관리기술사(`eng`) 과목 제거 — 버킷 드롭 + activeSubject 폴백
        * - v5: OX 문제 유형 제거 — 각 subjects 버킷의 stats.byType.ox 드롭
+       * - v6: 학습 모드 체크리스트 제거 — 각 subjects 버킷의 checklist 필드 드롭
        *
        * v2→v3에서 custom으로 옮긴 이유: 기존 사용자의 오답·체크·통계는 어느
        * 자격증 과목에 속하는지 판단할 근거가 없어 custom(사용자 정의) 버킷으로
@@ -312,13 +285,19 @@ const useStudyStore = create(
        * 각 과목 버킷의 stats.byType에서 ox 카운트만 삭제한다(오답노트의
        * type==='ox' 엔트리는 STATS_TYPE_LABELS 폴백으로 "4지선다"처럼
        * 보이지만 데이터는 보존).
+       *
+       * v5→v6: 학습 모드 기록 탭에서 체크리스트 서브탭 제거. 자격증 학습은
+       * 오답·통계 중심으로 단순화하고, 과목별 진도 체크는 가치 대비 비용이 큼.
+       * subjects[*].checklist 필드를 드롭하며 사용자가 체크한 챕터 상태는 소실.
+       * 업무학습 모드의 체크리스트는 별도 스토어(`useWorkLearnStore`)라 무관.
        */
       migrate: (persisted, version) => {
         if (!persisted) return persisted;
 
         let state = persisted;
 
-        // v<3: 루트 필드 → subjects.custom 이관
+        // v<3: 루트 필드 → subjects.custom 이관.
+        // (v2까지 루트에 있던 checklist는 v6에서 어차피 드롭되므로 여기서 옮기지 않는다)
         if (version < 3) {
           const legacy = state;
           const subjects = initialSubjects();
@@ -326,7 +305,6 @@ const useStudyStore = create(
             ...emptySubjectState(),
             studyDocs: legacy.studyDocs || [],
             wrongAnswers: legacy.wrongAnswers || [],
-            checklist: legacy.checklist && legacy.checklist.length > 0 ? legacy.checklist : [],
             stats: legacy.stats || emptySubjectState().stats,
           };
           state = {
@@ -358,6 +336,17 @@ const useStudyStore = create(
               ...bucket,
               stats: { ...bucket.stats, byType },
             };
+          }
+          state = { ...state, subjects: nextSubjects };
+        }
+
+        // v<6: 학습 모드 체크리스트 제거 — 각 과목 버킷의 checklist 필드 드롭
+        if (version < 6) {
+          const nextSubjects = {};
+          for (const [id, bucket] of Object.entries(state.subjects || {})) {
+            // eslint-disable-next-line no-unused-vars
+            const { checklist: _dropped, ...rest } = bucket;
+            nextSubjects[id] = rest;
           }
           state = { ...state, subjects: nextSubjects };
         }

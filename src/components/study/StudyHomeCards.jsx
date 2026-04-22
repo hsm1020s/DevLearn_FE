@@ -29,7 +29,7 @@ const CARDS = [
     id: 'record',
     icon: BookMarked,
     title: '📚 복습·기록',
-    description: '오답노트 · 체크리스트',
+    description: '오답노트 · 과목별 통계',
     subtitle: 'C그룹',
     action: { type: 'tab', value: 'record' },
   },
