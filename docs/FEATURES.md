@@ -18,7 +18,7 @@ LLM 기반 자유 질의응답 채팅.
 | 기능 | 설명 |
 |------|------|
 | 스트리밍 응답 | SSE 기반 실시간 토큰 출력 |
-| LLM 선택 | GPT-4o, Claude 3.5, Gemini Pro |
+| LLM 선택 | 클라우드(GPT-4o mini, Claude Haiku 4.5, Gemini 2.5 Flash) / 로컬(Llama 3.1 8B, EXAONE 3.5 32B, GPT-OSS 20B) |
 | 마크다운 렌더링 | 코드 하이라이팅, 테이블, GFM 지원 |
 | 대화 관리 | 새 대화 생성, 대화 목록, 전환, LLM 모델명 뱃지 표시 |
 | 메시지 복사 | 응답 텍스트 클립보드 복사 |

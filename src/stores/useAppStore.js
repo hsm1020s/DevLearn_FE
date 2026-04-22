@@ -10,8 +10,8 @@ const SPLIT_MAX = 80;
 const useAppStore = create(
   persist(
     (set) => ({
-      // 현재 선택된 LLM 모델
-      selectedLLM: 'gpt-4o',
+      // 현재 선택된 LLM 모델 (초기값은 가성비 티어의 Claude Haiku 4.5)
+      selectedLLM: 'claude-haiku-4-5',
       // 현재 앱 모드 (general, study)
       mainMode: 'general',
       // 마인드맵 패널 표시 여부
