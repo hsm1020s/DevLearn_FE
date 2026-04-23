@@ -75,7 +75,7 @@
 | 모드 레지스트리 | `src/registry/modes.js` | 새 모드 추가 시 이 파일만 수정 |
 | 디자인 토큰 | `src/styles/globals.css` → `tailwind.config.js` | `:root` 변수 정의 → Tailwind 참조 |
 | API 전환 | `src/services/api.config.js` | `VITE_MOCK_API`로 Mock/Real 전환 |
-| 스토어 (6개) | `src/stores/` | useAppStore, useAuthStore, useChatStore, useCertStore, useDocStore, useMindmapStore |
+| 스토어 | `src/stores/` | useAppStore, useAuthStore, useChatStore, useCertStore, useMindmapStore (문서 상태는 파인만 파이프라인 서버에서 직접 조회) |
 | 마인드맵 | `src/stores/useMindmapStore.js` | 모드별 독립 관리 (`maps{}` + `activeMapId` + `lastActiveByMode`) |
 
 ---

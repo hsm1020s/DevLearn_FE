@@ -82,7 +82,6 @@
 | `useAuthStore.js` | 로그인 상태, 사용자 정보 | O |
 | `useChatStore.js` | 대화 목록, 메시지 CRUD, 즐겨찾기 | O |
 | `useCertStore.js` | 퀴즈 설정, 문제, 채점 결과 | - |
-| `useDocStore.js` | 통합 문서 관리 (업로드/상태/삭제) | O |
 | `useMindmapStore.js` | 모드별 마인드맵 (maps/activeMapId/lastActiveByMode) | O (v1) |
 | `useRagStore.js` | RAG 질의 상태 | - |
 
@@ -128,8 +127,8 @@
 ### 채팅/대화
 `useStreamingChat.js` → `useChatStore.js` → `chatApi.js` → `ChatContainer.jsx` / `CertMode.jsx` / `WorkStudyMode.jsx` → `ChatInput.jsx` + `ChatMessage.jsx` + `EmptyChatView.jsx`
 
-### PDF 업로드/문서 관리
-`useDocStore.js` → `ragApi.js` → `PdfUploadModal.jsx` + `FileDropZone.jsx` → `DocumentList.jsx` / `RagUploader.jsx` / `PdfUploader.jsx`
+### PDF 업로드/문서 관리 (파인만 파이프라인 통합)
+`feynmanApi.uploadPdf` → `DocumentUploadModal.jsx` (사이드바) + `FeynmanPipelineTab.jsx` → `/api/feynman/upload` → `rag_docs`
 
 ### 마인드맵
 `useMindmapStore.js` → `mindmapApi.js` → `MindmapPanel.jsx` → `MindmapCanvas.jsx` + `MindmapNode.jsx` + `MindmapControls.jsx` + `NodeContextMenu.jsx` → `layoutGraph.js` + `exportPdf.js`

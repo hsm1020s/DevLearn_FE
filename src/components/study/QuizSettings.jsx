@@ -10,7 +10,6 @@ import { useState } from 'react';
 import { Settings, Play, Sparkles } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
-import useDocStore from '../../stores/useDocStore';
 import useStudyStore from '../../stores/useStudyStore';
 import { generateQuiz } from '../../services/studyApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
@@ -27,9 +26,8 @@ const MOCK_CHAPTERS = [
   { value: 'ch5', label: '5장: 종합 문제' },
 ];
 
-/** 퀴즈 생성 전 설정 폼. 교재/문제 수/난이도/출제 범위/모의고사 프리셋을 선택한다. */
+/** 퀴즈 생성 전 설정 폼. 문제 수/난이도/출제 범위/모의고사 프리셋을 선택한다. */
 export default function QuizSettings() {
-  const docs = useDocStore((s) => s.docs);
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
   const setQuiz = useStudyStore((s) => s.setQuiz);
   const activeSubject = useActiveSubjectId();
@@ -37,15 +35,11 @@ export default function QuizSettings() {
   // 과목별 모의고사 프리셋 (SQLP 90분/40문항, DAP 100분/50문항, …)
   const examPreset = subjectMeta.examPreset;
 
-  const completedDocs = docs.filter((d) => d.status === 'completed');
-  const docOptions = completedDocs.map((d) => ({ value: d.id, label: d.fileName }));
-
   // 문제 유형은 현재 4지선다 하나로 고정 전송 (QUIZ_TYPES가 1개짜리).
   // 나중에 서술형 등이 추가될 때 settings.types로 승격한다.
   const FIXED_TYPES = QUIZ_TYPES.map((t) => t.value);
 
   const [settings, setSettings] = useState({
-    docIds: completedDocs[0]?.id || '',
     count: String(QUIZ_COUNTS[0]),
     difficulty: QUIZ_DIFFICULTIES[1].value, // 기본 '혼합'
     chapters: [],
@@ -81,12 +75,10 @@ export default function QuizSettings() {
 
   // 설정값으로 퀴즈 생성 API 호출 후 퀴즈 풀이 단계로 전환
   const handleGenerate = async () => {
-    // 문서가 없어도 mock이 동작하므로 진행 허용 (백엔드 연결 전 UX 보존)
     setLoading(true);
     try {
       const result = await generateQuiz({
         subject: activeSubject,
-        docIds: settings.docIds ? [settings.docIds] : [],
         chapters: settings.chapters.length ? settings.chapters : null,
         count: Number(settings.count),
         difficulty: settings.difficulty,
@@ -146,12 +138,6 @@ export default function QuizSettings() {
       )}
 
       <div className="flex flex-col gap-4">
-        <Dropdown
-          label="교재 선택"
-          options={docOptions.length ? docOptions : [{ value: '', label: '업로드된 교재 없음 (사이드바 → 문서 업로드) · 데모 데이터로 시작' }]}
-          value={settings.docIds}
-          onChange={(v) => update('docIds', v)}
-        />
         <Dropdown
           label="문제 수"
           options={countOptions}

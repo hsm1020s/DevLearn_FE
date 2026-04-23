@@ -1,23 +1,12 @@
 /**
- * @fileoverview 학습 API Mock - PDF 업로드, 퀴즈 생성, 답안 채점 시뮬레이션
+ * @fileoverview 학습 API Mock - 퀴즈 생성, 답안 채점, 통계 조회 시뮬레이션.
+ * (PDF 업로드는 파인만 파이프라인으로 통합 — feynmanApi/mock 참조)
  */
 import { generateId } from '../../utils/helpers';
 import { getSubject } from '../../registry/subjects';
 import { distributeCountsByParts } from '../../utils/examScoring';
 
 const MOCK_DELAY = 500;
-
-/** PDF 업로드를 시뮬레이션하고 Mock 문서 정보를 반환한다 */
-export async function uploadPdf(file) {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
-  return {
-    docId: generateId(),
-    fileName: file.name,
-    pages: Math.floor(Math.random() * 200) + 50,
-    chunks: Math.floor(Math.random() * 800) + 200,
-    status: 'completed',
-  };
-}
 
 /** 과목 id → 문제 텍스트 프리픽스 매핑. 시연 시 과목 구분이 눈에 보이도록 한다. */
 const SUBJECT_PREFIX = {

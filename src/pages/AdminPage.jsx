@@ -1,7 +1,7 @@
 /**
  * @fileoverview 관리자 대시보드 페이지.
  * 서버 집계(GET /admin/dashboard)를 우선 표시하며, 실패 시 기존 로컬 스토어
- * (useChatStore/useDocStore/useMindmapStore/useStudyStore) 데이터로 폴백 렌더한다.
+ * (useChatStore/useMindmapStore/useStudyStore) 데이터로 폴백 렌더한다.
  * 진입 가드: isLoggedIn=false면 메인으로 리다이렉트한다. role 기반 가드는 Phase B에서 추가.
  */
 import { useEffect, useMemo } from 'react';
@@ -26,7 +26,6 @@ import useAuthStore from '../stores/useAuthStore';
 // 폴백용 — 서버 호출 실패 시 로컬 스토어 집계를 사용한다
 import useChatStore from '../stores/useChatStore';
 import useStudyStore from '../stores/useStudyStore';
-import useDocStore from '../stores/useDocStore';
 import useMindmapStore from '../stores/useMindmapStore';
 
 /** 관리자 대시보드 페이지 */
@@ -45,7 +44,6 @@ export default function AdminPage() {
     () => Object.values(allSubjects).reduce((n, b) => n + Object.keys(b.answers || {}).length, 0),
     [allSubjects],
   );
-  const docs = useDocStore((s) => s.docs);
   const maps = useMindmapStore((s) => s.maps);
 
   // 진입 가드: 비로그인 시 메인으로 리다이렉트 (Phase A — role 가드 미포함)
@@ -55,24 +53,25 @@ export default function AdminPage() {
     }
   }, [isLoggedIn, navigate]);
 
-  // 로컬 스토어 기반 폴백 집계 — 서버 데이터가 없을 때만 소비한다
+  // 로컬 스토어 기반 폴백 집계 — 서버 데이터가 없을 때만 소비한다.
+  // useDocStore가 제거된 이후 문서 수는 서버 응답이 있을 때만 의미를 가지므로 폴백은 0.
   const fallbackCounts = useMemo(
     () => ({
       totalConversations: conversations.length,
-      totalDocuments: docs.length,
+      totalDocuments: 0,
       totalMindmapNodes: Object.values(maps).reduce(
         (s, m) => s + (m.nodes?.length || 0),
         0,
       ),
       totalQuizSolved: answerCount,
     }),
-    [conversations, docs, maps, answerCount],
+    [conversations, maps, answerCount],
   );
 
   // 서버 우선, 실패/미도착 시 폴백 사용
   const counts = data?.counts ?? fallbackCounts;
   const recentConversations = data?.recentConversations ?? conversations.slice(0, 8);
-  const documents = data?.documents ?? docs;
+  const documents = data?.documents ?? [];
 
   // 카드 메타 구성 (서버 또는 폴백의 counts 값을 그대로 주입)
   const statCards = [
