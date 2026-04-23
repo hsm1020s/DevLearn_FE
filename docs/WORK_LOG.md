@@ -1,5 +1,13 @@
 # 개발 로그
 
+## 2026-04-23 (13차) — 업무학습 모드에서 업무노트·체크리스트 제거
+- 요청: 업무학습 모드의 📝 업무노트 / ✅ 체크리스트 탭이 불필요해짐.
+- 변경: `WorkLearnMode` 를 `StudyChatTab` 단독 렌더로 축소하고 관련 파일 일괄 삭제.
+  - 삭제: `WorkLearnSubTabs.jsx`, `WorkNotePanel.jsx`, `WorkNoteEditor.jsx`, `WorkLearnChecklistPanel.jsx`, `useWorkLearnStore.js`.
+  - 수정: `resetUserStores.js` — `useWorkLearnStore.reset()` 호출 제거(기존 사용자의 `worklearn-store` localStorage 키 청소는 유지).
+- 공용 `ChecklistPanel`·`StudyChatTab` 은 자격증 모드에서 계속 사용하므로 손대지 않음. `useChatStore.lastActiveByMode.worklearn` · `registry/modes.js` 의 worklearn 엔트리도 채팅 세션 유지 목적상 그대로 유지.
+- 설계 문서: [docs/designs/2026-04-23-worklearn-remove-note-checklist.md](designs/2026-04-23-worklearn-remove-note-checklist.md)
+
 ## 2026-04-23 (12차) — 자격증 퀴즈 생성을 비동기 잡 + 폴링으로 전환
 - 증상: 타임아웃을 아무리 늘려도 로컬 32B LLM 이 수 분 걸리는 동안 단일 HTTP 요청이 열려 있어 네트워크/스레드 부담, UX 불편.
 - 해결:
