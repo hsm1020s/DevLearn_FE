@@ -1,8 +1,8 @@
 /**
  * @fileoverview 채팅 API Mock - 개발/테스트용 채팅 응답 시뮬레이션.
  *
- * 학습 모드 스타일 지시문(`[학습 모드 지시문] … 파인만 기법 …`, `… 한 문장 요약 …`)을
- * 문자열 시작 토큰 + 키워드 조합으로 감지해 응답을 변형한다. 지시문 포맷은
+ * 학습 모드 스타일 지시문(`[학습 모드 지시문] … 파인만 기법 …`)을 문자열 시작 토큰 +
+ * 키워드 조합으로 감지해 응답을 변형한다. 지시문 포맷은
  * `src/hooks/useStreamingChat.js`의 `STYLE_PROMPT`와 동기화되어야 한다.
  */
 import { generateId } from '../../utils/helpers';
@@ -35,27 +35,17 @@ function buildStyledResponse(topic, style) {
       '_(Mock 응답입니다. 백엔드 연결 시 실제 점검 프롬프트로 대체됩니다.)_',
     ].join('\n');
   }
-  if (style === 'summary') {
-    return [
-      `✂️ **한 줄 요약** — "${cleanTopic}"의 핵심은:`,
-      '',
-      `> ${cleanTopic}을(를) 한 문장으로 표현하면, "핵심 개념을 한 문장으로 압축한 Mock 요약입니다."`,
-      '',
-      '_(Mock 응답입니다.)_',
-    ].join('\n');
-  }
   return null;
 }
 
 /**
  * 메시지 내용에서 학습 스타일 지시문을 감지한다.
- * `STYLE_PROMPT` 포맷은 `[학습 모드 지시문] …` 으로 시작하고 본문에 "파인만 기법" 또는
- * "한 문장 요약" 키워드를 포함한다. 시작 토큰이 없거나 키워드가 없으면 'general'.
+ * `STYLE_PROMPT` 포맷은 `[학습 모드 지시문] …` 으로 시작하고 본문에 "파인만 기법"
+ * 키워드를 포함한다. 시작 토큰이 없거나 키워드가 없으면 'general'.
  */
 function detectStyle(message) {
   if (!message || !message.startsWith('[학습 모드 지시문]')) return 'general';
   if (message.includes('파인만 기법')) return 'feynman';
-  if (message.includes('한 문장 요약')) return 'summary';
   return 'general';
 }
 

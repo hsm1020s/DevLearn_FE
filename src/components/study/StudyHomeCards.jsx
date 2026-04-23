@@ -3,7 +3,7 @@
  * 채팅 탭이 비어있을 때 상단에 표시되는 3-카드(퀴즈/이해도 점검/복습).
  * 각 카드 클릭 시 해당 서브 탭 또는 채팅 스타일로 이동한다.
  */
-import { Target, Brain, BookMarked, Scissors } from 'lucide-react';
+import { Target, Brain, BookMarked } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
 import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
@@ -21,7 +21,7 @@ const CARDS = [
     id: 'comprehend',
     icon: Brain,
     title: '🧠 이해도 점검',
-    description: '파인만 기법 / 한 줄 요약',
+    description: '파인만 기법으로 내 이해를 점검',
     subtitle: 'D그룹',
     action: { type: 'style', value: 'feynman' },
   },
@@ -79,8 +79,7 @@ export default function StudyHomeCards() {
           <span className="text-sm font-semibold text-text-primary">{title}</span>
           <span className="text-xs text-text-secondary">{description}</span>
           {id === 'comprehend' && (
-            <span className="mt-1 flex items-center gap-1 text-[11px] text-text-tertiary">
-              <Scissors size={11} />
+            <span className="mt-1 text-[11px] text-text-tertiary">
               클릭 시 파인만 스타일 프리셋 적용
             </span>
           )}

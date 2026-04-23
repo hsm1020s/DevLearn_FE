@@ -148,7 +148,7 @@ export default function useStreamingChat(mode) {
   );
 
   // 스트리밍 요청 실행 헬퍼 (409 재시도 로직에서 재사용)
-  // style: 학습 모드에서 다음 턴에 적용할 스타일(general|feynman|summary). 메시지 meta + 프리픽스에 사용.
+  // style: 학습 모드에서 다음 턴에 적용할 스타일(general|feynman). 메시지 meta + 프리픽스에 사용.
   const doStream = useCallback(
     async (content, convId, controller, style) => {
       const prefixed = style && STYLE_PROMPT[style] ? STYLE_PROMPT[style] + content : content;
@@ -268,7 +268,7 @@ export default function useStreamingChat(mode) {
         return; // 파인만 모드에서는 스타일 리셋 불필요 (고정됨)
       }
 
-      // 일반/한줄요약 — 기존 흐름
+      // 일반/파인만 스타일 칩(study 모드) — 기존 흐름
       const style = isLearningMode(mode) ? studyState.chatStyle : 'general';
 
       let convId = currentConversationId;

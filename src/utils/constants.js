@@ -38,7 +38,6 @@ export const QUIZ_TYPES = [
 export const CHAT_STYLES = [
   { value: 'general', label: '일반', short: '💬', description: '자유 질의응답' },
   { value: 'feynman', label: '파인만', short: '🧠', description: '내가 설명하면 AI가 빠진 개념을 짚어준다' },
-  { value: 'summary', label: '한줄요약', short: '✂️', description: '핵심을 한 문장으로 요약해준다' },
 ];
 
 // 모의고사 프리셋은 과목별로 분기되어 `src/registry/subjects.js` 에 정의한다.
