@@ -1,14 +1,14 @@
 /**
  * @fileoverview 개별 채팅 메시지 컴포넌트.
  * 사용자/어시스턴트 메시지를 구분하여 렌더링하고,
- * 어시스턴트 메시지는 마크다운 파싱, 출처 카드, 복사 기능, 학습 스타일 뱃지를 제공한다.
+ * 어시스턴트 메시지에는 마크다운 파싱, 출처 팝오버 버튼, 복사 기능, 학습 스타일 뱃지가 붙는다.
  */
 import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import { Copy, Check, Bot, User } from 'lucide-react';
-import SourceCard from './SourceCard';
+import SourcesPopover from './SourcesPopover';
 import { CHAT_STYLES } from '../../utils/constants';
 
 // 스타일 key → 뱃지 표시 정보
@@ -35,18 +35,12 @@ function StyleBadge({ style }) {
  * @param {object} props
  * @param {object} props.message 메시지 객체 (id, role, content, sources?, meta?)
  * @param {boolean} [props.isStreaming] 스트리밍 중 커서 표시 여부
- * @param {boolean} [props.hideInlineSources]
- *   RAG 모드처럼 우측 출처 패널이 대신 책임질 때 버블 내부의 SourceCard 를 숨긴다.
- * @param {boolean} [props.isSelected] 우측 출처 패널이 현재 참조 중인 메시지인지.
- * @param {(id: string) => void} [props.onSelect]
- *   assistant 버블 클릭 시 호출. 우측 패널이 이 메시지의 출처를 표시하도록.
  */
-export default function ChatMessage({ message, isStreaming, hideInlineSources, isSelected, onSelect }) {
+export default function ChatMessage({ message, isStreaming }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const style = message.meta?.style;
-  // 선택 가능한 대상은 assistant 메시지만 (user 버블을 눌러 출처를 바꿀 이유 없음).
-  const selectable = !isUser && typeof onSelect === 'function' && !isStreaming;
+  const hasSources = !isUser && Array.isArray(message.sources) && message.sources.length > 0;
 
   const handleCopy = useCallback(async () => {
     try {
@@ -57,14 +51,6 @@ export default function ChatMessage({ message, isStreaming, hideInlineSources, i
       /* clipboard not available */
     }
   }, [message.content]);
-
-  const handleBubbleClick = useCallback(() => {
-    if (selectable) onSelect(message.id);
-  }, [selectable, onSelect, message.id]);
-
-  // 선택 시 링 강조. 복사 버튼 클릭과의 충돌은 버튼 쪽 stopPropagation 으로 회피.
-  const selectableClasses = selectable ? 'cursor-pointer transition-shadow' : '';
-  const selectedRing = isSelected ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-transparent' : '';
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -88,20 +74,15 @@ export default function ChatMessage({ message, isStreaming, hideInlineSources, i
           [&_pre]: / [&_code]: 선택자는 prose 내부 코드블록도 동일 규칙 적용 —
           가로 스크롤 대신 줄바꿈으로 처리해 모바일·좁은 사이드바에서도 안전.
         */}
-        <div
-          onClick={selectable ? handleBubbleClick : undefined}
-          className={`
-            rounded-2xl px-4 py-2.5 text-sm leading-relaxed
-            break-words
-            [&_pre]:whitespace-pre-wrap [&_pre]:break-words
-            [&_code]:break-words
-            ${selectableClasses}
-            ${selectedRing}
-            ${isUser
-              ? 'bg-primary/10 text-text-primary rounded-br-md'
-              : 'bg-bg-secondary text-text-primary rounded-bl-md'}
-          `}
-        >
+        <div className={`
+          rounded-2xl px-4 py-2.5 text-sm leading-relaxed
+          break-words
+          [&_pre]:whitespace-pre-wrap [&_pre]:break-words
+          [&_code]:break-words
+          ${isUser
+            ? 'bg-primary/10 text-text-primary rounded-br-md'
+            : 'bg-bg-secondary text-text-primary rounded-bl-md'}
+        `}>
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
@@ -115,14 +96,10 @@ export default function ChatMessage({ message, isStreaming, hideInlineSources, i
             </div>
           )}
 
-          {/* 출처 카드 — RAG 모드에서는 우측 패널이 대신 표시하므로 hideInlineSources 로 숨긴다 */}
-          {!isUser && !hideInlineSources && message.sources && (
-            <SourceCard sources={message.sources} />
-          )}
-
-          {/* 하단 액션 — 버블 onClick(선택 토글)과 충돌하지 않도록 stopPropagation */}
+          {/* 하단 액션 — 출처 팝오버 + 복사 버튼 */}
           {!isUser && !isStreaming && (
-            <div className="flex justify-end gap-1 mt-1.5 -mr-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-end items-center gap-1 mt-1.5 -mr-1">
+              {hasSources && <SourcesPopover sources={message.sources} />}
               <button
                 onClick={handleCopy}
                 className="

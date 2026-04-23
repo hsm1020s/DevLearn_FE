@@ -7,6 +7,9 @@
  *
  * 기본값은 과거 학습 모드와 동일하게 동작한다 — 자격증 모드에서는 prop 없이 호출.
  * 업무학습 모드에서는 `mode="worklearn"`과 업무 맥락 예시·타이틀을 넘긴다.
+ *
+ * 출처는 ChatMessage 내부의 SourcesPopover 가 메시지별로 담당하므로,
+ * 이 탭은 단일 칼럼 레이아웃만 유지한다.
  */
 import { FileText } from 'lucide-react';
 import useStreamingChat from '../../hooks/useStreamingChat';
@@ -17,10 +20,7 @@ import JumpToBottomButton from '../chat/JumpToBottomButton';
 import StudyStyleChips from './StudyStyleChips';
 import StudyHomeCards from './StudyHomeCards';
 import ModeSwitcher from '../common/ModeSwitcher';
-import FeynmanSourcePanel from '../feynman/FeynmanSourcePanel';
 import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
-import useStudyStore from '../../stores/useStudyStore';
-import useChatStore from '../../stores/useChatStore';
 
 /**
  * 학습 계열 채팅 탭.
@@ -60,22 +60,10 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
   // 3카드 런처는 자격증 모드에만 기본 노출. null이 prop으로 오면 안 그림.
   const resolvedHomeCards = homeCards === undefined ? (isStudy ? <StudyHomeCards /> : null) : homeCards;
 
-  // RAG 채팅 여부 — 파인만 문서/챕터가 활성이면 /api/feynman/stream 경로로 타고,
-  // 이때만 우측 출처 패널을 노출한다. 일반 채팅/퀴즈 탭 등에는 영향 없음.
-  const feynmanDocId = useStudyStore((s) => s.feynmanDocId);
-  const feynmanChapter = useStudyStore((s) => s.feynmanChapter);
-  const isRagSession = Boolean(feynmanDocId && feynmanChapter);
-
-  // 메시지 버블 클릭 → 우측 패널이 해당 메시지의 출처를 표시.
-  const selectedMessageId = useChatStore((s) => s.selectedMessageId);
-  const selectMessage = useChatStore((s) => s.selectMessage);
-
   const isEmpty = messages.length === 0 && !streamingContent;
 
-  // RAG 세션에서는 좌측 채팅 + 우측 출처 패널 2-pane. 그 외에는 기존 단일 칼럼.
   return (
-    <div className={isRagSession ? 'flex flex-row h-full min-h-0' : 'flex flex-col h-full'}>
-      <div className="flex flex-col flex-1 min-w-0 h-full">
+    <div className="flex flex-col h-full">
       <StudyStyleChips />
 
       {isEmpty ? (
@@ -123,20 +111,13 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
             >
               <div className="max-w-4xl mx-auto flex flex-col gap-4">
                 {messages.map((msg) => (
-                  <ChatMessage
-                    key={msg.id}
-                    message={msg}
-                    hideInlineSources={isRagSession}
-                    isSelected={isRagSession && selectedMessageId === msg.id}
-                    onSelect={isRagSession ? selectMessage : undefined}
-                  />
+                  <ChatMessage key={msg.id} message={msg} />
                 ))}
                 {isStreaming && !streamingContent && <ChatLoadingBubble />}
                 {isStreaming && streamingContent && (
                   <ChatMessage
                     message={{ id: '__streaming', role: 'assistant', content: streamingContent }}
                     isStreaming
-                    hideInlineSources={isRagSession}
                   />
                 )}
               </div>
@@ -152,8 +133,6 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
           </div>
         </>
       )}
-      </div>
-      {isRagSession && <FeynmanSourcePanel />}
     </div>
   );
 }
