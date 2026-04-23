@@ -60,7 +60,9 @@ export default function QuizSettings() {
         if (cancelled) return;
         const items = list || [];
         setDocs(items);
-        if (items.length === 1) update('docId', items[0].id);
+        // native <select>는 value=''여도 첫 옵션이 화면상 선택된 것처럼 보이므로
+        // state 도 첫 문서로 맞춰 챕터 목록까지 함께 로드되게 한다.
+        if (items.length > 0) update('docId', items[0].id);
       } catch (err) {
         if (!cancelled) showError(err, '문서 목록을 불러오지 못했습니다');
       } finally {
