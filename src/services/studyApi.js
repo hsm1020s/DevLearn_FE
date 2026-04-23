@@ -13,7 +13,9 @@ import api from './api';
  */
 export async function generateQuiz(params) {
   if (API_CONFIG.useMock) return mock.generateQuiz(params);
-  const { data } = await api.post('/study/generate-quiz', params);
+  // 로컬 32B LLM 은 첫 생성 시 2~3분까지 걸리므로 전역 30초 타임아웃을 5분으로 확장.
+  // 캐시 hit 시에는 즉시 반환되므로 이 타임아웃이 실제로 쓰이는 경우는 최초 생성뿐.
+  const { data } = await api.post('/study/generate-quiz', params, { timeout: 300_000 });
   // 백엔드 ApiResponse 래핑 해제
   return data.data;
 }
