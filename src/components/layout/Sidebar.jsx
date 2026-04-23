@@ -22,9 +22,11 @@ import {
   LogOut,
   ChevronUp,
   FileUp,
+  Workflow,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
 import DocumentUploadModal from '../common/DocumentUploadModal';
+import FeynmanPipelineModal from '../common/FeynmanPipelineModal';
 import LoginModal from '../common/LoginModal';
 import useAuthStore from '../../stores/useAuthStore';
 import useAppStore from '../../stores/useAppStore';
@@ -77,6 +79,7 @@ export default function Sidebar() {
   // 모달 상태
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [showDocUpload, setShowDocUpload] = useState(false);
+  const [showPipeline, setShowPipeline] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
   // 로그아웃 드롭다운 상태
@@ -566,6 +569,14 @@ export default function Sidebar() {
       {!collapsed && (
         <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
           <button
+            onClick={() => setShowPipeline(true)}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
+              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <Workflow size={18} />
+            <span>문서 파이프라인</span>
+          </button>
+          <button
             ref={docUploadBtnRef}
             onClick={() => setShowDocUpload(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
@@ -646,6 +657,7 @@ export default function Sidebar() {
 
       <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
       <DocumentUploadModal isOpen={showDocUpload} onClose={() => setShowDocUpload(false)} anchorRef={docUploadBtnRef} />
+      <FeynmanPipelineModal isOpen={showPipeline} onClose={() => setShowPipeline(false)} />
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} anchorRef={loginBtnRef} />
 
       {/* 삭제 확인 팝오버 — 삭제 버튼 바로 옆에 fixed로 표시 */}
