@@ -1,5 +1,12 @@
 # 개발 로그
 
+## 2026-04-23 (9차) — 자격증 퀴즈를 파인만 rag 문서/챕터 기반으로 전환 + cert_docs 레거시 정리
+- 자격증 퀴즈 출제 재료가 본인이 올린 파인만 파이프라인 문서(`rag_docs`) + 챕터(`rag_chunks`) 가 되도록 프론트/백엔드 통합.
+- 프론트: [QuizSettings.jsx](../src/components/study/QuizSettings.jsx) 에 "문서 선택" Dropdown + 실제 챕터 다중선택 칩 (feynmanApi.fetchDocs/fetchTopics). 문서 없으면 안내, 선택 없으면 "퀴즈 시작" disabled.
+- 백엔드(DevLearn_BE): `FeynmanMapper.findChunksContentByDocAndChapters` 추가. `StudyService.generateQuiz(userId, request)` 를 rag 기반으로 재작성 (소유자 검증 + 청크 컨텍스트 수집). `AdminService` 문서 통계도 rag_docs 로 전환. `QuizGenerateRequest` 에 `chapters` 필드 추가. cert_docs 관련 레거시(Mapper·Entity·XML·PdfParserService·테스트) 전부 삭제. `schema.sql` 에서 cert_docs 블록 제거(기존 DB 는 별도 마이그레이션으로 DROP).
+- DB 테이블 `cert_docs` 와 `uploads/cert/*` 실물 정리는 이번 범위 외 (운영 DB 마이그레이션으로 진행).
+- 설계 문서: [docs/designs/2026-04-23-cert-quiz-from-rag.md](designs/2026-04-23-cert-quiz-from-rag.md)
+
 ## 2026-04-23 (8차) — 자격증 모드 상단 "파이프라인" 탭 제거
 - 사이드바 "문서 파이프라인" 팝업이 같은 기능을 제공하므로 중복 경로 정리.
 - [StudySubTabs.jsx](../src/components/study/StudySubTabs.jsx) · [StudyWorkspace.jsx](../src/components/study/StudyWorkspace.jsx) 에서 `pipeline` 엔트리/조건 렌더 + `Cpu`/`FeynmanPipelineTab` import 제거. persist 된 과거 `studySubTab='pipeline'` 은 `VALID_TABS` 가드 useEffect 로 `'chat'` 보정.
