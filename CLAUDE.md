@@ -37,7 +37,13 @@
 4. **회귀 테스트 범위** — Step 3에서는 이번 변경과 무관한 주요 기능(채팅/마인드맵/문서/인증 등) 1개 이상을 실제 사용해보고 `regression/notes.md` 에 결과를 기록.
 5. **상태 확인은 `/phase-status`** — 현재 어느 단계인지 헷갈리면 먼저 호출.
 6. **병합 후 재검증 + 푸시** — Step 4에서 `master` 병합이 끝나면 반드시 한 번 더 주요 기능을 실제로 돌려보고(스모크 테스트), 이상 없음을 확인한 뒤 커밋 & `git push`로 원격에 반영한다. 병합만 하고 푸시를 빼먹지 말 것.
-7. **작업 완료 후 워크트리/브랜치 정리** — `/phase-end` 이후 `git worktree list`로 확인하고, master에 병합이 끝난 워크트리와 task 브랜치는 `git worktree remove --force <path>` + `git branch -d task/<id>` 로 정리한다. 병합되지 않은 워크트리는 보존한다.
+7. **작업 완료 후 워크트리/브랜치 정리** — `/phase-end` 이후 `git worktree list`로 확인하고, master에 병합이 끝난 워크트리는 **반드시 안전 제거 스크립트를 통해** 정리한다. `git worktree remove` 를 직접 날리면 워크트리 안에서 돌던 dev 서버(Vite 등)가 파일을 잃고 조용히 죽는 사고가 재발한다.
+   - 권장: `bash .claude/hooks/safe-worktree-remove.sh <워크트리경로> --delete-branch`
+     - 뿌리박은 프로세스 종료 → 메인 레포에서 Vite 재기동 → 포트 준비 확인 → `worktree remove --force` → task 브랜치 삭제 순서로 동작.
+   - PreToolUse 훅(`guard-bash.sh`)이 `git worktree remove <path>` 를 탐지했을 때 경로에 뿌리박은 프로세스가 있으면 **활성 태스크 여부와 무관하게** 차단한다. 차단 메시지의 안내대로 위 스크립트를 사용한다.
+   - 병합되지 않은 워크트리는 보존한다.
+   - FE+BE dev 서버 상태는 `bash .claude/hooks/dev-health.sh` 로 언제든 확인 (0=둘 다 살아있음).
+   - `kill`/`pkill`/`killall`/`worktree remove`/`rm -rf` 등 위험 명령 직후에는 PostToolUse 훅(`post-bash-health.sh`)이 자동으로 dev-health 를 돌려 서버가 죽었으면 경고한다. 경고가 뜨면 즉시 안내대로 재기동한다.
 8. **설계 문서는 task 브랜치에 커밋** — `phase.sh start`가 설계 문서를 워크트리 안(`<worktree>/docs/designs/<task-id>.md`)에 생성하므로, src/ 변경과 함께 `git add docs/designs/<task-id>.md`로 커밋해야 병합 시 master에 포함된다. 누락 시 `/phase-advance merged`가 차단한다.
 9. **git에 올리면 안 되는 파일은 즉시 제외** — 새 파일이 추적 대상이 되기 전에 판정한다. 제외 대상: 빌드/캐시(`dist/`, `.vite/`, `*.tsbuildinfo`), 로그(`*.log`), 비밀(`.env*`, `*.pem`, `*_rsa`, `secrets.*`, `credentials.*`, `service-account*.json`), OS/에디터(`.DS_Store`, `.vscode/`, `.idea/`), DB 덤프(`*.sql`, `*.sqlite*`), 백업(`*.bak`, `*.orig`, `*.tmp`), 개인 스크립트·실험 폴더, 바이너리 산출물. 판단되면 `.gitignore`에 즉시 추가하고, **이미 추적 중이면 `git rm --cached <path>`로 추적 해제 후 함께 커밋**한다. `.gitignore`에 추가만 하고 `rm --cached`를 빠뜨리면 파일이 계속 추적되니 주의.
 
