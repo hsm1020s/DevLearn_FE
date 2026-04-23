@@ -298,7 +298,6 @@ const useStudyStore = create(
        * v5→v6: 학습 모드 기록 탭에서 체크리스트 서브탭 제거. 자격증 학습은
        * 오답·통계 중심으로 단순화하고, 과목별 진도 체크는 가치 대비 비용이 큼.
        * subjects[*].checklist 필드를 드롭하며 사용자가 체크한 챕터 상태는 소실.
-       * 업무학습 모드의 체크리스트는 별도 스토어(`useWorkLearnStore`)라 무관.
        *
        * v6→v7: 단답형(`short`) 문제 유형 제거 — SQLP/DAP 실제 시험에 단답형이
        * 없어 4지선다만 남긴다. 각 subjects 버킷의 stats.byType에서 short 키를
