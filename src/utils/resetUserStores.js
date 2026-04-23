@@ -12,7 +12,6 @@
 import useChatStore from '../stores/useChatStore';
 import useMindmapStore from '../stores/useMindmapStore';
 import useStudyStore from '../stores/useStudyStore';
-import useWorkLearnStore from '../stores/useWorkLearnStore';
 
 /** persist 키 목록 — 각 스토어의 `name` 옵션과 일치해야 함 */
 const USER_STORE_KEYS = [
@@ -20,7 +19,7 @@ const USER_STORE_KEYS = [
   'doc-store', // 과거 useDocStore persist 잔여값이 있을 수 있어 함께 정리
   'mindmap-store',
   'study-store',
-  'worklearn-store',
+  'worklearn-store', // 과거 useWorkLearnStore persist 잔여값 정리용 (스토어는 제거됨)
 ];
 
 /** 사용자별 로컬 상태와 localStorage 캐시를 모두 초기화한다. */
@@ -28,7 +27,6 @@ export function resetUserStores() {
   useChatStore.getState().reset();
   useMindmapStore.getState().reset();
   useStudyStore.getState().reset();
-  useWorkLearnStore.getState().reset();
   for (const key of USER_STORE_KEYS) {
     try {
       localStorage.removeItem(key);
