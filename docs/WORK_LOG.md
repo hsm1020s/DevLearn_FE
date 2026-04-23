@@ -1,5 +1,19 @@
 # 개발 로그
 
+## 2026-04-23 (11차) — 자격증 퀴즈 동일 요청 캐싱 + 타임아웃 확장
+- 증상: 로컬 EXAONE 32B 같은 느린 LLM 이 axios 30초/백엔드 60초 내에 못 끝내 cancel 되고, 재시도해도 같은 요청이 매번 LLM 재호출. UX 끔찍.
+- 해결:
+  - 백엔드 `quizzes.cache_key VARCHAR(64)` + 사용자별 부분 유니크 인덱스 추가. `StudyService.generateQuiz` 진입 직후 SHA-256 기반 `buildCacheKey(userId, docId, chapters, count, difficulty, types, llm)` 로 기존 퀴즈 조회 → hit 면 `buildResponseFromExistingQuiz` 로 LLM 없이 즉시 반환. miss 만 생성 후 cache_key 포함 저장.
+  - 백엔드 `LlmConfig.llmRestTemplate` read-timeout 60초 → 240초.
+  - 프론트 `studyApi.generateQuiz` 요청 개별 `timeout: 300_000` 명시 (전역 30초는 그대로).
+- 운영 DB 마이그레이션 필요:
+  ```sql
+  ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS cache_key VARCHAR(64);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_quizzes_user_cache
+      ON quizzes(user_id, cache_key) WHERE cache_key IS NOT NULL;
+  ```
+- 설계 문서: [docs/designs/2026-04-23-cert-quiz-cache.md](designs/2026-04-23-cert-quiz-cache.md)
+
 ## 2026-04-23 (10차) — 자격증 퀴즈 생성을 공용 LlmClient 경로로 전환
 - 기존: `StudyService` 가 `RestTemplate` 으로 OpenAI 만 직접 호출 → `OPENAI_API_KEY` 가 비어 있으면 스텁 문제가 나옴.
 - 변경: 파인만/일반 채팅과 같은 [LlmClient](../../../../IdeaProjects/DevLearn_BE/src/main/java/com/moon/devlearn/chat/service/LlmClient.java) 를 주입해 `llmClient.call(messages, llm)` 으로 호출. 사용자가 사이드바에서 고른 LLM(로컬 `gpt-oss-20b` · Claude · Gemini · OpenAI 등)을 그대로 퀴즈 생성에도 사용. `request.llm` 비어 있으면 `DEFAULT_LLM="gpt-oss-20b"` 폴백.
