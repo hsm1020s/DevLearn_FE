@@ -4,16 +4,27 @@
  * useAppStore.studySubTab을 보고 탭 컴포넌트를 mount/unmount 없이 전환한다.
  * (mount 유지 전략은 각 탭의 로컬 state가 persist되지 않아도 살아있도록 하기 위함.)
  */
+import { useEffect } from 'react';
 import useAppStore from '../../stores/useAppStore';
 import StudySubTabs from './StudySubTabs';
 import StudyChatTab from './StudyChatTab';
 import StudyQuizTab from './StudyQuizTab';
 import StudyRecordTab from './StudyRecordTab';
-import FeynmanPipelineTab from '../feynman/FeynmanPipelineTab';
+
+const VALID_TABS = ['chat', 'quiz', 'record'];
 
 /** 학습 워크스페이스 — 탭 바 + 현재 탭 본문. */
 export default function StudyWorkspace() {
   const studySubTab = useAppStore((s) => s.studySubTab);
+  const setStudySubTab = useAppStore((s) => s.setStudySubTab);
+
+  // persist 잔재(예: 과거 'pipeline' 탭)가 남아 있으면 'chat'으로 보정.
+  // 파이프라인 탭은 제거되어 이 워크스페이스에서 렌더하지 않으므로 빈 화면이 뜨는 것을 방지.
+  useEffect(() => {
+    if (!VALID_TABS.includes(studySubTab)) {
+      setStudySubTab('chat');
+    }
+  }, [studySubTab, setStudySubTab]);
 
   return (
     <div className="flex flex-col h-full">
@@ -29,7 +40,6 @@ export default function StudyWorkspace() {
         {studySubTab === 'chat' && <StudyChatTab />}
         {studySubTab === 'quiz' && <StudyQuizTab />}
         {studySubTab === 'record' && <StudyRecordTab />}
-        {studySubTab === 'pipeline' && <FeynmanPipelineTab />}
       </div>
     </div>
   );
