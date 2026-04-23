@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (10차) — 자격증 퀴즈 생성을 공용 LlmClient 경로로 전환
+- 기존: `StudyService` 가 `RestTemplate` 으로 OpenAI 만 직접 호출 → `OPENAI_API_KEY` 가 비어 있으면 스텁 문제가 나옴.
+- 변경: 파인만/일반 채팅과 같은 [LlmClient](../../../../IdeaProjects/DevLearn_BE/src/main/java/com/moon/devlearn/chat/service/LlmClient.java) 를 주입해 `llmClient.call(messages, llm)` 으로 호출. 사용자가 사이드바에서 고른 LLM(로컬 `gpt-oss-20b` · Claude · Gemini · OpenAI 등)을 그대로 퀴즈 생성에도 사용. `request.llm` 비어 있으면 `DEFAULT_LLM="gpt-oss-20b"` 폴백.
+- 프론트: [QuizSettings.jsx](../src/components/study/QuizSettings.jsx) 가 `useAppStore.selectedLLM` 을 읽어 `generateQuiz` 페이로드에 `llm` 필드로 전달.
+- 설계 문서: [docs/designs/2026-04-23-cert-quiz-llmclient.md](designs/2026-04-23-cert-quiz-llmclient.md)
+
 ## 2026-04-23 (9차) — 자격증 퀴즈를 파인만 rag 문서/챕터 기반으로 전환 + cert_docs 레거시 정리
 - 자격증 퀴즈 출제 재료가 본인이 올린 파인만 파이프라인 문서(`rag_docs`) + 챕터(`rag_chunks`) 가 되도록 프론트/백엔드 통합.
 - 프론트: [QuizSettings.jsx](../src/components/study/QuizSettings.jsx) 에 "문서 선택" Dropdown + 실제 챕터 다중선택 칩 (feynmanApi.fetchDocs/fetchTopics). 문서 없으면 안내, 선택 없으면 "퀴즈 시작" disabled.
