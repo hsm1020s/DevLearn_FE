@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (8차) — 자격증 모드 상단 "파이프라인" 탭 제거
+- 사이드바 "문서 파이프라인" 팝업이 같은 기능을 제공하므로 중복 경로 정리.
+- [StudySubTabs.jsx](../src/components/study/StudySubTabs.jsx) · [StudyWorkspace.jsx](../src/components/study/StudyWorkspace.jsx) 에서 `pipeline` 엔트리/조건 렌더 + `Cpu`/`FeynmanPipelineTab` import 제거. persist 된 과거 `studySubTab='pipeline'` 은 `VALID_TABS` 가드 useEffect 로 `'chat'` 보정.
+- `FeynmanPipelineTab.jsx` 컴포넌트 자체는 유지 — 사이드바 `FeynmanPipelineModal` 에서 계속 사용.
+- 설계 문서: [docs/designs/2026-04-23-remove-study-pipeline-tab.md](designs/2026-04-23-remove-study-pipeline-tab.md)
+
 ## 2026-04-23 (7차) — /api/feynman/verify 사용자별 격리 보강 (BE)
 - 6차 커밋에서 `/docs`, `/topics`, `/stream` 에만 `assertDocOwner` 를 걸었고 `/verify` 는 누락되어 있었음 — RAG 청크(원문)가 남의 docId 로도 조회될 수 있던 구멍을 막음.
 - DevLearn_BE: `FeynmanService.verify(userId, VerifyRequest)` 로 시그니처 변경 + 진입부에 `assertDocOwner(userId, docId)` 추가. `FeynmanController.verify` 가 `getCurrentUserId()` 로 userId 추출해 서비스에 전달.
