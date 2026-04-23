@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (3차) — 학습 채팅 한줄요약(summary) 스타일 제거
+- 스타일 칩 3종(일반/파인만/한줄요약) 중 "한줄요약"을 폐기. 프롬프트·UI 단축 액션·Mock 감지 분기·홈 카드 설명까지 전부 정리.
+- 변경: [constants.js](../src/utils/constants.js), [stylePrompts.js](../src/registry/stylePrompts.js), [useStreamingChat.js](../src/hooks/useStreamingChat.js), [chatMock.js](../src/services/mock/chatMock.js), [ChatMessage.jsx](../src/components/chat/ChatMessage.jsx), [StudyHomeCards.jsx](../src/components/study/StudyHomeCards.jsx), [StudyStyleChips.jsx](../src/components/study/StudyStyleChips.jsx), [StudyChatTab.jsx](../src/components/study/StudyChatTab.jsx).
+- 백엔드 변경 없음 (style 정보가 DTO/DB에 저장되지 않음). 기존 `style:'summary'` 값은 STYLE_PROMPT 부재 분기로 원문 전송 + 뱃지 미렌더 fallback.
+- 설계 문서: [docs/designs/2026-04-23-remove-summary-style.md](designs/2026-04-23-remove-summary-style.md)
+
 ## 2026-04-23 (2차) — 채팅 음성 입력(STT) 마이크 버튼 추가
 - 공통 [ChatInput.jsx](../src/components/chat/ChatInput.jsx) 에 Web Speech API 기반 마이크 토글 추가. 파인만·자격증 학습·일반 채팅 모두 동일 적용 (미지원 브라우저는 버튼 자체 숨김).
 - 신규 [useSpeechRecognition.js](../src/hooks/useSpeechRecognition.js) — `ko-KR`, `continuous=true`, `interimResults=true`. 자동 종료 X (사용자 수동 토글 또는 전송 시에만 stop). `stop()` 에서 onresult/onend 핸들러를 즉시 null 처리 + finalBuffer 리셋하여 전송 직후 지연된 result가 textarea를 재오염시키는 현상 차단.
