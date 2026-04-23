@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (7차) — /api/feynman/verify 사용자별 격리 보강 (BE)
+- 6차 커밋에서 `/docs`, `/topics`, `/stream` 에만 `assertDocOwner` 를 걸었고 `/verify` 는 누락되어 있었음 — RAG 청크(원문)가 남의 docId 로도 조회될 수 있던 구멍을 막음.
+- DevLearn_BE: `FeynmanService.verify(userId, VerifyRequest)` 로 시그니처 변경 + 진입부에 `assertDocOwner(userId, docId)` 추가. `FeynmanController.verify` 가 `getCurrentUserId()` 로 userId 추출해 서비스에 전달.
+- 프론트 호출 시그니처 불변 (JWT 자동 주입).
+- 설계 문서: [docs/designs/2026-04-23-feynman-verify-scope.md](designs/2026-04-23-feynman-verify-scope.md)
+
 ## 2026-04-23 (6차) — 파인만 문서 사용자별 격리 수정 (BE 보안 버그)
 - 증상: `GET /api/feynman/docs` 가 모든 사용자의 completed 문서를 반환 + `/topics` · `/stream` 에서 docId 소유자 검증 누락 → 계정 B가 A의 파일명/챕터/RAG 컨텍스트에 접근 가능.
 - DevLearn_BE 수정 (이번 FE 레포에는 설계 문서만 포함):
