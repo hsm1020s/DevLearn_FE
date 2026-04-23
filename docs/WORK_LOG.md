@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (5차) — 사이드바 "문서 파이프라인" 팝업 추가
+- "문서 업로드" 바로 위에 [FeynmanPipelineModal.jsx](../src/components/common/FeynmanPipelineModal.jsx) 를 띄우는 "문서 파이프라인" 버튼 추가 ([Sidebar.jsx](../src/components/layout/Sidebar.jsx)). 내부에 기존 FeynmanPipelineTab 을 그대로 임베드해 파인만 모드 탭과 동일 기능을 사이드바에서도 제공.
+- 닫혀 있을 땐 자식 언마운트로 폴링/초기 조회 비용 0. ESC · 오버레이 · X 닫기.
+- 파인만 모드 "파이프라인 관리" 탭은 변경 없이 유지 (중복 접근 허용).
+- 설계 문서: [docs/designs/2026-04-23-feynman-pipeline-modal.md](designs/2026-04-23-feynman-pipeline-modal.md)
+
 ## 2026-04-23 (4차) — 사이드바 업로드를 파인만 파이프라인으로 통합
 - 사이드바 "문서 업로드" 버튼이 `/api/study/upload` → `/api/feynman/upload` 로 전환. 업로드된 문서는 `rag_docs`에 적재되고 파이프라인 실행은 기존대로 "파인만 → 파이프라인 관리" 탭에서 수동으로.
 - 프론트: [DocumentUploadModal.jsx](../src/components/common/DocumentUploadModal.jsx) — feynmanApi로 교체 + useDocStore 의존 제거. `useDocStore.js`·`PdfUploader.jsx` 삭제. [QuizSettings.jsx](../src/components/study/QuizSettings.jsx) "교재 선택" 드롭다운 · [StudyStats.jsx](../src/components/study/StudyStats.jsx) "업로드 문서" 카드 · AdminPage 폴백 집계 정리.
