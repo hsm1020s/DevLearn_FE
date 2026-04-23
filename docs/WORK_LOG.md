@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 (2차) — 채팅 음성 입력(STT) 마이크 버튼 추가
+- 공통 [ChatInput.jsx](../src/components/chat/ChatInput.jsx) 에 Web Speech API 기반 마이크 토글 추가. 파인만·자격증 학습·일반 채팅 모두 동일 적용 (미지원 브라우저는 버튼 자체 숨김).
+- 신규 [useSpeechRecognition.js](../src/hooks/useSpeechRecognition.js) — `ko-KR`, `continuous=true`, `interimResults=true`. 자동 종료 X (사용자 수동 토글 또는 전송 시에만 stop). `stop()` 에서 onresult/onend 핸들러를 즉시 null 처리 + finalBuffer 리셋하여 전송 직후 지연된 result가 textarea를 재오염시키는 현상 차단.
+- [index.html](../index.html) `Permissions-Policy: microphone=()` → `microphone=(self)` 로 완화 (기존에는 마이크 자체 차단).
+- 설계 문서: [docs/designs/2026-04-23-feynman-stt-mic.md](designs/2026-04-23-feynman-stt-mic.md)
+
 ## 2026-04-23 — 새로고침 후 LLM 셀렉터-대화 불일치 버그 수정
 - 증상: GPT로 만든 대화방을 열어둔 채 새로고침 → 사이드바 "LLM 선택" 드롭다운이 기본값(Claude Haiku)으로 리셋 → 첫 전송이 대화에 저장된 모델과 다른 모델로 나감.
 - 원인: `useAppStore.selectedLLM`이 `partialize`에서 빠져 있어 초기값으로 리셋되는 반면, `useChatStore.currentConversationId`는 persist 복원 → 두 상태 비동기 분기.
