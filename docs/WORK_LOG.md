@@ -1,5 +1,11 @@
 # 개발 로그
 
+## 2026-04-23 — 새로고침 후 LLM 셀렉터-대화 불일치 버그 수정
+- 증상: GPT로 만든 대화방을 열어둔 채 새로고침 → 사이드바 "LLM 선택" 드롭다운이 기본값(Claude Haiku)으로 리셋 → 첫 전송이 대화에 저장된 모델과 다른 모델로 나감.
+- 원인: `useAppStore.selectedLLM`이 `partialize`에서 빠져 있어 초기값으로 리셋되는 반면, `useChatStore.currentConversationId`는 persist 복원 → 두 상태 비동기 분기.
+- 수정: [Sidebar.jsx](../src/components/layout/Sidebar.jsx)에 `currentConversationId` 변경 시(복원 + 전환 포함) 해당 대화의 `llm`/`mode`를 셀렉터와 동기화하는 `useEffect` 추가. deps는 `[currentConversationId, setLLM, setMainMode]`로 한정해 사용자의 Dropdown 직접 조작이나 메시지 추가는 재실행하지 않도록 함 (`conversations`/`selectedLLM`은 내부에서 `getState()`로 스냅샷만 읽음).
+- 설계 문서: [docs/designs/2026-04-23-fix-llm-selector-sync.md](designs/2026-04-23-fix-llm-selector-sync.md)
+
 ## 2026-04-22 — 채팅 LLM 선택지 가성비 모델로 교체
 - 사이드바 LLM 드롭다운의 클라우드 3종을 각 벤더의 가성비 티어로 교체 ([constants.js](../src/utils/constants.js)):
   - GPT-4o → **GPT-4o mini** (`gpt-4o-mini`)
