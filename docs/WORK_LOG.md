@@ -1,5 +1,12 @@
 # 개발 로그
 
+## 2026-04-23 (4차) — 사이드바 업로드를 파인만 파이프라인으로 통합
+- 사이드바 "문서 업로드" 버튼이 `/api/study/upload` → `/api/feynman/upload` 로 전환. 업로드된 문서는 `rag_docs`에 적재되고 파이프라인 실행은 기존대로 "파인만 → 파이프라인 관리" 탭에서 수동으로.
+- 프론트: [DocumentUploadModal.jsx](../src/components/common/DocumentUploadModal.jsx) — feynmanApi로 교체 + useDocStore 의존 제거. `useDocStore.js`·`PdfUploader.jsx` 삭제. [QuizSettings.jsx](../src/components/study/QuizSettings.jsx) "교재 선택" 드롭다운 · [StudyStats.jsx](../src/components/study/StudyStats.jsx) "업로드 문서" 카드 · AdminPage 폴백 집계 정리.
+- 백엔드(DevLearn_BE): `StudyController.uploadPdf` 엔드포인트 + `StudyService.uploadPdf` + `PdfUploadResponse` DTO 제거 및 관련 테스트 정리.
+- DB `cert_docs` / `./uploads/cert/*` 물리 파일은 이번 범위 외 (후속 작업).
+- 설계 문서: [docs/designs/2026-04-23-sidebar-upload-to-feynman.md](designs/2026-04-23-sidebar-upload-to-feynman.md)
+
 ## 2026-04-23 (3차) — 학습 채팅 한줄요약(summary) 스타일 제거
 - 스타일 칩 3종(일반/파인만/한줄요약) 중 "한줄요약"을 폐기. 프롬프트·UI 단축 액션·Mock 감지 분기·홈 카드 설명까지 전부 정리.
 - 변경: [constants.js](../src/utils/constants.js), [stylePrompts.js](../src/registry/stylePrompts.js), [useStreamingChat.js](../src/hooks/useStreamingChat.js), [chatMock.js](../src/services/mock/chatMock.js), [ChatMessage.jsx](../src/components/chat/ChatMessage.jsx), [StudyHomeCards.jsx](../src/components/study/StudyHomeCards.jsx), [StudyStyleChips.jsx](../src/components/study/StudyStyleChips.jsx), [StudyChatTab.jsx](../src/components/study/StudyChatTab.jsx).
