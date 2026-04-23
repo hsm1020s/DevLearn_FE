@@ -1,5 +1,15 @@
 # 개발 로그
 
+## 2026-04-23 (6차) — 파인만 문서 사용자별 격리 수정 (BE 보안 버그)
+- 증상: `GET /api/feynman/docs` 가 모든 사용자의 completed 문서를 반환 + `/topics` · `/stream` 에서 docId 소유자 검증 누락 → 계정 B가 A의 파일명/챕터/RAG 컨텍스트에 접근 가능.
+- DevLearn_BE 수정 (이번 FE 레포에는 설계 문서만 포함):
+  - `FeynmanMapper.findCompletedDocs` → `findCompletedDocsByUserId` 로 rename + `AND user_id = #{userId}::uuid` 필터.
+  - `FeynmanService.getDocs(userId)` / `getTopics(userId, docId)` / `streamChat` 진입 시 `assertDocOwner(userId, docId)` 추가. (기존 `validateAndPreparePipeline` 과 동일한 NOT_FOUND/FORBIDDEN 패턴.)
+  - `FeynmanController` 두 엔드포인트가 `SecurityContextHolder` 에서 userId 추출해 전달.
+- 업로드 · 파이프라인 관리(`/docs/all`) · 파이프라인 실행 경로는 이미 격리되어 있어 미변경.
+- 프론트 호출 시그니처 불변 (JWT 기반 자동 주입).
+- 설계 문서: [docs/designs/2026-04-23-feynman-doc-user-scope.md](designs/2026-04-23-feynman-doc-user-scope.md)
+
 ## 2026-04-23 (5차) — 사이드바 "문서 파이프라인" 팝업 추가
 - "문서 업로드" 바로 위에 [FeynmanPipelineModal.jsx](../src/components/common/FeynmanPipelineModal.jsx) 를 띄우는 "문서 파이프라인" 버튼 추가 ([Sidebar.jsx](../src/components/layout/Sidebar.jsx)). 내부에 기존 FeynmanPipelineTab 을 그대로 임베드해 파인만 모드 탭과 동일 기능을 사이드바에서도 제공.
 - 닫혀 있을 땐 자식 언마운트로 폴링/초기 조회 비용 0. ESC · 오버레이 · X 닫기.
