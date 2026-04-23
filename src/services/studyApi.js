@@ -7,16 +7,21 @@ import * as mock from './mock/studyMock';
 import api from './api';
 
 /**
- * 업로드된 문서 기반으로 퀴즈를 생성한다.
- * `params.subject` (예: 'sqlp' | 'dap' | 'custom') — 과목 분류. 선택 필드이며
- * 백엔드가 지원하기 전까지는 mock에서만 사용된다.
+ * 퀴즈 생성 요청. 서버는 즉시 `{ quizId, status }` 를 반환하고 (processing 이면 백엔드가
+ * 백그라운드 잡으로 LLM 호출), 프론트는 `fetchQuizStatus` 로 3초 간격 폴링해 완료되면
+ * 문제 목록을 받는다. 캐시 hit 이면 첫 응답에서 `status="completed" + questions` 가 바로 옴.
  */
 export async function generateQuiz(params) {
   if (API_CONFIG.useMock) return mock.generateQuiz(params);
-  // 로컬 32B LLM 은 첫 생성 시 2~3분까지 걸리므로 전역 30초 타임아웃을 5분으로 확장.
-  // 캐시 hit 시에는 즉시 반환되므로 이 타임아웃이 실제로 쓰이는 경우는 최초 생성뿐.
-  const { data } = await api.post('/study/generate-quiz', params, { timeout: 300_000 });
+  const { data } = await api.post('/study/generate-quiz', params);
   // 백엔드 ApiResponse 래핑 해제
+  return data.data;
+}
+
+/** 퀴즈 잡 상태 폴링. completed 면 questions 포함, failed 면 errorMessage 포함. */
+export async function fetchQuizStatus(quizId) {
+  if (API_CONFIG.useMock) return mock.fetchQuizStatus(quizId);
+  const { data } = await api.get(`/study/quizzes/${encodeURIComponent(quizId)}`);
   return data.data;
 }
 

@@ -7,13 +7,13 @@
  * 문제 유형은 SQLP/DAP 실제 시험 구성에 맞춰 4지선다만 지원하므로 UI 선택지
  * 없이 내부에서 `['multiple']`로 고정 전송한다(실기 서술형은 별도 태스크 대상).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, Play, Sparkles, Loader2 } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
 import useStudyStore from '../../stores/useStudyStore';
 import useAppStore from '../../stores/useAppStore';
-import { generateQuiz } from '../../services/studyApi';
+import { generateQuiz, fetchQuizStatus } from '../../services/studyApi';
 import { fetchDocs, fetchTopics } from '../../services/feynmanApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES, LLM_OPTIONS } from '../../utils/constants';
 import { showError } from '../../utils/errorHandler';
@@ -50,6 +50,12 @@ export default function QuizSettings() {
   // 모의고사 모드 여부 — on이면 과목별 프리셋(문항수·시간·난이도)을 자동 세팅
   const [examMode, setExamMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  // 폴링 진행 상황 표시용 — 경과 초. 폴링 중 언마운트 감지용 cancelRef.
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const cancelRef = useRef(false);
+
+  // 언마운트 시 폴링 종료 플래그 세팅
+  useEffect(() => () => { cancelRef.current = true; }, []);
 
   const update = (key, value) => setSettings((prev) => ({ ...prev, [key]: value }));
 
@@ -121,6 +127,34 @@ export default function QuizSettings() {
     setExamMode(false);
   };
 
+  /**
+   * 비동기 잡 생성 + 폴링.
+   *   1. POST /generate-quiz 로 {quizId, status} 받음.
+   *   2. status=completed 면 바로 퀴즈 풀이 화면 전환.
+   *   3. processing 이면 3초 간격으로 fetchQuizStatus 폴링. 최대 10분(200회).
+   *   4. failed 면 에러 토스트. timeout 이면 안내.
+   */
+  const pollUntilDone = useCallback(async (quizId) => {
+    const INTERVAL = 3000;
+    const MAX_ATTEMPTS = 200; // 3초 × 200 = 10분
+    const startedAt = Date.now();
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      if (cancelRef.current) return null;
+      await new Promise((r) => setTimeout(r, INTERVAL));
+      if (cancelRef.current) return null;
+      setElapsedSec(Math.round((Date.now() - startedAt) / 1000));
+      const status = await fetchQuizStatus(quizId);
+      if (status.status === 'completed') return status;
+      if (status.status === 'failed') {
+        const err = new Error(status.errorMessage || '퀴즈 생성 실패');
+        err.userMessage = status.errorMessage;
+        throw err;
+      }
+      // processing 이면 계속
+    }
+    throw new Error('퀴즈 생성이 너무 오래 걸려 중단되었습니다. 잠시 뒤 다시 시도해주세요.');
+  }, []);
+
   // 설정값으로 퀴즈 생성 API 호출 후 퀴즈 풀이 단계로 전환
   const handleGenerate = async () => {
     if (!settings.docId) {
@@ -128,8 +162,10 @@ export default function QuizSettings() {
       return;
     }
     setLoading(true);
+    setElapsedSec(0);
+    cancelRef.current = false;
     try {
-      const result = await generateQuiz({
+      const initial = await generateQuiz({
         subject: activeSubject,
         docIds: [settings.docId],
         chapters: settings.chapters.length ? settings.chapters : null,
@@ -140,13 +176,22 @@ export default function QuizSettings() {
         // 서버에서 비어 있으면 DEFAULT_LLM 로 폴백한다.
         llm: selectedLLM,
       });
+
+      // status=completed 면 즉시 진입 (캐시 hit 포함). processing 이면 폴링.
+      const finalResult = initial.status === 'processing'
+        ? await pollUntilDone(initial.quizId)
+        : initial;
+
+      if (!finalResult) return; // 언마운트로 취소된 경우
+
       // 모의고사면 과목별 examPreset.timerSec 적용
-      setQuiz(result, { timerSec: examMode ? examPreset.timerSec : null });
+      setQuiz(finalResult, { timerSec: examMode ? examPreset.timerSec : null });
       setStudyStep('quiz');
     } catch (err) {
       showError(err, '퀴즈 생성에 실패했습니다');
     } finally {
       setLoading(false);
+      setElapsedSec(0);
     }
   };
 
@@ -283,7 +328,12 @@ export default function QuizSettings() {
 
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {loading && (
+          <span className="text-xs text-text-tertiary">
+            LLM 응답 대기 중… {elapsedSec > 0 && `(${elapsedSec}초 경과)`}
+          </span>
+        )}
         <Button onClick={handleGenerate} disabled={disabledStart}>
           <Play className="w-4 h-4" />
           {loading ? '생성 중...' : examMode ? '모의고사 시작' : '퀴즈 시작'}

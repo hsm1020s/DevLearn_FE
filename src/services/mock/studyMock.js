@@ -53,7 +53,13 @@ export async function generateQuiz({ subject, chapters, count, types }) {
     };
   });
 
-  return { quizId: generateId(), subject, questions };
+  return { quizId: generateId(), subject, status: 'completed', questions };
+}
+
+/** 퀴즈 상태 폴링 Mock — 즉시 completed 반환(실 서비스 흐름을 단순 모사). */
+export async function fetchQuizStatus(quizId) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  return { quizId, status: 'completed', questions: [] };
 }
 
 /** 답안 제출을 시뮬레이션하고 랜덤 채점 결과를 반환한다 */
