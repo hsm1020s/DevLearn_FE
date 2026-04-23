@@ -162,6 +162,7 @@ export async function streamFeynmanChat(params) {
             onDone?.({
               conversationId: parsed.conversationId,
               content: parsed.content || accumulated,
+              sources: parsed.sources,
             });
           }
         } catch { /* skip unparseable lines */ }

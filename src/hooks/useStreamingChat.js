@@ -133,6 +133,7 @@ export default function useStreamingChat(mode) {
             addMessage({
               role: 'assistant',
               content: result.content,
+              sources: result.sources,
               meta: { style: 'feynman' },
             });
           }
