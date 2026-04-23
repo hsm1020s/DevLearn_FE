@@ -1,5 +1,19 @@
 # 개발 로그
 
+## 2026-04-23 (12차) — 자격증 퀴즈 생성을 비동기 잡 + 폴링으로 전환
+- 증상: 타임아웃을 아무리 늘려도 로컬 32B LLM 이 수 분 걸리는 동안 단일 HTTP 요청이 열려 있어 네트워크/스레드 부담, UX 불편.
+- 해결:
+  - `POST /api/study/generate-quiz` 는 즉시 `{quizId, status:"processing"}` 반환 + `@Async generateQuizAsync` 로 LLM 호출 백그라운드 진행.
+  - 신규 `GET /api/study/quizzes/{quizId}` 가 상태+완료된 문제를 돌려준다. 소유자 체크 포함.
+  - 프론트 [QuizSettings](../src/components/study/QuizSettings.jsx) 에 3초 간격·최대 10분 폴링과 경과 초 표시, 언마운트 시 cancelRef 로 중단.
+  - [studyApi.fetchQuizStatus](../src/services/studyApi.js) 신규.
+- DB: `quizzes.status`, `error_message` 컬럼 추가(기본값 completed 라 기존 레코드 호환).
+  ```sql
+  ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed';
+  ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS error_message TEXT;
+  ```
+- 설계 문서: [docs/designs/2026-04-23-quiz-async-job.md](designs/2026-04-23-quiz-async-job.md)
+
 ## 2026-04-23 (11차) — 자격증 퀴즈 동일 요청 캐싱 + 타임아웃 확장
 - 증상: 로컬 EXAONE 32B 같은 느린 LLM 이 axios 30초/백엔드 60초 내에 못 끝내 cancel 되고, 재시도해도 같은 요청이 매번 LLM 재호출. UX 끔찍.
 - 해결:
