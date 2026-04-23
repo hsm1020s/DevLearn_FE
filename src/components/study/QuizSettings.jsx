@@ -12,6 +12,7 @@ import { Settings, Play, Sparkles, Loader2 } from 'lucide-react';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
 import useStudyStore from '../../stores/useStudyStore';
+import useAppStore from '../../stores/useAppStore';
 import { generateQuiz } from '../../services/studyApi';
 import { fetchDocs, fetchTopics } from '../../services/feynmanApi';
 import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
@@ -24,6 +25,7 @@ const countOptions = QUIZ_COUNTS.map((n) => ({ value: String(n), label: `${n}문
 export default function QuizSettings() {
   const setStudyStep = useStudyStore((s) => s.setStudyStep);
   const setQuiz = useStudyStore((s) => s.setQuiz);
+  const selectedLLM = useAppStore((s) => s.selectedLLM);
   const activeSubject = useActiveSubjectId();
   const subjectMeta = useActiveSubjectMeta();
   // 과목별 모의고사 프리셋 (SQLP 90분/40문항, DAP 100분/50문항, …)
@@ -134,6 +136,9 @@ export default function QuizSettings() {
         count: Number(settings.count),
         difficulty: settings.difficulty,
         types: FIXED_TYPES,
+        // 사용자가 사이드바에서 선택한 LLM을 그대로 전달(로컬 gpt-oss-20b 기본).
+        // 서버에서 비어 있으면 DEFAULT_LLM 로 폴백한다.
+        llm: selectedLLM,
       });
       // 모의고사면 과목별 examPreset.timerSec 적용
       setQuiz(result, { timerSec: examMode ? examPreset.timerSec : null });
