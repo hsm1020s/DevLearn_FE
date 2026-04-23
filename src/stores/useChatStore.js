@@ -30,6 +30,9 @@ const useChatStore = create(
       lastActiveByMode: { general: null, study: null, worklearn: null },
       // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
+      // 우측 출처 패널이 볼 메시지 id. null 이면 패널이 가장 최근 assistant 메시지를 따라감.
+      // 대화를 전환하면 새 대화의 기본(최신 assistant)을 보여주도록 리셋.
+      selectedMessageId: null,
       // 서버 대화 목록 동기화 상태
       isConversationsLoading: false,
       conversationsError: null,
@@ -142,15 +145,28 @@ const useChatStore = create(
        */
       setCurrentConversation: (id) => {
         if (id == null) {
-          set({ currentConversationId: null });
+          // 대화 해제 시 선택 상태도 초기화 — 다음 진입은 최신 assistant 를 따라감.
+          set({ currentConversationId: null, selectedMessageId: null });
           return;
         }
         const conv = get().conversations.find((c) => c.id === id);
         set((state) => ({
           currentConversationId: id,
+          // 대화를 바꾸면 이전 대화의 선택은 버리고 새 대화의 기본(최신 assistant)을 따르게 한다.
+          selectedMessageId: null,
           lastActiveByMode: conv?.mode
             ? { ...state.lastActiveByMode, [conv.mode]: id }
             : state.lastActiveByMode,
+        }));
+      },
+
+      /**
+       * 출처 패널이 표시할 메시지 id 를 지정한다.
+       * 동일 id 를 다시 주면 선택 해제(=null) → 패널은 최신 assistant 메시지 폴백.
+       */
+      selectMessage: (id) => {
+        set((state) => ({
+          selectedMessageId: state.selectedMessageId === id ? null : id,
         }));
       },
 
@@ -265,6 +281,7 @@ const useChatStore = create(
         currentConversationId: null,
         lastActiveByMode: { general: null, study: null, worklearn: null },
         isStreaming: false,
+        selectedMessageId: null,
         isConversationsLoading: false,
         conversationsError: null,
         lastSyncedAt: null,
