@@ -15,7 +15,7 @@ import useStudyStore from '../../stores/useStudyStore';
 import useAppStore from '../../stores/useAppStore';
 import { generateQuiz } from '../../services/studyApi';
 import { fetchDocs, fetchTopics } from '../../services/feynmanApi';
-import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES } from '../../utils/constants';
+import { QUIZ_COUNTS, QUIZ_DIFFICULTIES, QUIZ_TYPES, LLM_OPTIONS } from '../../utils/constants';
 import { showError } from '../../utils/errorHandler';
 import { useActiveSubjectId, useActiveSubjectMeta } from '../../hooks/useActiveSubject';
 
@@ -153,12 +153,21 @@ export default function QuizSettings() {
   const docOptions = docs.map((d) => ({ value: d.id, label: d.fileName }));
   const disabledStart = loading || !settings.docId;
 
+  // 현재 선택된 LLM 의 친숙한 라벨 ("GPT-OSS 20B (로컬)" 등)
+  const llmLabel = LLM_OPTIONS.find((o) => o.value === selectedLLM)?.label || selectedLLM;
+
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-text-primary">
           <Settings className="w-5 h-5" />
           <h2 className="text-lg font-semibold">퀴즈 설정</h2>
+          <span
+            className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary"
+            title="사이드바 LLM 드롭다운에서 변경"
+          >
+            {llmLabel} 으로 출제
+          </span>
         </div>
         {/* 모의고사 프리셋 / 해제 */}
         {!examMode ? (
