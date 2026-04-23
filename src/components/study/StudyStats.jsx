@@ -1,23 +1,21 @@
 /**
  * @fileoverview 학습 통계 컴포넌트 (현재 세션 요약 카드).
- * 업로드 교재 수·현재 퀴즈의 총 문제/정답/오답/정답률을 요약해 보여준다.
+ * 현재 퀴즈의 총 문제/정답/오답/정답률을 요약해 보여준다.
  * 활성 과목 기준으로 계산되며(과목 축 도입 이후), 모달 형태의 누적 통계
  * `StudyStatsPanel`과 목적이 다르다 — 이 쪽은 "지금 이 세션"만 본다.
  */
-import { BarChart3, CheckCircle, XCircle, BookOpen } from 'lucide-react';
-import useDocStore from '../../stores/useDocStore';
+import { BarChart3, CheckCircle, XCircle } from 'lucide-react';
 import useStudyStore from '../../stores/useStudyStore';
 import Button from '../common/Button';
 
 /**
- * 학습 통계 요약 카드. 문서/문제/정답/오답 수와 정답률 프로그레스 바를 표시한다.
+ * 학습 통계 요약 카드. 문제/정답/오답 수와 정답률 프로그레스 바를 표시한다.
  * @param {{onDone?: () => void}} props
  * @param {() => void} [props.onDone] - 닫기 버튼 콜백. 없으면 버튼 비노출.
  */
 export default function StudyStats({ onDone }) {
   const currentQuiz = useStudyStore((s) => s.subjects[s.activeSubject].currentQuiz);
   const answers = useStudyStore((s) => s.subjects[s.activeSubject].answers);
-  const docs = useDocStore((s) => s.docs);
 
   const questions = currentQuiz?.questions || [];
   const total = questions.length;
@@ -25,10 +23,8 @@ export default function StudyStats({ onDone }) {
   const correctCount = questions.filter((q) => answers[q.id]?.correct).length;
   const wrongCount = answeredCount - correctCount;
   const rate = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
-  const completedDocs = docs.filter((d) => d.status === 'completed');
 
   const stats = [
-    { icon: BookOpen, label: '업로드 문서', value: `${completedDocs.length}개`, color: 'text-primary' },
     { icon: BarChart3, label: '총 문제', value: `${total}문제`, color: 'text-text-primary' },
     { icon: CheckCircle, label: '정답', value: `${correctCount}개`, color: 'text-success' },
     { icon: XCircle, label: '오답', value: `${wrongCount}개`, color: 'text-danger' },

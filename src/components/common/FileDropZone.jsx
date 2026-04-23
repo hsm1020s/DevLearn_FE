@@ -1,7 +1,7 @@
 /**
  * @fileoverview 공통 파일 드래그앤드롭 업로드 영역 컴포넌트
  * PDF 파일을 드래그하거나 클릭하여 선택할 수 있는 재사용 가능한 드롭존을 제공한다.
- * PdfUploader 등에서 공통으로 사용된다.
+ * DocumentUploadModal 등에서 공통으로 사용된다.
  */
 import { useState, useRef, useCallback } from 'react';
 import { Upload } from 'lucide-react';

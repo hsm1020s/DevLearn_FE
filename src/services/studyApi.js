@@ -1,23 +1,10 @@
 /**
- * @fileoverview 학습 API - PDF 업로드, 퀴즈 생성, 답안 제출 처리
+ * @fileoverview 학습 API - 퀴즈 생성, 답안 제출, 통계 조회 처리
+ * (PDF 업로드는 파인만 파이프라인으로 통합 — feynmanApi.uploadPdf 참조)
  */
 import { API_CONFIG } from './api.config';
 import * as mock from './mock/studyMock';
 import api from './api';
-
-/** 학습용 PDF 파일을 업로드한다 */
-export async function uploadPdf(file) {
-  if (API_CONFIG.useMock) return mock.uploadPdf(file);
-  const formData = new FormData();
-  formData.append('file', file);
-  // Content-Type을 명시하지 않아야 브라우저가 boundary를 자동 생성한다.
-  // 대용량 파일(최대 1GB)을 위해 timeout을 10분으로 설정한다.
-  const { data } = await api.post('/study/upload', formData, {
-    timeout: 600_000,
-  });
-  // 백엔드 ApiResponse 래핑 해제
-  return data.data;
-}
 
 /**
  * 업로드된 문서 기반으로 퀴즈를 생성한다.
