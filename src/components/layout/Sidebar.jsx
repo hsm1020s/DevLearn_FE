@@ -159,6 +159,21 @@ export default function Sidebar() {
     }
   }, [editingId]);
 
+  // 현재 대화 ID가 바뀔 때(persist 복원 + 대화 전환 포함) 셀렉터를 대화의 llm/mode로 동기화.
+  // 새로고침 직후 selectedLLM은 초기값으로 리셋되지만 currentConversationId는 persist로 복원되므로,
+  // 이 훅이 없으면 셀렉터-대화 모델이 어긋나 다음 전송이 잘못된 모델로 나가거나 실패한다.
+  // deps를 currentConversationId로 한정해 사용자가 Dropdown으로 LLM을 바꾼 선택을 되돌리지 않게 한다.
+  // conversations/selectedLLM/mainMode는 store.getState()로 스냅샷만 읽어 비교.
+  useEffect(() => {
+    if (!currentConversationId) return;
+    const { conversations: convs } = useChatStore.getState();
+    const conv = convs.find((c) => c.id === currentConversationId);
+    if (!conv) return;
+    const { selectedLLM: curLLM, mainMode: curMode } = useAppStore.getState();
+    if (conv.llm && conv.llm !== curLLM) setLLM(conv.llm);
+    if (conv.mode && conv.mode !== curMode) setMainMode(conv.mode);
+  }, [currentConversationId, setLLM, setMainMode]);
+
   const handleStartRename = useCallback((conv) => {
     setEditingId(conv.id);
     setEditValue(conv.title);
