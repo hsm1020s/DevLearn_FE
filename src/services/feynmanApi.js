@@ -71,6 +71,37 @@ export async function verifyExplanation(params) {
 }
 
 /**
+ * 문서의 전체 챕터와 마인드맵 생성 상태를 조회한다.
+ * @param {string} docId - 문서 UUID
+ * @returns {Promise<Array<{chapter: string, status: 'completed'|'not_generated', mindmapId: string|null, nodeCount: number}>>}
+ */
+export async function fetchChapterStatuses(docId) {
+  const { data } = await api.get(`/feynman/mindmap/chapters/${docId}`);
+  return data.data;
+}
+
+/**
+ * 선택한 챕터의 마인드맵을 비동기로 생성 시작한다.
+ * @param {string} docId - 문서 UUID
+ * @param {string[]} [chapters] - 생성할 챕터명 목록 (비어있으면 전체)
+ * @returns {Promise<{docId: string, message: string}>}
+ */
+export async function generateMindmaps(docId, chapters) {
+  const { data } = await api.post(`/feynman/mindmap/generate/${docId}`, { chapters });
+  return data.data;
+}
+
+/**
+ * 문서에 연결된 챕터별 마인드맵 목록을 조회한다.
+ * @param {string} docId - 문서 UUID
+ * @returns {Promise<Array<{id: string, title: string, mode: string, docId: string, chapter: string, nodeCount: number}>>}
+ */
+export async function fetchMindmapsByDoc(docId) {
+  const { data } = await api.get(`/feynman/mindmap/by-doc/${docId}`);
+  return data.data;
+}
+
+/**
  * SSE 스트리밍으로 파인만 대화형 학습을 진행한다.
  * chatApi.streamMessage와 동일한 SSE 프로토콜을 사용하되
  * 엔드포인트만 /api/feynman/stream으로 라우팅한다.

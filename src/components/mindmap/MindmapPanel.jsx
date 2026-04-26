@@ -1,9 +1,10 @@
 /**
  * @fileoverview 마인드맵 패널 — 모드별 마인드맵 목록 관리, 생성/선택/삭제, 노드 추가, 캔버스 표시.
+ * 상단 탭: "내 마인드맵" (수동) | "자동 생성" (문서 기반 LLM 생성)
  * 현재 모드에 해당하는 마인드맵만 필터링하여 보여준다.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle, BrainCircuit, PenTool } from 'lucide-react';
 
 import useAppStore from '../../stores/useAppStore';
 import useAuthStore from '../../stores/useAuthStore';
@@ -11,9 +12,11 @@ import useMindmapStore from '../../stores/useMindmapStore';
 import { showSuccess } from '../../utils/errorHandler';
 import Button from '../common/Button';
 import MindmapCanvas from './MindmapCanvas';
+import AutoMindmapTab from './AutoMindmapTab';
 
 /** 마인드맵 패널 메인 컴포넌트 */
 export default function MindmapPanel() {
+  const [panelTab, setPanelTab] = useState('manual'); // 'manual' | 'auto'
   const mainMode = useAppStore((s) => s.mainMode);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
@@ -147,6 +150,35 @@ export default function MindmapPanel() {
 
   return (
     <div className="flex flex-col h-full bg-bg-primary">
+      {/* 탭 전환: 내 마인드맵 | 자동 생성 */}
+      <div className="flex border-b border-border-light shrink-0">
+        <button
+          onClick={() => setPanelTab('manual')}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium
+            transition-colors ${panelTab === 'manual'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-text-tertiary hover:text-text-secondary'}`}
+        >
+          <PenTool size={13} />
+          내 마인드맵
+        </button>
+        <button
+          onClick={() => setPanelTab('auto')}
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium
+            transition-colors ${panelTab === 'auto'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-text-tertiary hover:text-text-secondary'}`}
+        >
+          <BrainCircuit size={13} />
+          자동 생성
+        </button>
+      </div>
+
+      {/* 자동 생성 탭 */}
+      {panelTab === 'auto' ? (
+        <AutoMindmapTab onOpenMap={() => setPanelTab('manual')} />
+      ) : (
+      <>
       {/* 상단: 마인드맵 선택/생성 헤더 */}
       <div className="px-4 py-3 border-b border-border-light">
         <div className="flex items-center gap-2 mb-2">
@@ -377,6 +409,8 @@ export default function MindmapPanel() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
