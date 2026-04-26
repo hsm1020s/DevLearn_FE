@@ -1,5 +1,15 @@
 # 개발 로그
 
+## 2026-04-26 (15차) — 선명도 최저 도달 시 비밀번호 게이트
+- 요청: 자리비움 시 옆 사람이 슬라이더만 올려 화면을 훔쳐보는 것을 막기 위해, 선명도가 최저(40%)에 닿으면 임시 비밀번호 입력 전까지 다시 올리지 못하게 한다. 테스트 단계라 비번은 `12345` 하드코딩 + 안내 텍스트 노출.
+- 1차 안(폐기): 사이드바 본문에 안내 `<p>` 박아두고, 잠긴 상태에서 슬라이더를 올리려 할 때만 팝업. → 사용자 피드백: 안내는 사이드바에 박지 말고 팝업 안에, 트리거는 "최저 도달 순간 자동 오픈"으로.
+- 2차 안(채택):
+  - [useAppStore](../src/stores/useAppStore.js) 에 `clarityLocked` state + `unlockClarityWithPassword('12345')` 액션 + persist 포함. `setUiClarity` 가 최저값 도달 시 자동 잠금 + 잠긴 상태에서 값 키우기 거부.
+  - [Sidebar](../src/components/layout/Sidebar.jsx) 슬라이더 onChange 가 최저 도달 순간 팝업 자동 오픈, 잠긴 상태에서 위로 드래그/자물쇠 클릭 시에도 동일 팝업.
+  - [ClarityPasswordPopover](../src/components/layout/ClarityPasswordPopover.jsx) 신규 — react-dom `createPortal` 로 body 직속 렌더(사이드바 `overflow-hidden` 우회), anchor `getBoundingClientRect` 로 슬라이더 우측 위치 추적(scroll/resize 갱신). 안내 문구 + 비번 입력 + IME 가드(`isComposing`).
+  - persist 에 `clarityLocked` 추가 → 자리비움-새로고침 시나리오에서 잠금 유지.
+- 설계 문서: [docs/designs/2026-04-26-clarity-pw-gate.md](designs/2026-04-26-clarity-pw-gate.md)
+
 ## 2026-04-26 (14차) — 화면 선명도 슬라이더 (사생활 보호필름)
 - 요청: 카카오톡 채팅방 투명도처럼, 슬라이더로 화면이 점점 안 보이게 가려지는 사생활 보호필름 효과.
 - 1차 시도(폐기): `globals.css` surface 토큰을 RGB triplet + `--ui-clarity` 알파로 합성. 톤 차이가 미묘해 사용자 의도 미충족 → 시행착오 기록 추가([docs/시행착오.md](시행착오.md)).
