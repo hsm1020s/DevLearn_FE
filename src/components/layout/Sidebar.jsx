@@ -24,11 +24,13 @@ import {
   FileUp,
   Workflow,
   SunMedium,
+  Lock,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
 import DocumentUploadModal from '../common/DocumentUploadModal';
 import FeynmanPipelineModal from '../common/FeynmanPipelineModal';
 import LoginModal from '../common/LoginModal';
+import ClarityPasswordPopover from './ClarityPasswordPopover';
 import useAuthStore from '../../stores/useAuthStore';
 import useAppStore from '../../stores/useAppStore';
 import useChatStore from '../../stores/useChatStore';
@@ -47,12 +49,17 @@ export default function Sidebar() {
   const isSidebarCollapsed = useAppStore((s) => s.isSidebarCollapsed);
   const isMobileSidebarOpen = useAppStore((s) => s.isMobileSidebarOpen);
   const uiClarity = useAppStore((s) => s.uiClarity);
+  const clarityLocked = useAppStore((s) => s.clarityLocked);
   const setLLM = useAppStore((s) => s.setLLM);
   const setMainMode = useAppStore((s) => s.setMainMode);
   const toggleMindmap = useAppStore((s) => s.toggleMindmap);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
   const setUiClarity = useAppStore((s) => s.setUiClarity);
+  // 잠금 해제용 비밀번호 팝오버 표시 여부
+  const [pwPopoverOpen, setPwPopoverOpen] = useState(false);
+  // 팝오버 위치의 기준점 — 선명도 슬라이더 행. 사이드바 overflow-hidden 때문에 portal 로 띄움.
+  const claritySliderRowRef = useRef(null);
 
   const conversations = useChatStore((s) => s.conversations);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
@@ -573,8 +580,12 @@ export default function Sidebar() {
         <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
           {/* 화면 선명도 슬라이더 — uiClarity (0.4~1.0) 를 조절해 ClarityFilm 오버레이 강도를 바꾼다.
               ClarityFilm 은 z-[100] 이고 이 컨테이너는 z-[200] 이라 슬라이더만 항상 또렷하게 그려진다.
-              relative + bg-bg-primary 로 stacking context 안에서 슬라이더 영역 자체도 흐림에서 분리. */}
-          <div className="relative z-[200] flex items-center gap-2 px-2 py-1.5 rounded-md bg-bg-primary">
+              relative + bg-bg-primary 로 stacking context 안에서 슬라이더 영역 자체도 흐림에서 분리.
+              슬라이더가 최저(40%)에 닿는 순간 잠금 활성화 + 비밀번호 팝업 자동 오픈, 이후 다시 올리려는 시도도 팝업으로 가로챔. */}
+          <div
+            ref={claritySliderRowRef}
+            className="relative z-[200] flex items-center gap-2 px-2 py-1.5 rounded-md bg-bg-primary"
+          >
             <SunMedium size={16} className="text-text-secondary shrink-0" />
             <span className="text-xs text-text-secondary shrink-0">선명도</span>
             <input
@@ -583,12 +594,39 @@ export default function Sidebar() {
               max="100"
               step="5"
               value={Math.round(uiClarity * 100)}
-              onChange={(e) => setUiClarity(Number(e.target.value) / 100)}
+              onChange={(e) => {
+                const next = Number(e.target.value) / 100;
+                // 잠긴 상태에서 값을 키우려는 시도는 팝업으로 가로챔. 스토어도 한 번 더 거부(이중 가드).
+                if (clarityLocked && next > uiClarity) {
+                  setPwPopoverOpen(true);
+                  return;
+                }
+                // 잠기지 않은 상태에서 최저값(40%)에 새로 닿으면 잠금이 활성화되며, 동시에 안내 팝업을 자동으로 띄움.
+                const willActivateLock = !clarityLocked && next <= 0.4;
+                setUiClarity(next);
+                if (willActivateLock) setPwPopoverOpen(true);
+              }}
               className="flex-1 accent-primary cursor-pointer"
               aria-label="화면 선명도"
               title={`${Math.round(uiClarity * 100)}%`}
             />
+            {clarityLocked && (
+              <button
+                type="button"
+                onClick={() => setPwPopoverOpen(true)}
+                aria-label="선명도 잠금 해제"
+                title="선명도 잠금 해제"
+                className="shrink-0 p-0.5 text-text-secondary hover:text-text-primary"
+              >
+                <Lock size={14} />
+              </button>
+            )}
           </div>
+          <ClarityPasswordPopover
+            open={pwPopoverOpen}
+            onClose={() => setPwPopoverOpen(false)}
+            anchorRef={claritySliderRowRef}
+          />
           <button
             onClick={() => setShowPipeline(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md

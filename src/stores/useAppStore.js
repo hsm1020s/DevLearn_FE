@@ -11,6 +11,9 @@ const SPLIT_MAX = 80;
 const CLARITY_MIN = 0.4;
 const CLARITY_MAX = 1.0;
 
+// 임시 단계 비밀번호. TODO: prod 전환 시 환경변수 또는 서버 검증으로 교체.
+const TEMP_UNLOCK_PASSWORD = '12345';
+
 const useAppStore = create(
   persist(
     (set) => ({
@@ -30,6 +33,9 @@ const useAppStore = create(
       studySubTab: 'chat',
       // 화면 선명도 (surface 알파값). 1.0=선명, 0.4=흐림.
       uiClarity: 1.0,
+      // 선명도가 한 번이라도 최저값(CLARITY_MIN)에 닿으면 잠겨서, 임시 비밀번호 없이는 다시 올릴 수 없다.
+      // 자리비움 시 옆 사람이 슬라이더만 올려서 화면을 훔쳐보는 것을 막는 잠금.
+      clarityLocked: false,
 
       setLLM: (llm) => set({ selectedLLM: llm }),
       setStudySubTab: (tab) => set({ studySubTab: tab }),
@@ -49,7 +55,21 @@ const useAppStore = create(
       },
       setUiClarity: (v) => {
         const clamped = Math.min(CLARITY_MAX, Math.max(CLARITY_MIN, v));
-        set({ uiClarity: clamped });
+        const state = useAppStore.getState();
+        // 잠긴 상태에서 더 선명하게(=값을 키우는) 시도는 조용히 거부.
+        // UI 측에서 비밀번호 팝오버를 띄우는 흐름이 정석이고, 스토어는 최후 가드.
+        if (state.clarityLocked && clamped > state.uiClarity) return;
+        // 잠기지 않은 상태에서 최저값에 닿으면 잠금 활성화.
+        const shouldLock = !state.clarityLocked && clamped <= CLARITY_MIN;
+        set(shouldLock ? { uiClarity: clamped, clarityLocked: true } : { uiClarity: clamped });
+      },
+      // 임시 비밀번호로 잠금 해제. 일치하면 true, 아니면 false 반환.
+      unlockClarityWithPassword: (pw) => {
+        if (pw === TEMP_UNLOCK_PASSWORD) {
+          set({ clarityLocked: false });
+          return true;
+        }
+        return false;
       },
 
       // 현재 활성화된 모달 식별자
@@ -67,6 +87,8 @@ const useAppStore = create(
         isMindmapOn: state.isMindmapOn,
         studySubTab: state.studySubTab,
         uiClarity: state.uiClarity,
+        // 잠금 상태도 보존해야 자리비움 → 새로고침 시나리오에서 보호 의미가 유지된다.
+        clarityLocked: state.clarityLocked,
       }),
     },
   ),
