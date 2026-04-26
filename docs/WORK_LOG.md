@@ -1,5 +1,16 @@
 # 개발 로그
 
+## 2026-04-26 (14차) — 화면 선명도 슬라이더 (사생활 보호필름)
+- 요청: 카카오톡 채팅방 투명도처럼, 슬라이더로 화면이 점점 안 보이게 가려지는 사생활 보호필름 효과.
+- 1차 시도(폐기): `globals.css` surface 토큰을 RGB triplet + `--ui-clarity` 알파로 합성. 톤 차이가 미묘해 사용자 의도 미충족 → 시행착오 기록 추가([docs/시행착오.md](시행착오.md)).
+- 2차 안(채택): 화면 전체에 fixed 오버레이 [ClarityFilm](../src/components/layout/ClarityFilm.jsx) 추가.
+  - `backdrop-filter: blur(0~12px)` + `rgba(250,249,245, 0~0.51)` 가변 — uiClarity 가 낮을수록 콘텐츠가 뿌옇게 가려짐. clarity=1.0 이면 `return null` 로 비용 0.
+  - 슬라이더 컨테이너만 `relative z-[200]` 로 띄워 ClarityFilm(z-[100]) 위에 그려져 항상 또렷하게 조작 가능.
+  - Toast `z-[100]` → `z-[300]` 상향(필름에 알림 가려짐 방지).
+- [useAppStore](../src/stores/useAppStore.js) 에 `uiClarity`(0.4~1.0) state + `setUiClarity` + persist 추가.
+- 슬라이더는 [Sidebar](../src/components/layout/Sidebar.jsx) 푸터 첫 줄에 배치 (글로벌 액션 그룹과 자연스럽게 묶임).
+- 설계 문서: [docs/designs/2026-04-26-2026-04-26-ui-surface-alpha.md](designs/2026-04-26-2026-04-26-ui-surface-alpha.md)
+
 ## 2026-04-23 (13차) — 업무학습 모드에서 업무노트·체크리스트 제거
 - 요청: 업무학습 모드의 📝 업무노트 / ✅ 체크리스트 탭이 불필요해짐.
 - 변경: `WorkLearnMode` 를 `StudyChatTab` 단독 렌더로 축소하고 관련 파일 일괄 삭제.
