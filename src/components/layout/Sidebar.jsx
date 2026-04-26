@@ -23,6 +23,7 @@ import {
   ChevronUp,
   FileUp,
   Workflow,
+  SunMedium,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
 import DocumentUploadModal from '../common/DocumentUploadModal';
@@ -45,11 +46,13 @@ export default function Sidebar() {
   const isMindmapOn = useAppStore((s) => s.isMindmapOn);
   const isSidebarCollapsed = useAppStore((s) => s.isSidebarCollapsed);
   const isMobileSidebarOpen = useAppStore((s) => s.isMobileSidebarOpen);
+  const uiClarity = useAppStore((s) => s.uiClarity);
   const setLLM = useAppStore((s) => s.setLLM);
   const setMainMode = useAppStore((s) => s.setMainMode);
   const toggleMindmap = useAppStore((s) => s.toggleMindmap);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const setMobileSidebarOpen = useAppStore((s) => s.setMobileSidebarOpen);
+  const setUiClarity = useAppStore((s) => s.setUiClarity);
 
   const conversations = useChatStore((s) => s.conversations);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
@@ -568,6 +571,24 @@ export default function Sidebar() {
       {/* Suggestion & Settings */}
       {!collapsed && (
         <div className="border-t border-border-light px-3 py-2 flex flex-col gap-0.5">
+          {/* 화면 선명도 슬라이더 — uiClarity (0.4~1.0) 를 조절해 ClarityFilm 오버레이 강도를 바꾼다.
+              ClarityFilm 은 z-[100] 이고 이 컨테이너는 z-[200] 이라 슬라이더만 항상 또렷하게 그려진다.
+              relative + bg-bg-primary 로 stacking context 안에서 슬라이더 영역 자체도 흐림에서 분리. */}
+          <div className="relative z-[200] flex items-center gap-2 px-2 py-1.5 rounded-md bg-bg-primary">
+            <SunMedium size={16} className="text-text-secondary shrink-0" />
+            <span className="text-xs text-text-secondary shrink-0">선명도</span>
+            <input
+              type="range"
+              min="40"
+              max="100"
+              step="5"
+              value={Math.round(uiClarity * 100)}
+              onChange={(e) => setUiClarity(Number(e.target.value) / 100)}
+              className="flex-1 accent-primary cursor-pointer"
+              aria-label="화면 선명도"
+              title={`${Math.round(uiClarity * 100)}%`}
+            />
+          </div>
           <button
             onClick={() => setShowPipeline(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md

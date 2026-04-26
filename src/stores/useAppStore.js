@@ -7,6 +7,10 @@ import useChatStore from './useChatStore';
 const SPLIT_MIN = 20;
 const SPLIT_MAX = 80;
 
+// surface 알파값 범위. 0.4 미만은 패널이 body 톤에 거의 묻혀 가독성이 무너지므로 하한.
+const CLARITY_MIN = 0.4;
+const CLARITY_MAX = 1.0;
+
 const useAppStore = create(
   persist(
     (set) => ({
@@ -24,6 +28,8 @@ const useAppStore = create(
       splitLeftPct: 50,
       // 학습 모드 내부 서브 탭 (chat | quiz | record)
       studySubTab: 'chat',
+      // 화면 선명도 (surface 알파값). 1.0=선명, 0.4=흐림.
+      uiClarity: 1.0,
 
       setLLM: (llm) => set({ selectedLLM: llm }),
       setStudySubTab: (tab) => set({ studySubTab: tab }),
@@ -41,6 +47,10 @@ const useAppStore = create(
         const clamped = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
         set({ splitLeftPct: clamped });
       },
+      setUiClarity: (v) => {
+        const clamped = Math.min(CLARITY_MAX, Math.max(CLARITY_MIN, v));
+        set({ uiClarity: clamped });
+      },
 
       // 현재 활성화된 모달 식별자
       activeModal: null,
@@ -56,6 +66,7 @@ const useAppStore = create(
         mainMode: state.mainMode,
         isMindmapOn: state.isMindmapOn,
         studySubTab: state.studySubTab,
+        uiClarity: state.uiClarity,
       }),
     },
   ),

@@ -9,6 +9,7 @@ import MainPage from './pages/MainPage';
 import ErrorPage from './pages/ErrorPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ToastContainer from './components/common/Toast';
+import ClarityFilm from './components/layout/ClarityFilm';
 
 /** 관리자 페이지 지연 로드 */
 const AdminPage = lazy(() => import('./pages/AdminPage'));
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="*" element={<ErrorPage code={404} />} />
         </Routes>
         <ToastContainer />
+        <ClarityFilm />
       </ErrorBoundary>
     </BrowserRouter>
   );
