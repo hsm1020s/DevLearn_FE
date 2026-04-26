@@ -64,9 +64,10 @@ const useAppStore = create(
         set(shouldLock ? { uiClarity: clamped, clarityLocked: true } : { uiClarity: clamped });
       },
       // 임시 비밀번호로 잠금 해제. 일치하면 true, 아니면 false 반환.
+      // 통과 시 선명도까지 최대로 복원 — 자리비움에서 돌아온 사용자가 슬라이더를 다시 끌어올릴 필요 없음.
       unlockClarityWithPassword: (pw) => {
         if (pw === TEMP_UNLOCK_PASSWORD) {
-          set({ clarityLocked: false });
+          set({ clarityLocked: false, uiClarity: CLARITY_MAX });
           return true;
         }
         return false;
