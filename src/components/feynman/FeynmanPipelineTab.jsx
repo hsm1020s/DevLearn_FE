@@ -260,7 +260,7 @@ export default function FeynmanPipelineTab() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2.5 max-w-3xl mx-auto">
+          <div className="space-y-[9px] max-w-3xl mx-auto">
             {docs.map((doc) => {
               const statusInfo = STATUS_MAP[doc.status] || STATUS_MAP.uploaded;
               const StatusIcon = statusInfo.icon;
@@ -270,7 +270,7 @@ export default function FeynmanPipelineTab() {
               return (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border-light
+                  className="flex items-center gap-4 px-4 py-[13px] rounded-xl border border-border-light
                     bg-bg-primary hover:border-border-medium transition-colors"
                 >
                   {/* 아이콘 */}
