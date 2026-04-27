@@ -1,5 +1,10 @@
 # 개발 로그
 
+## 2026-04-27 (19차) — 파이프라인 페이지네이션 푸터 하단 고정
+- 문제: 마지막 페이지처럼 카드 수가 적을 때 페이지네이션 컨트롤이 카드 바로 아래로 떠올라 위치가 뒤죽박죽이었음.
+- 변경: [FeynmanPipelineTab](../src/components/feynman/FeynmanPipelineTab.jsx) 외곽을 `flex flex-col h-full` + 본문 `flex-1 overflow-y-auto` + **푸터(`shrink-0 border-t`)** 로 분리. 페이지네이션/총 건수 블록을 본문 밖 푸터로 이동. 좌우 `min-w-[120px]` 빈 공간으로 가운데 페이지 버튼이 시각적 중앙에 오도록 균형. 1페이지여도 푸터 노출(좌측 "총 N건 · 1/1"), 0건이면 푸터 통째 숨김.
+- 설계 문서: [docs/designs/2026-04-27-sticky-pagination.md](designs/2026-04-27-sticky-pagination.md)
+
 ## 2026-04-27 (18차) — 파이프라인 문서 목록 페이징 + 상태 필터 + 카드 UI 정리
 - 요청: 파이프라인 관리 페이지 스크롤이 너무 길어 → 페이지 번호 방식 페이징(처음 15건 → 사용자 피드백 반영해 10건) + 상태 필터(전체/업로드/진행 중/완료/오류) + 카드 좌측에 흩어진 상태 라벨을 우측 한 곳으로 통일.
 - BE(별도 repo, 미푸시 상태): `GET /api/feynman/docs/all` 에 page/size/status 쿼리 파라미터 추가, 응답 타입을 `List<DocResponse>` → `DocPageResponse(items,totalCount,page,size,totalPages)` 로 교체. 매퍼에 `findDocsByUserIdPaged`/`countDocsByUserId` + 공통 `<sql id="docStatusFilter">` fragment 추가. `findAllDocsByUserId` 는 어드민 대시보드용으로 유지. 서비스에서 page/size 클램핑 + status 화이트리스트 폴백.
