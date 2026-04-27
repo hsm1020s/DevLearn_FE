@@ -17,7 +17,7 @@ import { fetchDocsPage, uploadPdf, runPipeline } from '../../services/feynmanApi
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 /** 상태별 UI 설정 */
 const STATUS_MAP = {
@@ -278,32 +278,21 @@ export default function FeynmanPipelineTab() {
                     <FileText size={20} className={statusInfo.color} />
                   </div>
 
-                  {/* 문서 정보 */}
+                  {/* 문서 정보 — 파일명 + (완료 시) 메타 + 진행률 바 */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-text-primary truncate">
                       {doc.fileName}
                     </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className={`flex items-center gap-1 text-xs ${statusInfo.color}`}>
-                        <StatusIcon size={12} className={isRunning ? 'animate-spin' : ''} />
-                        {statusInfo.label}
-                      </span>
-                      {doc.progress > 0 && doc.status !== 'completed' && (
+                    {doc.status === 'completed' && (
+                      <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-text-tertiary">
-                          {doc.progress}%
+                          {doc.pages}p
                         </span>
-                      )}
-                      {doc.status === 'completed' && (
-                        <>
-                          <span className="text-xs text-text-tertiary">
-                            {doc.pages}p
-                          </span>
-                          <span className="text-xs text-text-tertiary">
-                            {doc.chunks}개 청크
-                          </span>
-                        </>
-                      )}
-                    </div>
+                        <span className="text-xs text-text-tertiary">
+                          {doc.chunks}개 청크
+                        </span>
+                      </div>
+                    )}
 
                     {/* 진행률 바 */}
                     {isRunning && (
@@ -316,8 +305,17 @@ export default function FeynmanPipelineTab() {
                     )}
                   </div>
 
-                  {/* 액션 버튼 */}
-                  <div className="shrink-0">
+                  {/* 우측: 상태 뱃지 + 액션 버튼 */}
+                  <div className="shrink-0 flex items-center gap-2">
+                    {/* 상태 뱃지 — 모든 상태를 통일된 위치에 표시 */}
+                    <span className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${statusInfo.bg} ${statusInfo.color}`}>
+                      <StatusIcon size={12} className={isRunning ? 'animate-spin' : ''} />
+                      {statusInfo.label}
+                      {doc.progress > 0 && doc.status !== 'completed' && (
+                        <span className="ml-1 opacity-75">{doc.progress}%</span>
+                      )}
+                    </span>
+                    {/* 실행/재실행 버튼 */}
                     {canRun && (
                       <button
                         onClick={() => handleRunPipeline(doc.id)}
@@ -333,13 +331,6 @@ export default function FeynmanPipelineTab() {
                         )}
                         {doc.status === 'error' ? '재실행' : '파이프라인 실행'}
                       </button>
-                    )}
-                    {doc.status === 'completed' && (
-                      <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
-                        bg-success/10 text-success">
-                        <CheckCircle2 size={14} />
-                        학습 가능
-                      </span>
                     )}
                   </div>
                 </div>
