@@ -73,6 +73,16 @@ export async function runEmbedOnly(docId) {
 }
 
 /**
+ * TOC + chapters 그룹핑만 재실행한다 (extract 결과 재사용, embed 는 그대로).
+ * @param {string} docId - 문서 UUID
+ * @returns {Promise<{docId: string, message: string}>}
+ */
+export async function retryToc(docId) {
+  const { data } = await api.post(`/feynman/pipeline/${docId}/retry-toc`);
+  return data.data;
+}
+
+/**
  * 사용자의 개념 설명을 원본 텍스트와 대조하여 검증한다.
  * @param {Object} params
  * @param {string} params.docId - 문서 UUID

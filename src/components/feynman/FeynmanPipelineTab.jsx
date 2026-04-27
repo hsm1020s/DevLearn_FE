@@ -13,7 +13,7 @@ import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
   Loader2, FileText, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
@@ -186,6 +186,33 @@ export default function FeynmanPipelineTab() {
       setRunningIds((prev) => {
         const next = new Set(prev);
         next.delete(docId);
+        return next;
+      });
+    }
+  };
+
+  // TOC + chapters 그룹핑 재실행. 이미 임베딩된 문서면 사전 confirm.
+  const handleRetryToc = async (doc) => {
+    if (doc.ragIndexed === true) {
+      const ok = window.confirm(
+        '이미 임베딩이 완료된 문서입니다.\n' +
+        'TOC 가 바뀌면 기존 청크의 챕터명이 어긋날 수 있습니다.\n' +
+        '재추출 후 [임베딩 실행] 으로 다시 인덱싱하는 것을 권장합니다.\n\n' +
+        '계속할까요?'
+      );
+      if (!ok) return;
+    }
+    setRunningIds((prev) => new Set(prev).add(doc.id));
+    try {
+      await retryToc(doc.id);
+      showSuccess('TOC 재추출을 시작했습니다');
+      await loadDocs(page, status);
+    } catch (err) {
+      showError(err, 'TOC 재추출에 실패했습니다');
+    } finally {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(doc.id);
         return next;
       });
     }
@@ -386,6 +413,20 @@ export default function FeynmanPipelineTab() {
                           <Play size={14} />
                         )}
                         임베딩 실행
+                      </button>
+                    )}
+                    {/* completed 카드 전부에 [TOC 재추출] 보조 버튼.
+                        ragIndexed=true 면 핸들러가 사전 confirm 으로 청크 정합성 경고. */}
+                    {doc.status === 'completed' && (
+                      <button
+                        onClick={() => handleRetryToc(doc)}
+                        disabled={runningIds.has(doc.id)}
+                        title="목차(TOC) 만 다시 LLM 으로 추출하고 챕터 그룹핑 재실행"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                          bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
+                          disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        TOC 재추출
                       </button>
                     )}
                   </div>
