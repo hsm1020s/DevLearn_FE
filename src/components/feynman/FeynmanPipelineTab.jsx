@@ -13,7 +13,7 @@ import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
   Loader2, FileText, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
@@ -153,15 +153,35 @@ export default function FeynmanPipelineTab() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // 파이프라인 실행
-  const handleRunPipeline = async (docId) => {
+  // 파이프라인 실행 (skipEmbed=true 면 임베딩 보류)
+  const handleRunPipeline = async (docId, { skipEmbed = false } = {}) => {
     setRunningIds((prev) => new Set(prev).add(docId));
     try {
-      await runPipeline(docId);
-      showSuccess('파이프라인 실행을 시작했습니다');
+      await runPipeline(docId, { skipEmbed });
+      showSuccess(skipEmbed
+        ? '파이프라인 실행 시작 (임베딩 보류)'
+        : '파이프라인 실행을 시작했습니다');
       await loadDocs(page, status);
     } catch (err) {
       showError(err, '파이프라인 실행에 실패했습니다');
+    } finally {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  };
+
+  // skipEmbed 로 미리 돌려둔 문서에 대해 임베딩만 단독 실행
+  const handleRunEmbedOnly = async (docId) => {
+    setRunningIds((prev) => new Set(prev).add(docId));
+    try {
+      await runEmbedOnly(docId);
+      showSuccess('임베딩 실행을 시작했습니다');
+      await loadDocs(page, status);
+    } catch (err) {
+      showError(err, '임베딩 실행에 실패했습니다');
     } finally {
       setRunningIds((prev) => {
         const next = new Set(prev);
@@ -291,6 +311,12 @@ export default function FeynmanPipelineTab() {
                         <span className="text-xs text-text-tertiary">
                           {doc.chunks}개 청크
                         </span>
+                        {/* skipEmbed 로 끝난 문서는 RAG 미적재 — 사용자에게 명시 */}
+                        {doc.ragIndexed === false && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            RAG 미적재
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -315,13 +341,43 @@ export default function FeynmanPipelineTab() {
                         <span className="ml-1 opacity-75">{doc.progress}%</span>
                       )}
                     </span>
-                    {/* 실행/재실행 버튼 */}
+                    {/* 실행/재실행 버튼 + 임베딩 보류 옵션 */}
                     {canRun && (
+                      <>
+                        <button
+                          onClick={() => handleRunPipeline(doc.id)}
+                          disabled={runningIds.has(doc.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                            bg-primary text-white hover:bg-primary-hover
+                            disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {runningIds.has(doc.id) ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Play size={14} />
+                          )}
+                          {doc.status === 'error' ? '재실행' : '파이프라인 실행'}
+                        </button>
+                        <button
+                          onClick={() => handleRunPipeline(doc.id, { skipEmbed: true })}
+                          disabled={runningIds.has(doc.id)}
+                          title="extract/toc/group/마인드맵 까지만. 임베딩(RAG)은 나중에 별도 실행."
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                            bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
+                            disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          임베딩 없이
+                        </button>
+                      </>
+                    )}
+                    {/* completed && RAG 미적재 → 임베딩만 단독 실행 액션 노출 */}
+                    {doc.status === 'completed' && doc.ragIndexed === false && (
                       <button
-                        onClick={() => handleRunPipeline(doc.id)}
+                        onClick={() => handleRunEmbedOnly(doc.id)}
                         disabled={runningIds.has(doc.id)}
+                        title="이미 추출된 챕터로 RAG 임베딩만 실행 (rag_chunks 적재)"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                          bg-primary text-white hover:bg-primary-hover
+                          bg-amber-600 text-white hover:bg-amber-700
                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {runningIds.has(doc.id) ? (
@@ -329,7 +385,7 @@ export default function FeynmanPipelineTab() {
                         ) : (
                           <Play size={14} />
                         )}
-                        {doc.status === 'error' ? '재실행' : '파이프라인 실행'}
+                        임베딩 실행
                       </button>
                     )}
                   </div>

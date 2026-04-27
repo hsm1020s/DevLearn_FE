@@ -51,12 +51,24 @@ export async function uploadPdf(file) {
 }
 
 /**
- * 문서의 파이프라인(추출→그룹핑→임베딩)을 실행한다.
+ * 문서의 파이프라인을 실행한다.
+ * @param {string} docId - 문서 UUID
+ * @param {{skipEmbed?: boolean}} [options] - skipEmbed=true 면 임베딩 단계 보류 (extract/toc/group/마인드맵 까지만)
+ * @returns {Promise<{docId: string, message: string}>}
+ */
+export async function runPipeline(docId, options = {}) {
+  const params = options.skipEmbed ? { skipEmbed: true } : undefined;
+  const { data } = await api.post(`/feynman/pipeline/${docId}`, null, { params });
+  return data.data;
+}
+
+/**
+ * skipEmbed 로 미리 돌려둔 문서에 대해 임베딩 단계만 단독 실행한다.
  * @param {string} docId - 문서 UUID
  * @returns {Promise<{docId: string, message: string}>}
  */
-export async function runPipeline(docId) {
-  const { data } = await api.post(`/feynman/pipeline/${docId}`);
+export async function runEmbedOnly(docId) {
+  const { data } = await api.post(`/feynman/pipeline/${docId}/embed`);
   return data.data;
 }
 
