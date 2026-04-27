@@ -11,10 +11,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
-  Loader2, FileText, Clock, Trash2,
+  Loader2, FileText, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { fetchAllDocs, uploadPdf, runPipeline } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
+
+/** 페이지당 건수 — BE 기본값과 일치 */
+const PAGE_SIZE = 15;
 
 /** 상태별 UI 설정 */
 const STATUS_MAP = {
@@ -25,6 +28,15 @@ const STATUS_MAP = {
   completed:  { label: '학습 가능', color: 'text-success', bg: 'bg-success/10', icon: CheckCircle2 },
   error:      { label: '오류 발생', color: 'text-danger', bg: 'bg-danger/10', icon: AlertCircle },
 };
+
+/** 상태 필터 옵션 (BE의 status 키워드와 1:1 매핑) */
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all',        label: '전체' },
+  { value: 'uploaded',   label: '업로드' },
+  { value: 'processing', label: '진행 중' },
+  { value: 'completed',  label: '완료' },
+  { value: 'error',      label: '오류' },
+];
 
 /** 파이프라인이 진행 중인 상태인지 확인 */
 function isProcessing(status) {
@@ -38,38 +50,60 @@ export default function FeynmanPipelineTab() {
   // 다중 업로드 진행도: { current: i, total: N } — null이면 비활성
   const [uploadProgress, setUploadProgress] = useState(null);
   const [runningIds, setRunningIds] = useState(new Set());
+  // 페이지네이션 + 필터 state
+  const [page, setPage] = useState(0);            // 0-base
+  const [status, setStatus] = useState('all');    // STATUS_FILTER_OPTIONS의 value
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
 
-  // 문서 목록 로드
-  const loadDocs = useCallback(async () => {
+  /**
+   * 지정한 페이지/필터로 문서 목록을 다시 가져온다.
+   * 인자를 받는 이유: setState 직후 동일 사이클에서 호출하면 React state가
+   * 아직 갱신되지 않으므로, 즉시 반영하려면 호출자가 명시적으로 넘겨야 안전.
+   */
+  const loadDocs = useCallback(async (targetPage = page, targetStatus = status) => {
     try {
-      const data = await fetchAllDocs();
-      setDocs(data || []);
+      const data = await fetchDocsPage({ page: targetPage, size: PAGE_SIZE, status: targetStatus });
+      setDocs(data?.items || []);
+      setTotalPages(Math.max(1, data?.totalPages || 1));
+      setTotalCount(data?.totalCount || 0);
+      // 데이터가 줄어 현재 페이지가 비게 된 경우(예: 마지막 페이지 항목이 모두 다른 필터로 빠짐)
+      // 한 페이지 앞으로 이동시켜 빈 화면을 방지한다.
+      if ((data?.items?.length || 0) === 0 && targetPage > 0 && (data?.totalCount || 0) > 0) {
+        setPage(targetPage - 1);
+      }
     } catch (err) {
       showError(err, '문서 목록을 불러올 수 없습니다');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, status]);
 
-  // 초기 로드
+  // page/status 변경 시 자동 재조회
   useEffect(() => {
-    loadDocs();
-  }, [loadDocs]);
+    loadDocs(page, status);
+    // loadDocs는 page/status에 의존하므로 deps에서 제외(무한 루프 방지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, status]);
 
-  // 진행 중인 문서가 있으면 3초 폴링
+  // 현재 페이지에 진행 중 문서가 있으면 3초 폴링 (다른 페이지로 이동 시 자동 정지)
   useEffect(() => {
     const hasProcessing = docs.some((d) => isProcessing(d.status));
     if (hasProcessing) {
-      pollRef.current = setInterval(loadDocs, 3000);
-    } else {
-      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(() => loadDocs(page, status), 3000);
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
-  }, [docs, loadDocs]);
+  }, [docs, loadDocs, page, status]);
 
   // PDF 다중 업로드 (순차) — 한 파일이 실패해도 나머지는 계속 진행
   const handleUpload = async (e) => {
@@ -108,7 +142,12 @@ export default function FeynmanPipelineTab() {
       showError(null, `업로드 실패: ${failed.map((f) => f.name).join(', ')}`);
     }
 
-    await loadDocs();
+    // 업로드 후 1페이지로 이동(최신 항목 보이도록). page=0 이미면 효과 없으니 명시 reload.
+    if (page === 0) {
+      await loadDocs(0, status);
+    } else {
+      setPage(0);
+    }
     setUploading(false);
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -120,7 +159,7 @@ export default function FeynmanPipelineTab() {
     try {
       await runPipeline(docId);
       showSuccess('파이프라인 실행을 시작했습니다');
-      await loadDocs();
+      await loadDocs(page, status);
     } catch (err) {
       showError(err, '파이프라인 실행에 실패했습니다');
     } finally {
@@ -130,6 +169,12 @@ export default function FeynmanPipelineTab() {
         return next;
       });
     }
+  };
+
+  // 상태 필터 변경 — 1페이지로 리셋
+  const handleStatusChange = (next) => {
+    setStatus(next);
+    setPage(0);
   };
 
   return (
@@ -143,8 +188,21 @@ export default function FeynmanPipelineTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* 상태 필터 */}
+          <select
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm bg-bg-primary border border-border-light
+              text-text-primary hover:border-border-medium transition-colors
+              focus:outline-none focus:border-primary"
+            title="상태 필터"
+          >
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
           <button
-            onClick={loadDocs}
+            onClick={() => loadDocs(page, status)}
             className="p-2 rounded-lg hover:bg-bg-secondary transition-colors text-text-secondary"
             title="새로고침"
           >
@@ -191,10 +249,14 @@ export default function FeynmanPipelineTab() {
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <FileText size={40} className="text-text-tertiary" />
             <p className="text-sm text-text-tertiary">
-              아직 업로드된 문서가 없습니다
+              {status === 'all'
+                ? '아직 업로드된 문서가 없습니다'
+                : '이 필터에 해당하는 문서가 없습니다'}
             </p>
             <p className="text-xs text-text-tertiary">
-              상단의 "PDF 업로드" 버튼으로 학습할 PDF를 추가하세요
+              {status === 'all'
+                ? '상단의 "PDF 업로드" 버튼으로 학습할 PDF를 추가하세요'
+                : '상태 필터를 "전체"로 바꾸면 모든 문서를 볼 수 있습니다'}
             </p>
           </div>
         ) : (
@@ -285,7 +347,83 @@ export default function FeynmanPipelineTab() {
             })}
           </div>
         )}
+
+        {/* 페이지네이션 컨트롤 — 항목 1건 이상 + 페이지 2개 이상일 때만 노출 */}
+        {!loading && docs.length > 0 && totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-1 max-w-3xl mx-auto">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm
+                text-text-secondary hover:bg-bg-secondary
+                disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={14} /> 이전
+            </button>
+
+            {/* 페이지 번호 버튼 — 현재 ±2까지 + 처음/끝 표시. 너무 많으면 ...로 축약 */}
+            {pageNumbers(page, totalPages).map((p, idx) => (
+              p === -1 ? (
+                <span key={`gap-${idx}`} className="px-2 text-text-tertiary">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`min-w-[32px] px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                    p === page
+                      ? 'bg-primary text-white font-medium'
+                      : 'text-text-secondary hover:bg-bg-secondary'
+                  }`}
+                >
+                  {p + 1}
+                </button>
+              )
+            ))}
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm
+                text-text-secondary hover:bg-bg-secondary
+                disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              다음 <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* 총 건수 표시 */}
+        {!loading && totalCount > 0 && (
+          <div className="mt-3 text-center text-xs text-text-tertiary">
+            총 {totalCount}건 · {page + 1}/{totalPages} 페이지
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+/**
+ * 페이지네이션에 보여줄 번호 시퀀스 생성.
+ * 현재 페이지 ±2 + 처음/끝을 포함하고, 사이가 멀면 -1(=...)을 끼워 넣는다.
+ * 반환은 0-base 번호이며, 컴포넌트에서 +1로 표시한다.
+ */
+function pageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i);
+  }
+  const result = [];
+  const start = Math.max(0, current - 2);
+  const end = Math.min(total - 1, current + 2);
+
+  if (start > 0) {
+    result.push(0);
+    if (start > 1) result.push(-1);
+  }
+  for (let i = start; i <= end; i++) result.push(i);
+  if (end < total - 1) {
+    if (end < total - 2) result.push(-1);
+    result.push(total - 1);
+  }
+  return result;
 }

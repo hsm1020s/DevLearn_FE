@@ -24,11 +24,15 @@ export async function fetchTopics(docId) {
 }
 
 /**
- * 사용자의 모든 문서를 상태와 함께 조회한다 (파이프라인 관리용).
- * @returns {Promise<Array<{id: string, fileName: string, pages: number, chunks: number, status: string, progress: number}>>}
+ * 파이프라인 관리 화면용 문서 페이지 조회.
+ * @param {Object} [params]
+ * @param {number} [params.page=0]   - 0-base 페이지 번호
+ * @param {number} [params.size=15]  - 페이지당 건수
+ * @param {string} [params.status='all'] - 상태 필터 (all|uploaded|processing|completed|error)
+ * @returns {Promise<{items: Array, totalCount: number, page: number, size: number, totalPages: number}>}
  */
-export async function fetchAllDocs() {
-  const { data } = await api.get('/feynman/docs/all');
+export async function fetchDocsPage({ page = 0, size = 15, status = 'all' } = {}) {
+  const { data } = await api.get('/feynman/docs/all', { params: { page, size, status } });
   return data.data;
 }
 
