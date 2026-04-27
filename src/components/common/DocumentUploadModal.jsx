@@ -81,7 +81,8 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
     [addToast, patchItem],
   );
 
-  // 드롭존에서 받은 파일 배열을 필터링한 뒤 병렬 업로드 (실패해도 나머지 계속)
+  // 드롭존에서 받은 파일 배열을 필터링한 뒤 순차 업로드 (실패해도 나머지 계속).
+  // 병렬 대신 순차로 가는 이유: 1GB 한도 PDF 여러 개 동시 업로드 시 서버/네트워크 부담을 회피하기 위함.
   const handleFiles = useCallback(
     async (files) => {
       const valid = [];
@@ -97,7 +98,10 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
         }
         valid.push(f);
       }
-      await Promise.allSettled(valid.map((f) => uploadOne(f)));
+      for (const f of valid) {
+        // eslint-disable-next-line no-await-in-loop
+        await uploadOne(f);
+      }
     },
     [uploadOne, addToast],
   );
