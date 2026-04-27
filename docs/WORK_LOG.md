@@ -1,5 +1,12 @@
 # 개발 로그
 
+## 2026-04-27 (20차) — 로컬 LLM 활동 모니터 + 백엔드 라이브 로그 캡처
+- 요청: 파이프라인을 돌릴 때 로컬 모델이 어디에 어떤 작업으로 투입되는지 보이지 않음 → 권한 없이 어디서든 띄울 수 있는 모니터 페이지/팝업 + 모든 `log.info` 도 라이브로 흐르게.
+- BE(별도 repo, 같이 푸시): `monitor/LlmActivityRegistry` 인메모리 레지스트리 + `LlmActivityContext` ThreadLocal 스코프 도입. `OllamaProvider` 와 `EmbeddingClient` 가 호출 직전/후/실패 시 레지스트리에 이벤트 송신. 호출자 6곳(`ChatService`, `FeynmanService.verify/streamFeynmanChat`, `AnswerGraderService`, `QuestionSynthesisService`, `MindmapSynthesisService`, `StudyService`) 에 source/action/target 컨텍스트 래핑. Python 파이프라인은 `scripts/feynman_pipeline/llm_event.py` 헬퍼로 `[LLM-EVT] {json}` 라인을 stdout 으로 흘리고, `FeynmanService` reader 가 파싱해 동일 레지스트리에 합류. `monitor/RingBufferLogAppender` + `LogCaptureConfig` 로 `com.moon.devlearn.*` 의 모든 log.info/.warn/.error 를 인메모리 ring buffer (500줄) 에 캡처. `GET /api/public/llm-activity` (permitAll) 가 `{inflight, recent, stats, logs}` 스냅샷 반환.
+- FE: [LlmActivityPanel](../src/components/monitor/LlmActivityPanel.jsx) 본문 컴포넌트 — 진행 중 카드 / 소스별 통계 / 최근 LLM 호출(상위 10건) / 백엔드 라이브 로그(상위 50줄) 4섹션. 카드/표에 한국어 "작업" 설명(`describePurpose`) 자동 변환. [LlmActivityFab](../src/components/monitor/LlmActivityFab.jsx) — 우하단 활동 아이콘 + 우측 슬라이드 드로어, 닫혀 있을 때는 폴링 정지. [App.jsx](../src/App.jsx) 에 전역 마운트 + `/llm-activity` 단독 라우트도 같은 패널 재사용. [monitorApi.js](../src/services/monitorApi.js) 는 axios 가드를 우회해 fetch 직접 호출.
+- 보안: 응답에는 docId/conversationId 8자 prefix + chapter 이름 + 길이 메트릭만 노출. 프롬프트 본문/파일명/이메일은 레지스트리에 들어가지 않음. `SecurityConfig` PUBLIC_PATHS 에 `/api/public/**` 만 추가, 기존 보호 경로(curl 회귀: feynman/chat/study/임의경로 모두 401) 는 그대로 401.
+- 설계 문서: [docs/designs/2026-04-27-llm-pipeline-monitor.md](designs/2026-04-27-llm-pipeline-monitor.md)
+
 ## 2026-04-27 (19차) — 파이프라인 페이지네이션 푸터 하단 고정
 - 문제: 마지막 페이지처럼 카드 수가 적을 때 페이지네이션 컨트롤이 카드 바로 아래로 떠올라 위치가 뒤죽박죽이었음.
 - 변경: [FeynmanPipelineTab](../src/components/feynman/FeynmanPipelineTab.jsx) 외곽을 `flex flex-col h-full` + 본문 `flex-1 overflow-y-auto` + **푸터(`shrink-0 border-t`)** 로 분리. 페이지네이션/총 건수 블록을 본문 밖 푸터로 이동. 좌우 `min-w-[120px]` 빈 공간으로 가운데 페이지 버튼이 시각적 중앙에 오도록 균형. 1페이지여도 푸터 노출(좌측 "총 N건 · 1/1"), 0건이면 푸터 통째 숨김.
