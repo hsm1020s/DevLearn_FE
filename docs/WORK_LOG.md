@@ -1,5 +1,13 @@
 # 개발 로그
 
+## 2026-04-27 (17차) — PDF 다중 업로드 (순차)
+- 요청: 파이프라인 돌리기 전 단계로, PDF 여러 개를 한 번에 업로드. 둘 다(파이프라인 관리 탭 헤더 버튼 + 사이드바 문서 업로드 모달) 적용. 합계 11GB(파일 수십 개) 한 번에 처리.
+- 변경:
+  - [FeynmanPipelineTab](../src/components/feynman/FeynmanPipelineTab.jsx): `<input multiple>` + `handleUpload`를 `for...of + await` 순차 처리로 확장. 진행도 state(`uploadProgress`)로 헤더 라벨에 "업로드 중 (i/N)..." 표시. 결과 토스트는 전부 성공 / 비PDF 일부 제외 / 부분 실패 / 전부 실패 4분기.
+  - [DocumentUploadModal](../src/components/common/DocumentUploadModal.jsx): 기존 `Promise.allSettled`(병렬) → 순차로 통일. 1GB 한도 PDF 다중 시 서버/네트워크 부담 회피 + 두 진입점 동작 일관화.
+- BE 무변경 — 단일 엔드포인트 `POST /api/feynman/upload`를 N번 호출.
+- 설계 문서: [docs/designs/2026-04-27-multi-pdf-upload.md](designs/2026-04-27-multi-pdf-upload.md)
+
 ## 2026-04-26 (16차) — 선명도 잠금 해제 시 자동 100% 복원
 - 요청: 비번을 통과해도 슬라이더가 0% 그대로라 사용자가 다시 끌어올려야 했음 → 통과 즉시 화면이 또렷해지도록.
 - 변경: [useAppStore.unlockClarityWithPassword](../src/stores/useAppStore.js) 가 `set({ clarityLocked: false, uiClarity: CLARITY_MAX })` 를 동시에 호출. UI/팝오버 컴포넌트는 무변경.
