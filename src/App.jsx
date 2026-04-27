@@ -10,9 +10,12 @@ import ErrorPage from './pages/ErrorPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ToastContainer from './components/common/Toast';
 import ClarityFilm from './components/layout/ClarityFilm';
+import LlmActivityFab from './components/monitor/LlmActivityFab';
 
 /** 관리자 페이지 지연 로드 */
 const AdminPage = lazy(() => import('./pages/AdminPage'));
+/** 로컬 LLM 활동 모니터 페이지 — 권한 없이 접근 가능, 페이지 진입 시에만 로드 */
+const LlmActivityPage = lazy(() => import('./pages/LlmActivityPage'));
 
 /** URL 파라미터에서 에러 코드를 추출하여 ErrorPage에 전달 */
 function ErrorRoute() {
@@ -26,7 +29,14 @@ export default function App() {
     <BrowserRouter>
       <ErrorBoundary>
         <Routes>
-          <Route path="/*" element={<MainPage />} />
+          <Route
+            path="/llm-activity"
+            element={
+              <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+                <LlmActivityPage />
+              </Suspense>
+            }
+          />
           <Route
             path="/admin/*"
             element={
@@ -36,10 +46,12 @@ export default function App() {
             }
           />
           <Route path="/error/:code" element={<ErrorRoute />} />
+          <Route path="/*" element={<MainPage />} />
           <Route path="*" element={<ErrorPage code={404} />} />
         </Routes>
         <ToastContainer />
         <ClarityFilm />
+        <LlmActivityFab />
       </ErrorBoundary>
     </BrowserRouter>
   );
