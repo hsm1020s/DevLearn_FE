@@ -338,21 +338,31 @@ export default function FeynmanPipelineTab() {
             })}
           </div>
         )}
+      </div>
 
-        {/* 페이지네이션 컨트롤 — 항목 1건 이상 + 페이지 2개 이상일 때만 노출 */}
-        {!loading && docs.length > 0 && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-1 max-w-3xl mx-auto">
+      {/* 푸터 — 페이지네이션 + 총 건수. 컨테이너 하단 고정(목록과 스크롤 분리). */}
+      {/*  - totalCount=0(빈 결과) 면 통째 숨김                                  */}
+      {/*  - 1페이지여도 노출(좌측 "총 N건 · 1/1" 만이라도 보이도록 사용자 요청) */}
+      {!loading && totalCount > 0 && (
+        <div className="shrink-0 border-t border-border-light bg-bg-primary
+          px-4 py-2.5 flex items-center justify-between gap-2">
+          {/* 좌측: 총 건수 + 현재 페이지 / 전체 */}
+          <span className="text-xs text-text-tertiary shrink-0 min-w-[120px]">
+            총 {totalCount}건 · {page + 1}/{totalPages}
+          </span>
+
+          {/* 가운데: 페이지 버튼들. 1페이지면 숫자 1만 노출되어 시각적으로 자연스러움. */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm
                 text-text-secondary hover:bg-bg-secondary
                 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft size={14} /> 이전
             </button>
 
-            {/* 페이지 번호 버튼 — 현재 ±2까지 + 처음/끝 표시. 너무 많으면 ...로 축약 */}
             {pageNumbers(page, totalPages).map((p, idx) => (
               p === -1 ? (
                 <span key={`gap-${idx}`} className="px-2 text-text-tertiary">…</span>
@@ -360,7 +370,7 @@ export default function FeynmanPipelineTab() {
                 <button
                   key={p}
                   onClick={() => setPage(p)}
-                  className={`min-w-[32px] px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                  className={`min-w-[28px] px-2 py-1 rounded-lg text-sm transition-colors ${
                     p === page
                       ? 'bg-primary text-white font-medium'
                       : 'text-text-secondary hover:bg-bg-secondary'
@@ -374,22 +384,18 @@ export default function FeynmanPipelineTab() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm
                 text-text-secondary hover:bg-bg-secondary
                 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               다음 <ChevronRight size={14} />
             </button>
           </div>
-        )}
 
-        {/* 총 건수 표시 */}
-        {!loading && totalCount > 0 && (
-          <div className="mt-3 text-center text-xs text-text-tertiary">
-            총 {totalCount}건 · {page + 1}/{totalPages} 페이지
-          </div>
-        )}
-      </div>
+          {/* 우측: 좌측 텍스트와 시각 균형용 빈 공간 (가운데 페이지 버튼이 시각적으로 중앙 오도록) */}
+          <div className="shrink-0 min-w-[120px]" aria-hidden />
+        </div>
+      )}
     </div>
   );
 }
