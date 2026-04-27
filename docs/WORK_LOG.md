@@ -1,5 +1,12 @@
 # 개발 로그
 
+## 2026-04-27 (18차) — 파이프라인 문서 목록 페이징 + 상태 필터 + 카드 UI 정리
+- 요청: 파이프라인 관리 페이지 스크롤이 너무 길어 → 페이지 번호 방식 페이징(처음 15건 → 사용자 피드백 반영해 10건) + 상태 필터(전체/업로드/진행 중/완료/오류) + 카드 좌측에 흩어진 상태 라벨을 우측 한 곳으로 통일.
+- BE(별도 repo, 미푸시 상태): `GET /api/feynman/docs/all` 에 page/size/status 쿼리 파라미터 추가, 응답 타입을 `List<DocResponse>` → `DocPageResponse(items,totalCount,page,size,totalPages)` 로 교체. 매퍼에 `findDocsByUserIdPaged`/`countDocsByUserId` + 공통 `<sql id="docStatusFilter">` fragment 추가. `findAllDocsByUserId` 는 어드민 대시보드용으로 유지. 서비스에서 page/size 클램핑 + status 화이트리스트 폴백.
+- FE: [feynmanApi.js](../src/services/feynmanApi.js) `fetchAllDocs()` → `fetchDocsPage({page,size,status})`. [FeynmanPipelineTab](../src/components/feynman/FeynmanPipelineTab.jsx) state 확장 + 헤더 status select + 본문 끝 페이지 컨트롤(7페이지 초과 시 ... 축약). 폴링은 현재 페이지/필터 유지하며 reload, 다른 페이지로 이동 시 자동 정지. 빈 페이지 자동 한 칸 뒤로 이동(필터 변경 케이스). 카드 좌측 정보 영역의 status 라벨/% → 우측 액션 영역으로 이동, 진행률 바만 좌측에 유지.
+- 설계 문서: [docs/designs/2026-04-27-docs-pipeline-pagination.md](designs/2026-04-27-docs-pipeline-pagination.md)
+- 비고: BE master 직접 push 가드로 차단 → BE 변경분은 로컬 working tree에 보류 중. 사용자 결정 후 별도 브랜치+PR 또는 권한 룰 추가로 푸시 예정.
+
 ## 2026-04-27 (17차) — PDF 다중 업로드 (순차)
 - 요청: 파이프라인 돌리기 전 단계로, PDF 여러 개를 한 번에 업로드. 둘 다(파이프라인 관리 탭 헤더 버튼 + 사이드바 문서 업로드 모달) 적용. 합계 11GB(파일 수십 개) 한 번에 처리.
 - 변경:
