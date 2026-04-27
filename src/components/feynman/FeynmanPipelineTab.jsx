@@ -35,6 +35,8 @@ export default function FeynmanPipelineTab() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  // 다중 업로드 진행도: { current: i, total: N } — null이면 비활성
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [runningIds, setRunningIds] = useState(new Set());
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
@@ -69,26 +71,47 @@ export default function FeynmanPipelineTab() {
     };
   }, [docs, loadDocs]);
 
-  // PDF 업로드
+  // PDF 다중 업로드 (순차) — 한 파일이 실패해도 나머지는 계속 진행
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
+    const all = Array.from(e.target.files || []);
+    if (all.length === 0) return;
+
+    // PDF만 통과
+    const valid = all.filter((f) => f.name.toLowerCase().endsWith('.pdf'));
+    const skipped = all.length - valid.length;
+    if (valid.length === 0) {
       showError(null, 'PDF 파일만 업로드할 수 있습니다');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setUploading(true);
-    try {
-      await uploadPdf(file);
-      showSuccess('PDF 업로드 완료');
-      await loadDocs();
-    } catch (err) {
-      showError(err, 'PDF 업로드에 실패했습니다');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    setUploadProgress({ current: 0, total: valid.length });
+    const failed = [];
+
+    for (let i = 0; i < valid.length; i++) {
+      setUploadProgress({ current: i + 1, total: valid.length });
+      try {
+        await uploadPdf(valid[i]);
+      } catch (err) {
+        failed.push({ name: valid[i].name, message: err?.userMessage || err?.message || '업로드 실패' });
+      }
     }
+
+    const succeeded = valid.length - failed.length;
+    if (failed.length === 0) {
+      const msg = valid.length === 1 ? 'PDF 업로드 완료' : `${succeeded}개 PDF 업로드 완료`;
+      showSuccess(skipped > 0 ? `${msg} (PDF 아닌 ${skipped}개 제외)` : msg);
+    } else if (succeeded > 0) {
+      showError(null, `${succeeded}개 성공, ${failed.length}개 실패: ${failed.map((f) => f.name).join(', ')}`);
+    } else {
+      showError(null, `업로드 실패: ${failed.map((f) => f.name).join(', ')}`);
+    }
+
+    await loadDocs();
+    setUploading(false);
+    setUploadProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // 파이프라인 실행
@@ -140,11 +163,16 @@ export default function FeynmanPipelineTab() {
             ) : (
               <Upload size={16} />
             )}
-            {uploading ? '업로드 중...' : 'PDF 업로드'}
+            {uploading
+              ? (uploadProgress && uploadProgress.total > 1
+                ? `업로드 중 (${uploadProgress.current}/${uploadProgress.total})...`
+                : '업로드 중...')
+              : 'PDF 업로드'}
             <input
               ref={fileInputRef}
               type="file"
               accept=".pdf"
+              multiple
               onChange={handleUpload}
               className="hidden"
               disabled={uploading}
