@@ -259,26 +259,21 @@ export default function FeynmanPipelineTab() {
   // 팝오버에서 확인 시 분기 실행.
   const handleConfirmAction = () => {
     if (!confirmAction) return;
-    const { type, docId } = confirmAction;
+    const { type, docId, mode } = confirmAction;
     if (type === 'delete') {
       runDeleteDoc(docId);
     } else if (type === 'toc') {
       runRetryToc({ id: docId });
+    } else if (type === 'enqueue-all') {
+      runEnqueueAll(mode);
     }
     setConfirmAction(null);
   };
 
-  // 전체 실행 (큐 일괄 등록)
-  const handleEnqueueAll = async (mode = 'skip_embed') => {
+  // 전체 실행 — 실제 API 호출부.
+  const runEnqueueAll = async (mode) => {
     const enqueueable = docs.filter(d => d.status === 'uploaded' || d.status === 'error');
     if (enqueueable.length === 0) return;
-
-    const ok = window.confirm(
-      `${enqueueable.length}개 문서를 일괄 실행할까요?\n` +
-      (mode === 'skip_embed' ? '(임베딩 없이, 마인드맵 생성까지)' : '(전체 파이프라인)')
-    );
-    if (!ok) return;
-
     try {
       const result = await enqueueBatch(enqueueable.map(d => d.id), { mode });
       showSuccess(`${result.enqueuedCount}개 문서가 큐에 등록되었습니다`);
@@ -286,6 +281,14 @@ export default function FeynmanPipelineTab() {
     } catch (err) {
       showError(err, '일괄 실행 등록에 실패했습니다');
     }
+  };
+
+  // 전체 실행 트리거: 팝오버로 확인.
+  const handleEnqueueAll = (e, mode = 'skip_embed') => {
+    const enqueueable = docs.filter(d => d.status === 'uploaded' || d.status === 'error');
+    if (enqueueable.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setConfirmAction({ type: 'enqueue-all', count: enqueueable.length, mode, rect });
   };
 
   // 상태 필터 변경 — 1페이지로 리셋
@@ -328,7 +331,7 @@ export default function FeynmanPipelineTab() {
           {/* 전체 실행 버튼 */}
           {docs.some(d => d.status === 'uploaded' || d.status === 'error') && (
             <button
-              onClick={() => handleEnqueueAll('skip_embed')}
+              onClick={(e) => handleEnqueueAll(e, 'skip_embed')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
                 bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
                 transition-colors"
@@ -609,12 +612,22 @@ export default function FeynmanPipelineTab() {
                 연관된 모든 데이터(청크·질문·마인드맵·이력)가 함께 삭제되며 되돌릴 수 없습니다.
               </span>
             </p>
-          ) : (
+          ) : confirmAction.type === 'toc' ? (
             <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
               이미 임베딩이 완료된 문서입니다.
               <br />
               <span className="text-text-secondary">
                 TOC가 바뀌면 기존 청크의 챕터명이 어긋날 수 있어요. 재추출 후 [임베딩 실행]으로 다시 인덱싱하는 것을 권장합니다.
+              </span>
+            </p>
+          ) : (
+            <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
+              <span className="font-semibold">{confirmAction.count}개 문서</span>를 일괄 실행할까요?
+              <br />
+              <span className="text-text-secondary">
+                {confirmAction.mode === 'skip_embed'
+                  ? '임베딩 없이 마인드맵 생성까지 진행합니다.'
+                  : '전체 파이프라인을 실행합니다.'}
               </span>
             </p>
           )}
@@ -633,7 +646,11 @@ export default function FeynmanPipelineTab() {
                   : 'text-xs px-2.5 py-1 rounded bg-primary text-white hover:bg-primary/90 transition-colors'
               }
             >
-              {confirmAction.type === 'delete' ? '삭제' : '계속'}
+              {confirmAction.type === 'delete'
+                ? '삭제'
+                : confirmAction.type === 'enqueue-all'
+                ? '실행'
+                : '계속'}
             </button>
           </div>
         </div>
