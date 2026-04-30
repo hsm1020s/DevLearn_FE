@@ -7,6 +7,23 @@ import { persist } from 'zustand/middleware';
 import api from '../services/api';
 import { resetUserStores } from '../utils/resetUserStores';
 
+/**
+ * 클라이언트 비밀번호 정책: 최소 8자, 영문 1자 이상, 숫자 1자 이상.
+ * 서버(@Size min=4) 보다 엄격하게 두어 신규 가입자에게 더 강한 비밀번호를 유도한다.
+ * 검증 통과 시 null, 실패 시 사용자에게 보여줄 메시지를 반환한다.
+ * @param {string} password
+ * @returns {string|null}
+ */
+function validatePasswordPolicy(password) {
+  if (typeof password !== 'string' || password.length < 8) {
+    return '비밀번호는 8자 이상이어야 합니다.';
+  }
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    return '비밀번호는 영문과 숫자를 모두 포함해야 합니다.';
+  }
+  return null;
+}
+
 const useAuthStore = create(
   persist(
     (set) => ({
@@ -63,6 +80,10 @@ const useAuthStore = create(
        * @returns {Promise<{ success: boolean, message?: string }>}
        */
       register: async (email, password, name) => {
+        const pwError = validatePasswordPolicy(password);
+        if (pwError) {
+          return { success: false, message: pwError };
+        }
         try {
           await api.post('/auth/register', { email, password, name });
           return { success: true };

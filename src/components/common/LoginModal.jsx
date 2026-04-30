@@ -62,6 +62,8 @@ export default function LoginModal({ isOpen, onClose, anchorRef }) {
                        bg-bg-primary text-text-primary placeholder:text-text-tertiary
                        focus:outline-none focus:border-primary transition-colors"
             autoFocus
+            autoComplete="username"
+            spellCheck={false}
           />
         </div>
         <div>
@@ -74,6 +76,7 @@ export default function LoginModal({ isOpen, onClose, anchorRef }) {
             className="w-full px-3 py-2 text-sm border border-border-light rounded-lg
                        bg-bg-primary text-text-primary placeholder:text-text-tertiary
                        focus:outline-none focus:border-primary transition-colors"
+            autoComplete="current-password"
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">

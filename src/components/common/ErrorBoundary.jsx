@@ -16,7 +16,11 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary]', error, errorInfo);
+    // 운영 빌드에서는 응답 헤더(Authorization 등)가 errorInfo 에 따라붙어
+    // 콘솔에 노출되는 사고를 막기 위해 DEV 환경에서만 상세 로깅한다.
+    if (import.meta.env.DEV) {
+      console.error('[ErrorBoundary]', error, errorInfo);
+    }
   }
 
   render() {

@@ -2,7 +2,7 @@
  * @fileoverview 파인만 학습 모드 API 서비스.
  * 백엔드 /api/feynman 엔드포인트와 통신한다.
  */
-import api from './api';
+import api, { refreshAccessToken } from './api';
 
 /**
  * 임베딩 완료된 학습 가능 문서 목록을 조회한다.
@@ -157,25 +157,10 @@ export async function streamFeynmanChat(params) {
   let response = await doFetch(accessToken);
 
   if (response.status === 401) {
-    // refresh 시도 — chatApi와 동일 패턴
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) {
-      const err = new Error('로그인이 필요합니다');
-      err.userMessage = '로그인이 필요합니다';
-      err.status = 401;
-      throw err;
-    }
+    // 공유 single-flight refresh 사용 — 동시 401에도 /auth/refresh 는 1회만 호출된다
     try {
-      const { data } = await import('axios').then((ax) =>
-        ax.default.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken }),
-      );
-      accessToken = data.data.accessToken;
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      accessToken = await refreshAccessToken();
     } catch {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('auth-storage');
       const err = new Error('로그인이 필요합니다');
       err.userMessage = '로그인이 필요합니다';
       err.status = 401;
