@@ -88,6 +88,7 @@ export async function streamMessage(params) {
     } catch {
       const err = new Error('로그인이 필요합니다');
       err.userMessage = '로그인이 필요합니다';
+      err.errorCode = 'UNAUTHORIZED';
       err.status = 401;
       throw err;
     }
@@ -95,14 +96,18 @@ export async function streamMessage(params) {
   }
 
   if (!response.ok) {
-    // 서버가 JSON 에러 본문을 내려주면 message를 뽑아 토스트에 노출
+    // 서버가 ApiResponse 형식 JSON({success:false,message,errorCode})을 내려주면
+    // message는 토스트 본문, errorCode는 코드 칩으로 노출.
     let message = `요청 실패 (${response.status})`;
+    let errorCode = null;
     try {
       const body = await response.json();
       if (body?.message) message = body.message;
+      if (body?.errorCode) errorCode = body.errorCode;
     } catch { /* 본문 파싱 실패는 무시 */ }
     const err = new Error(message);
     err.userMessage = message;
+    err.errorCode = errorCode;
     err.status = response.status;
     throw err;
   }
