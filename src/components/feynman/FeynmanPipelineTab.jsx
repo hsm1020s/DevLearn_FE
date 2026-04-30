@@ -58,6 +58,11 @@ export default function FeynmanPipelineTab() {
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
 
+  // 위험 동작(삭제/임베딩 후 TOC 재추출) 확인 팝오버 — Sidebar의 deleteConfirm 패턴 차용.
+  // shape: { type: 'delete'|'toc', docId, fileName, rect: DOMRect }
+  const [confirmAction, setConfirmAction] = useState(null);
+  const confirmRef = useRef(null);
+
   /**
    * 지정한 페이지/필터로 문서 목록을 다시 가져온다.
    * 인자를 받는 이유: setState 직후 동일 사이클에서 호출하면 React state가
@@ -87,6 +92,18 @@ export default function FeynmanPipelineTab() {
     // loadDocs는 page/status에 의존하므로 deps에서 제외(무한 루프 방지)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
+
+  // 확인 팝오버 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!confirmAction) return;
+    const handleClickOutside = (e) => {
+      if (confirmRef.current && !confirmRef.current.contains(e.target)) {
+        setConfirmAction(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [confirmAction]);
 
   // 현재 페이지에 진행 중 문서가 있으면 3초 폴링 (다른 페이지로 이동 시 자동 정지)
   useEffect(() => {
@@ -191,17 +208,9 @@ export default function FeynmanPipelineTab() {
     }
   };
 
-  // TOC + chapters 그룹핑 재실행. 이미 임베딩된 문서면 사전 confirm.
-  const handleRetryToc = async (doc) => {
-    if (doc.ragIndexed === true) {
-      const ok = window.confirm(
-        '이미 임베딩이 완료된 문서입니다.\n' +
-        'TOC 가 바뀌면 기존 청크의 챕터명이 어긋날 수 있습니다.\n' +
-        '재추출 후 [임베딩 실행] 으로 다시 인덱싱하는 것을 권장합니다.\n\n' +
-        '계속할까요?'
-      );
-      if (!ok) return;
-    }
+  // TOC + chapters 그룹핑 재실행 — 실제 API 호출부.
+  // 임베딩 청크 정합성 경고는 호출 전에 팝오버에서 처리되므로 여기서는 분기 없음.
+  const runRetryToc = async (doc) => {
     setRunningIds((prev) => new Set(prev).add(doc.id));
     try {
       await retryToc(doc.id);
@@ -218,22 +227,44 @@ export default function FeynmanPipelineTab() {
     }
   };
 
-  // 문서 삭제
-  const handleDeleteDoc = async (doc) => {
-    if (isProcessing(doc.status)) return;
-    const ok = window.confirm(
-      `"${doc.fileName}" 문서를 삭제할까요?\n\n` +
-      '연관된 모든 데이터(청크, 질문, 마인드맵, 파이프라인 이력)가 함께 삭제됩니다.\n' +
-      '이 작업은 되돌릴 수 없습니다.'
-    );
-    if (!ok) return;
+  // TOC 재추출 트리거: ragIndexed=true 면 청크 정합성 경고 팝오버, 아니면 즉시 실행.
+  const handleRetryToc = (doc, e) => {
+    if (doc.ragIndexed === true) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setConfirmAction({ type: 'toc', docId: doc.id, fileName: doc.fileName, rect });
+      return;
+    }
+    runRetryToc(doc);
+  };
+
+  // 문서 삭제 — 실제 API 호출부.
+  const runDeleteDoc = async (docId) => {
     try {
-      await deleteDoc(doc.id);
+      await deleteDoc(docId);
       showSuccess('문서가 삭제되었습니다');
       await loadDocs(page, status);
     } catch (err) {
       showError(err, '문서 삭제에 실패했습니다');
     }
+  };
+
+  // 삭제 트리거: 항상 팝오버로 확인.
+  const handleDeleteDoc = (doc, e) => {
+    if (isProcessing(doc.status)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setConfirmAction({ type: 'delete', docId: doc.id, fileName: doc.fileName, rect });
+  };
+
+  // 팝오버에서 확인 시 분기 실행.
+  const handleConfirmAction = () => {
+    if (!confirmAction) return;
+    const { type, docId } = confirmAction;
+    if (type === 'delete') {
+      runDeleteDoc(docId);
+    } else if (type === 'toc') {
+      runRetryToc({ id: docId });
+    }
+    setConfirmAction(null);
   };
 
   // 상태 필터 변경 — 1페이지로 리셋
@@ -434,10 +465,10 @@ export default function FeynmanPipelineTab() {
                       </button>
                     )}
                     {/* completed 카드 전부에 [TOC 재추출] 보조 버튼.
-                        ragIndexed=true 면 핸들러가 사전 confirm 으로 청크 정합성 경고. */}
+                        ragIndexed=true 면 핸들러가 사전 팝오버로 청크 정합성 경고. */}
                     {doc.status === 'completed' && (
                       <button
-                        onClick={() => handleRetryToc(doc)}
+                        onClick={(e) => handleRetryToc(doc, e)}
                         disabled={runningIds.has(doc.id)}
                         title="목차(TOC) 만 다시 LLM 으로 추출하고 챕터 그룹핑 재실행"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
@@ -450,7 +481,7 @@ export default function FeynmanPipelineTab() {
                     {/* 삭제 버튼 — 파이프라인 실행 중이 아닐 때만 활성화 */}
                     {!isProcessing(doc.status) && (
                       <button
-                        onClick={() => handleDeleteDoc(doc)}
+                        onClick={(e) => handleDeleteDoc(doc, e)}
                         disabled={runningIds.has(doc.id)}
                         title="문서와 연관 데이터 전체 삭제"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
@@ -523,6 +554,54 @@ export default function FeynmanPipelineTab() {
 
           {/* 우측: 좌측 텍스트와 시각 균형용 빈 공간 (가운데 페이지 버튼이 시각적으로 중앙 오도록) */}
           <div className="shrink-0 min-w-[120px]" aria-hidden />
+        </div>
+      )}
+
+      {/* 위험 액션 확인 팝오버 — 트리거 버튼 우측에 fixed 로 표시 (Sidebar 패턴 차용) */}
+      {confirmAction && (
+        <div
+          ref={confirmRef}
+          className="fixed z-[999] bg-bg-primary border border-border-light rounded-lg shadow-lg p-3 w-[280px] animate-popover-in"
+          style={{
+            top: confirmAction.rect.top,
+            left: confirmAction.rect.right + 6,
+          }}
+        >
+          {confirmAction.type === 'delete' ? (
+            <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
+              <span className="font-semibold">"{confirmAction.fileName}"</span> 문서를 삭제할까요?
+              <br />
+              <span className="text-text-secondary">
+                연관된 모든 데이터(청크·질문·마인드맵·이력)가 함께 삭제되며 되돌릴 수 없습니다.
+              </span>
+            </p>
+          ) : (
+            <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
+              이미 임베딩이 완료된 문서입니다.
+              <br />
+              <span className="text-text-secondary">
+                TOC가 바뀌면 기존 청크의 챕터명이 어긋날 수 있어요. 재추출 후 [임베딩 실행]으로 다시 인덱싱하는 것을 권장합니다.
+              </span>
+            </p>
+          )}
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              onClick={() => setConfirmAction(null)}
+              className="text-xs px-2.5 py-1 rounded text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleConfirmAction}
+              className={
+                confirmAction.type === 'delete'
+                  ? 'text-xs px-2.5 py-1 rounded bg-danger text-white hover:bg-danger/90 transition-colors'
+                  : 'text-xs px-2.5 py-1 rounded bg-primary text-white hover:bg-primary/90 transition-colors'
+              }
+            >
+              {confirmAction.type === 'delete' ? '삭제' : '계속'}
+            </button>
+          </div>
         </div>
       )}
     </div>
