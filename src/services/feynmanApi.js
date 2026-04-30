@@ -83,6 +83,16 @@ export async function retryToc(docId) {
 }
 
 /**
+ * 문서와 모든 연관 데이터를 삭제한다.
+ * @param {string} docId - 문서 UUID
+ * @returns {Promise<{docId: string, message: string}>}
+ */
+export async function deleteDoc(docId) {
+  const { data } = await api.delete(`/feynman/docs/${docId}`);
+  return data.data;
+}
+
+/**
  * 사용자의 개념 설명을 원본 텍스트와 대조하여 검증한다.
  * @param {Object} params
  * @param {string} params.docId - 문서 UUID

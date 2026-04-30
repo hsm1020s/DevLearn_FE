@@ -11,9 +11,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
-  Loader2, FileText, Clock, ChevronLeft, ChevronRight,
+  Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
@@ -215,6 +215,24 @@ export default function FeynmanPipelineTab() {
         next.delete(doc.id);
         return next;
       });
+    }
+  };
+
+  // 문서 삭제
+  const handleDeleteDoc = async (doc) => {
+    if (isProcessing(doc.status)) return;
+    const ok = window.confirm(
+      `"${doc.fileName}" 문서를 삭제할까요?\n\n` +
+      '연관된 모든 데이터(청크, 질문, 마인드맵, 파이프라인 이력)가 함께 삭제됩니다.\n' +
+      '이 작업은 되돌릴 수 없습니다.'
+    );
+    if (!ok) return;
+    try {
+      await deleteDoc(doc.id);
+      showSuccess('문서가 삭제되었습니다');
+      await loadDocs(page, status);
+    } catch (err) {
+      showError(err, '문서 삭제에 실패했습니다');
     }
   };
 
@@ -427,6 +445,20 @@ export default function FeynmanPipelineTab() {
                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         TOC 재추출
+                      </button>
+                    )}
+                    {/* 삭제 버튼 — 파이프라인 실행 중이 아닐 때만 활성화 */}
+                    {!isProcessing(doc.status) && (
+                      <button
+                        onClick={() => handleDeleteDoc(doc)}
+                        disabled={runningIds.has(doc.id)}
+                        title="문서와 연관 데이터 전체 삭제"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                          text-danger hover:bg-danger/10 border border-border-light
+                          disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Trash2 size={13} />
+                        삭제
                       </button>
                     )}
                   </div>
