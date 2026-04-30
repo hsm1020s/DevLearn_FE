@@ -1,6 +1,6 @@
 /**
  * @fileoverview 채팅 빈 상태 공통 컴포넌트.
- * 대화가 없을 때 화면 중앙에 모드 전환 탭, 입력창, 예시 질문을 표시한다.
+ * 대화가 없을 때 화면 중앙에 모드 전환 탭과 입력창을 표시한다.
  * 일반 모드 ChatContainer의 빈 상태에서 사용되며, 학습 계열 모드도 `ModeSwitcher`를
  * 각자 빈 상태에 배치해 모드 이동 대칭성을 공유한다.
  */
@@ -12,12 +12,11 @@ import ModeSwitcher from '../common/ModeSwitcher';
  * @param {React.ElementType} props.icon - 모드별 아이콘 컴포넌트
  * @param {string} props.title - 모드 제목 (예: "일반 모드")
  * @param {string} props.description - 안내 문구
- * @param {string[]} [props.examples] - 예시 질문 목록 (선택)
  * @param {Function} props.onSend - 메시지 전송 핸들러
  * @param {boolean} props.isStreaming - 스트리밍 중 여부
  * @param {Function} props.onStop - 스트리밍 중지 핸들러
  */
-export default function EmptyChatView({ icon: Icon, title, description, examples = [], onSend, isStreaming, onStop }) {
+export default function EmptyChatView({ icon: Icon, title, description, onSend, isStreaming, onStop }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 md:px-4" style={{ marginTop: '-6%' }}>
       <div className="w-full max-w-2xl flex flex-col items-center gap-4 md:gap-6">
@@ -39,22 +38,6 @@ export default function EmptyChatView({ icon: Icon, title, description, examples
         <div className="w-full">
           <ChatInput onSend={onSend} isStreaming={isStreaming} onStop={onStop} />
         </div>
-
-        {/* 예시 질문 */}
-        {examples.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2">
-            {examples.map((q) => (
-              <button
-                key={q}
-                onClick={() => onSend(q)}
-                className="px-3 py-2 rounded-lg bg-bg-secondary border border-border-light
-                           text-sm text-text-secondary hover:bg-bg-tertiary transition-colors"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

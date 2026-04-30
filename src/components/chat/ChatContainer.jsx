@@ -12,12 +12,6 @@ import ChatLoadingBubble from './ChatLoadingBubble';
 import EmptyChatView from './EmptyChatView';
 import JumpToBottomButton from './JumpToBottomButton';
 
-const EXAMPLE_QUESTIONS = [
-  'React와 Vue의 차이점은?',
-  '정보처리기사 실기 팁 알려줘',
-  '사내 휴가 규정 알려줘',
-];
-
 /** 일반 모드 채팅 화면 */
 export default function ChatContainer() {
   const mainMode = useAppStore((s) => s.mainMode);
@@ -43,7 +37,6 @@ export default function ChatContainer() {
           icon={MessageSquare}
           title="일반 모드"
           description="무엇이든 물어보세요"
-          examples={EXAMPLE_QUESTIONS}
           onSend={handleSend}
           isStreaming={isStreaming}
           onStop={handleStop}
