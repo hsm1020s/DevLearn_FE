@@ -12,6 +12,9 @@ import { getMindmap } from '../../services/mindmapApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useMindmapStore from '../../stores/useMindmapStore';
 
+/** 소단원의 고유 키를 생성한다. 같은 이름의 소단원이 다른 대단원에 있어도 구별된다. */
+const chKey = (ch) => `${ch.parentChapter || ''}::${ch.chapter}`;
+
 /**
  * 자동 생성 마인드맵 탭.
  * @param {object} props
@@ -24,10 +27,10 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
   // 2단계: 선택된 문서 + 챕터 상태 목록
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [chapters, setChapters] = useState([]); // [{chapter, status, mindmapId, nodeCount}]
+  const [chapters, setChapters] = useState([]); // [{chapter, parentChapter, status, mindmapId, nodeCount}]
   const [chaptersLoading, setChaptersLoading] = useState(false);
 
-  // 체크박스 상태
+  // 체크박스 상태 — Set<"parentChapter::chapter"> 복합키로 동명 소단원 구별
   const [checked, setChecked] = useState(new Set());
 
   // 생성 진행 상태
@@ -89,45 +92,71 @@ export default function AutoMindmapTab({ onOpenMap }) {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
-  // 체크박스 토글
-  const toggleCheck = (chapter) => {
+  // 소단원 체크박스 토글
+  const toggleCheck = (ch) => {
+    const key = chKey(ch);
     setChecked((prev) => {
       const next = new Set(prev);
-      if (next.has(chapter)) next.delete(chapter); else next.add(chapter);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  // 대단원(부모) 체크박스 토글 — 하위 소단원 중 미생성인 것을 일괄 선택/해제
+  const toggleParent = (parentName) => {
+    const children = chapters.filter(
+      (c) => c.parentChapter === parentName && c.status === 'not_generated'
+    );
+    setChecked((prev) => {
+      const next = new Set(prev);
+      const allIn = children.every((c) => next.has(chKey(c)));
+      if (allIn) {
+        children.forEach((c) => next.delete(chKey(c)));
+      } else {
+        children.forEach((c) => next.add(chKey(c)));
+      }
       return next;
     });
   };
 
   // 전체 선택/해제 (미생성만)
-  // 선택 가능한 챕터 = 미생성 + 진행 중이 아닌 것만
   const selectable = chapters.filter((c) => c.status === 'not_generated');
-  const allChecked = selectable.length > 0 && selectable.every((c) => checked.has(c.chapter));
+  const allChecked = selectable.length > 0 && selectable.every((c) => checked.has(chKey(c)));
 
   const toggleAll = () => {
     if (allChecked) {
       setChecked(new Set());
     } else {
-      setChecked(new Set(selectable.map((c) => c.chapter)));
+      setChecked((prev) => {
+        const next = new Set(prev);
+        selectable.forEach((c) => next.add(chKey(c)));
+        return next;
+      });
     }
   };
 
-  // 선택 생성
+  // 선택 생성 — checked(복합키)에서 chapter 이름만 추출하여 API 전송
   const handleGenerate = async () => {
     if (checked.size === 0 || !selectedDoc || generating) return;
     setGenerating(true);
 
+    // 복합키 → chapter 이름 변환
+    const selectedChapterNames = chapters
+      .filter((c) => checked.has(chKey(c)))
+      .map((c) => c.chapter);
+
     try {
-      await generateMindmaps(selectedDoc.id, [...checked]);
+      await generateMindmaps(selectedDoc.id, selectedChapterNames);
       showSuccess(`${checked.size}개 챕터 마인드맵 생성 시작`);
 
       // 폴링 시작 (5초 간격)
+      const checkedSnapshot = new Set(checked);
       pollRef.current = setInterval(() => {
         fetchChapterStatuses(selectedDoc.id)
           .then((data) => {
             setChapters(data || []);
-            // 선택한 챕터 중 미완료가 없으면 폴링 중단
             const stillPending = (data || []).some(
-              (c) => checked.has(c.chapter) && c.status !== 'completed'
+              (c) => checkedSnapshot.has(chKey(c)) && c.status !== 'completed'
             );
             if (!stillPending) {
               clearInterval(pollRef.current);
@@ -265,7 +294,9 @@ export default function AutoMindmapTab({ onOpenMap }) {
               >
                 {allChecked
                   ? <CheckSquare size={14} className="text-primary" />
-                  : <Square size={14} />}
+                  : checked.size > 0
+                    ? <CheckSquare size={14} className="text-primary/40" />
+                    : <Square size={14} />}
                 전체 선택
               </button>
 
@@ -299,66 +330,116 @@ export default function AutoMindmapTab({ onOpenMap }) {
               </div>
             )}
 
-            {/* 챕터 리스트 */}
+            {/* 챕터 리스트 — parentChapter로 그룹핑 */}
             <div className="p-2 space-y-0.5">
-              {chapters.map((ch) => {
-                const isCompleted = ch.status === 'completed';
-                const isGeneratingNow = ch.status === 'generating';
-                const isPending = ch.status === 'pending';
-                const isSelectable = ch.status === 'not_generated';
-                const isChecked = checked.has(ch.chapter);
+              {(() => {
+                const groups = [];
+                let currentParent = null;
+                for (const ch of chapters) {
+                  const parent = ch.parentChapter || null;
+                  if (parent !== currentParent) {
+                    groups.push({ parent, items: [ch] });
+                    currentParent = parent;
+                  } else {
+                    groups[groups.length - 1].items.push(ch);
+                  }
+                }
 
-                return (
-                  <div
-                    key={ch.chapter}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
-                      ${isCompleted ? 'hover:bg-bg-secondary cursor-pointer' : ''}`}
-                    onClick={isCompleted ? () => handleOpen(ch) : undefined}
-                  >
-                    {/* 왼쪽 아이콘/체크박스 */}
-                    {isCompleted ? (
-                      <Check size={16} className="text-success shrink-0" />
-                    ) : isGeneratingNow ? (
-                      <Loader2 size={16} className="animate-spin text-primary shrink-0" />
-                    ) : isPending ? (
-                      <div className="w-4 h-4 rounded-full border-2 border-primary/30 shrink-0" />
-                    ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleCheck(ch.chapter); }}
-                        disabled={generating}
-                        className="shrink-0 text-text-tertiary hover:text-primary transition-colors
-                          disabled:opacity-40"
-                      >
-                        {isChecked
-                          ? <CheckSquare size={16} className="text-primary" />
-                          : <Square size={16} />}
-                      </button>
-                    )}
+                return groups.map((group) => (
+                  <div key={group.parent || '__flat__'}>
+                    {/* 대단원 헤더 + 체크박스 */}
+                    {group.parent && (() => {
+                      const groupSelectable = group.items.filter((c) => c.status === 'not_generated');
+                      const groupAllChecked = groupSelectable.length > 0
+                        && groupSelectable.every((c) => checked.has(chKey(c)));
+                      const groupSomeChecked = groupSelectable.some((c) => checked.has(chKey(c)));
 
-                    {/* 챕터명 */}
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-sm truncate ${
-                        isCompleted ? 'text-text-primary'
-                          : isGeneratingNow ? 'text-primary'
-                          : 'text-text-secondary'
-                      }`}>
-                        {ch.chapter}
-                      </div>
-                    </div>
+                      return (
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 mt-2 first:mt-0 rounded-lg
+                            hover:bg-bg-secondary/50 transition-colors cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); toggleParent(group.parent); }}
+                        >
+                          {groupSelectable.length > 0 ? (
+                            groupAllChecked
+                              ? <CheckSquare size={14} className="text-primary shrink-0" />
+                              : groupSomeChecked
+                                ? <CheckSquare size={14} className="text-primary/40 shrink-0" />
+                                : <Square size={14} className="text-text-tertiary shrink-0" />
+                          ) : (
+                            <Check size={14} className="text-success/60 shrink-0" />
+                          )}
+                          <FileText size={13} className="text-primary/60 shrink-0" />
+                          <span className="text-xs font-semibold text-text-secondary truncate flex-1">
+                            {group.parent}
+                          </span>
+                          <span className="text-xs text-text-tertiary shrink-0">
+                            {group.items.filter((c) => c.status === 'completed').length}/{group.items.length}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
-                    {/* 상태 레이블 */}
-                    {isCompleted ? (
-                      <span className="text-xs text-text-tertiary shrink-0">
-                        {ch.nodeCount}개 노드
-                      </span>
-                    ) : isGeneratingNow ? (
-                      <span className="text-xs text-primary shrink-0">생성 중</span>
-                    ) : isPending ? (
-                      <span className="text-xs text-text-tertiary shrink-0">대기</span>
-                    ) : null}
+                    {/* 소단원 리스트 */}
+                    {group.items.map((ch) => {
+                      const key = chKey(ch);
+                      const isCompleted = ch.status === 'completed';
+                      const isGeneratingNow = ch.status === 'generating';
+                      const isPending = ch.status === 'pending';
+                      const isChecked = checked.has(key);
+                      const indent = group.parent ? 'pl-6' : '';
+
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${indent}
+                            ${isCompleted ? 'hover:bg-bg-secondary cursor-pointer' : ''}`}
+                          onClick={isCompleted ? () => handleOpen(ch) : undefined}
+                        >
+                          {isCompleted ? (
+                            <Check size={16} className="text-success shrink-0" />
+                          ) : isGeneratingNow ? (
+                            <Loader2 size={16} className="animate-spin text-primary shrink-0" />
+                          ) : isPending ? (
+                            <div className="w-4 h-4 rounded-full border-2 border-primary/30 shrink-0" />
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleCheck(ch); }}
+                              disabled={generating}
+                              className="shrink-0 text-text-tertiary hover:text-primary transition-colors
+                                disabled:opacity-40"
+                            >
+                              {isChecked
+                                ? <CheckSquare size={16} className="text-primary" />
+                                : <Square size={16} />}
+                            </button>
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm truncate ${
+                              isCompleted ? 'text-text-primary'
+                                : isGeneratingNow ? 'text-primary'
+                                : 'text-text-secondary'
+                            }`}>
+                              {ch.chapter}
+                            </div>
+                          </div>
+
+                          {isCompleted ? (
+                            <span className="text-xs text-text-tertiary shrink-0">
+                              {ch.nodeCount}개 노드
+                            </span>
+                          ) : isGeneratingNow ? (
+                            <span className="text-xs text-primary shrink-0">생성 중</span>
+                          ) : isPending ? (
+                            <span className="text-xs text-text-tertiary shrink-0">대기</span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ));
+              })()}
             </div>
           </div>
         )}
