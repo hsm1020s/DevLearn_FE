@@ -1,6 +1,6 @@
 # DevLearn
 
-> LLM·RAG 기반 학습 플랫폼 — 일반 채팅, PDF 자격증 학습, 사내 문서 학습(RAG), 마인드맵을 한 화면에서 통합 제공
+> LLM·RAG 기반 학습 플랫폼 — 일반 채팅, PDF 공부 모드, 사내 문서 학습(RAG), 마인드맵을 한 화면에서 통합 제공
 
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646cff)](https://vite.dev/)
@@ -16,7 +16,7 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 세 가지 사용 시나리오를 하나의 채팅 UI로 통합한다.
 
 - **일반 모드** — 자유 질의응답 (SSE 스트리밍)
-- **자격증 모드** — PDF 교재 업로드 → LLM 자동 출제 → 즉시 채점·해설 → 오답을 마인드맵으로 정리
+- **공부 모드** — PDF 교재 업로드 → LLM 자동 출제 → 즉시 채점·해설 → 오답을 마인드맵으로 정리
 - **업무학습 모드** — 사내/개인 문서 업로드 → 벡터 인덱싱 → RAG 기반 Q&A + 출처 표시
 
 **기술 스택**
@@ -46,7 +46,7 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 ## 프로젝트 목적
 
 1. **여러 LLM을 한 곳에서 비교·활용** — 클라우드(OpenAI/Anthropic/Google) 모델과 로컬(Ollama) 모델을 같은 UI에서 전환하며 응답 품질·속도·비용을 직접 체감.
-2. **PDF 한 번만 올리면 끝나는 학습 루틴** — 교재를 올리면 LLM이 자동으로 챕터를 추출하고 출제까지 해주는, "내 PDF로 만든 자격증 모의고사" 경험.
+2. **PDF 한 번만 올리면 끝나는 학습 루틴** — 교재를 올리면 LLM이 자동으로 챕터를 추출하고 출제까지 해주는, "내 PDF로 만든 모의고사" 경험.
 3. **사내 문서를 잊지 않는 RAG 어시스턴트** — 업무 문서를 인덱싱해 출처가 표시되는 답변을 받는 개인용 RAG 워크스페이스.
 4. **개념을 시각화로 고정** — 채팅·퀴즈에서 나온 개념을 즉시 마인드맵 노드로 보내고, 모드별로 독립된 맵을 유지.
 5. **혼자 풀스택을 굴려보는 학습 자체가 목적** — React 19 / Zustand 5 / Spring Boot / 로컬 LLM 파이프라인까지 직접 묶어보는 실전 연습.
@@ -60,7 +60,7 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 | 모드 | 핵심 |
 |---|---|
 | **일반 채팅** | SSE 스트리밍, LLM 6종 즉시 전환, 마크다운 + 코드 하이라이팅, 대화 즐겨찾기/검색 |
-| **자격증 (Cert)** | PDF 업로드 → 챕터 자동 추출 → 난이도/문항 수/유형 선택 → 비동기 잡 + 폴링 출제 → 즉시 채점·해설 → **오답 한 클릭으로 마인드맵에 노드 추가** |
+| **공부 (Study)** | PDF 업로드 → 챕터 자동 추출 → 난이도/문항 수/유형 선택 → 비동기 잡 + 폴링 출제 → 즉시 채점·해설 → **오답 한 클릭으로 마인드맵에 노드 추가** |
 | **업무학습 (RAG)** | 다중 PDF 순차 업로드 → 벡터 인덱싱 진행률 실시간 폴링 → RAG Q&A + 출처(문서·페이지·유사도) → 원문 미리보기 |
 
 ### 2. 마인드맵 (모든 모드 공용)
@@ -98,11 +98,6 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 - 한국어 IME 입력 가드(`e.nativeEvent.isComposing`)
 - React.lazy + Suspense로 모드별 코드 스플리팅, Zustand persist로 대화/마인드맵 영속화
 
-### 8. 운영 자동화 (하네스)
-
-- 새 작업은 `/phase-start <slug>` → 워크트리 격리 → 설계/구현/회귀/병합 5단계 강제
-- PreToolUse 훅이 단계 위반 시 `exit 2`로 차단, dev 서버 헬스 체크를 위험 명령 후 자동 실행
-
 ---
 
 ## 프로젝트 회고
@@ -116,11 +111,9 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 
 ### 시행착오
 
-> 자세한 기록은 [docs/시행착오.md](docs/시행착오.md)
-
 - **화면 선명도 1차 안 폐기** — `globals.css` surface 토큰을 RGB triplet + 알파로 합성한 1차 안은 톤 단계 차이만 흐려져 의도한 "사생활 보호필름" 효과가 안 났다. 화면 전체에 fixed 오버레이(`ClarityFilm`)를 깔고 `backdrop-filter: blur` + 크림톤 알파 가변으로 갈아엎고서야 의도와 일치.
-- **파인만 학습 모드를 별도 메인 모드로 분리했다가 자격증 모드 안의 칩으로 통합** — 별도 모드로 분리하니 기존 학습 대화 UX와 단절되고 챕터 선택이 모드 전환 단계에 끼어들어 번거로웠다. 자격증 모드 안의 스타일 칩으로 편입.
-- **자격증 퀴즈 생성 동기 호출 → 비동기 잡 + 폴링** — 로컬 32B 모델이 수 분 걸리는 동안 단일 HTTP 요청을 열어두니 타임아웃·스레드 부담·UX 모두 나빴다. `POST /generate-quiz` 즉시 `{quizId, status: processing}` 반환 + `@Async`로 백그라운드 진행 + `GET /quizzes/{id}` 폴링 구조로 전환.
+- **파인만 학습 모드를 별도 메인 모드로 분리했다가 공부 모드 안의 칩으로 통합** — 별도 모드로 분리하니 기존 학습 대화 UX와 단절되고 챕터 선택이 모드 전환 단계에 끼어들어 번거로웠다. 공부 모드 안의 스타일 칩으로 편입.
+- **퀴즈 생성 동기 호출 → 비동기 잡 + 폴링** — 로컬 32B 모델이 수 분 걸리는 동안 단일 HTTP 요청을 열어두니 타임아웃·스레드 부담·UX 모두 나빴다. `POST /generate-quiz` 즉시 `{quizId, status: processing}` 반환 + `@Async`로 백그라운드 진행 + `GET /quizzes/{id}` 폴링 구조로 전환.
 - **멀티파트 업로드 boundary 사라짐** — Axios 인스턴스 기본 `Content-Type: application/json` 때문에 FormData의 boundary가 덮어씌워져 Spring이 파트를 못 파싱하던 함정. 인스턴스에서 기본 Content-Type을 제거하고 브라우저 자동 생성에 위임.
 
 ### 아쉬운 점 / 다음에 할 것
@@ -134,22 +127,7 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 
 ## Reference
 
-### 백엔드 / 인프라
-
 - 백엔드 저장소 — [DevLearn_BE](https://github.com/hsm1020s/DevLearn_BE) (Spring Boot · MyBatis · PostgreSQL · Ollama)
-- LLM 파이프라인 모니터 설계 — [docs/designs/2026-04-27-llm-pipeline-monitor.md](docs/designs/2026-04-27-llm-pipeline-monitor.md)
-- Ollama 병렬 스트리밍 노트 — [docs/blog/2026-04-27-ollama-parallel-streaming.md](docs/blog/2026-04-27-ollama-parallel-streaming.md)
-
-### 프로젝트 내 문서
-
-- 전체 파일 인덱스 — [docs/PROJECT_MAP.md](docs/PROJECT_MAP.md)
-- 기능 명세 — [docs/FEATURES.md](docs/FEATURES.md)
-- 마인드맵 스펙 — [docs/MINDMAP_SPEC.md](docs/MINDMAP_SPEC.md)
-- 개발 로그(시간순) — [docs/WORK_LOG.md](docs/WORK_LOG.md)
-- 시행착오 기록 — [docs/시행착오.md](docs/시행착오.md)
-
-### 외부 라이브러리·문서
-
 - React 19 — https://react.dev/
 - Vite 6 — https://vite.dev/
 - Zustand 5 — https://zustand-demo.pmnd.rs/
@@ -162,15 +140,13 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 
 ## 구현 화면
 
-> 캡처 이미지는 추후 `docs/screenshots/` 에 추가 예정.
-
 | 화면 | 설명 |
 |---|---|
-| 🟢 일반 채팅 | LLM 선택 드롭다운, SSE 스트리밍, 코드 블록 하이라이팅 |
-| 🟢 자격증 모드 | PDF 업로드 → 챕터 칩 → 난이도/문항 수 → 폴링 진행 → 채점 결과 화면 |
-| 🟢 업무학습 모드 | RAG 다중 업로드, 인덱싱 진행률, 답변 + 출처 카드 (페이지·유사도) |
-| 🟢 마인드맵 | 분할 뷰, 우클릭 컨텍스트 메뉴, 자동 레이아웃, PDF 내보내기 |
-| 🟢 LLM 활동 모니터 | 우하단 FAB → 드로어 4섹션(진행 중 / 통계 / 최근 호출 / 라이브 로그) |
-| 🟢 화면 선명도 슬라이더 | 0%로 내리면 비밀번호 게이트 팝오버 자동 오픈 |
-| 🟢 관리자 대시보드 | 통계 카드 + 최근 대화 + RAG 문서 현황 |
+| 일반 채팅 | LLM 선택 드롭다운, SSE 스트리밍, 코드 블록 하이라이팅 |
+| 공부 모드 | PDF 업로드 → 챕터 칩 → 난이도/문항 수 → 폴링 진행 → 채점 결과 화면 |
+| 업무학습 모드 | RAG 다중 업로드, 인덱싱 진행률, 답변 + 출처 카드 (페이지·유사도) |
+| 마인드맵 | 분할 뷰, 우클릭 컨텍스트 메뉴, 자동 레이아웃, PDF 내보내기 |
+| LLM 활동 모니터 | 우하단 FAB → 드로어 4섹션(진행 중 / 통계 / 최근 호출 / 라이브 로그) |
+| 화면 선명도 슬라이더 | 0%로 내리면 비밀번호 게이트 팝오버 자동 오픈 |
+| 관리자 대시보드 | 통계 카드 + 최근 대화 + RAG 문서 현황 |
 
