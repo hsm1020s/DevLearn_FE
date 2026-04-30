@@ -1,37 +1,9 @@
 /**
  * @fileoverview 채팅 API - 일반/학습 모드별 메시지 송수신 처리
  */
-import axios from 'axios';
 import { API_CONFIG } from './api.config';
 import * as mock from './mock/chatMock';
-import api from './api';
-
-/**
- * refreshToken으로 accessToken 갱신을 시도한다. 성공 시 새 accessToken 반환.
- * 실패 시 tokens/auth-storage를 정리하고 throw한다.
- * @returns {Promise<string>}
- */
-async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) throw new Error('No refresh token');
-  try {
-    const { data } = await axios.post(
-      `${api.defaults.baseURL}/auth/refresh`,
-      { refreshToken },
-    );
-    const newAccessToken = data.data.accessToken;
-    const newRefreshToken = data.data.refreshToken;
-    localStorage.setItem('accessToken', newAccessToken);
-    localStorage.setItem('refreshToken', newRefreshToken);
-    return newAccessToken;
-  } catch (err) {
-    // refresh 실패 → 인증 정보 모두 정리 (api.js 인터셉터와 동일 정책)
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('auth-storage');
-    throw err;
-  }
-}
+import api, { refreshAccessToken } from './api';
 
 /** @typedef {{ message: string, mode: string, llm: string, conversationId?: string }} ChatParams */
 
