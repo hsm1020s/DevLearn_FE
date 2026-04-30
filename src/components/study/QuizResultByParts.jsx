@@ -1,12 +1,8 @@
 /**
- * @fileoverview 자격증 모의고사 결과 화면 — 과목별 집계 + 과락/합격 판정.
+ * @fileoverview 파트별 집계 모의고사 결과 화면 (현재는 도달 불가 — 향후 재도입 대비 보존).
  *
- * SQLP/DAP처럼 `SUBJECT_CATALOG[subject].parts`가 있는 과목에서만 렌더된다.
- * 사용자가 모의고사를 끝내면 "실제 시험 대비 합격 예상 점수"를 바로 볼 수 있도록
- * 과목별 정답/문항/정답률/점수를 표로 보여주고, 총점과 과락 여부까지 계산한다.
- *
- * 데이터는 `currentQuiz` + `answers`에서 읽어 `computePartsScore`로 집계.
- * part 태그가 없는 문제(구버전 세션 등)는 집계에서 제외된다.
+ * 카탈로그 엔트리에 `parts`가 정의돼 있을 때만 렌더된다(현재는 항상 단순 결과
+ * 화면으로 분기). part 태그가 있는 문제만 집계 대상.
  */
 import { Trophy, AlertTriangle, RefreshCw, BookMarked, CheckCircle2 } from 'lucide-react';
 import Button from '../common/Button';

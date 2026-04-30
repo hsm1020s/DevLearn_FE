@@ -8,19 +8,17 @@ import { distributeCountsByParts } from '../../utils/examScoring';
 
 const MOCK_DELAY = 500;
 
-/** 과목 id → 문제 텍스트 프리픽스 매핑. 시연 시 과목 구분이 눈에 보이도록 한다. */
+/** 학습 컨텍스트 id → 문제 텍스트 프리픽스 매핑(시연용). */
 const SUBJECT_PREFIX = {
-  sqlp: '[SQLP]',
-  dap: '[DAP]',
-  custom: '[사용자 PDF]',
+  sqlp: '[학습]',
 };
 
 /**
  * 지정된 조건에 맞는 Mock 퀴즈 문제를 생성한다.
  *
- * 카탈로그에 `parts`가 있는 과목(SQLP/DAP)은 실제 시험처럼 과목별 비율로 문항을
- * 배분하고 각 문제에 `part` id 태그를 붙여 결과 화면의 과목별 집계가 가능하게 한다.
- * parts가 없는 과목(custom 등)은 기존 균등 생성으로 폴백.
+ * 카탈로그 엔트리에 `parts`가 있으면 그 비율로 문항을 배분하고 각 문제에 `part` id
+ * 태그를 붙여 결과 화면의 파트별 집계가 가능하게 한다. parts가 null이면 기존 균등
+ * 생성으로 폴백한다(현재는 항상 이 경로).
  */
 export async function generateQuiz({ subject, chapters, count, types }) {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY * 2));
