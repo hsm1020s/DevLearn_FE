@@ -1,12 +1,11 @@
 /**
- * @fileoverview 학습 모드 상단 서브 탭 바.
+ * @fileoverview 공부 모드 상단 서브 탭 바.
  * [💬 학습 채팅] [🎯 퀴즈] [📚 기록] 3개의 워크스페이스 탭을 제공하고,
  * 각 탭에 진행/미확인 뱃지를 노출한다. 탭 이동은 useAppStore.studySubTab으로만 관리.
  */
 import { MessageCircle, Target, BookMarked } from 'lucide-react';
 import useAppStore from '../../stores/useAppStore';
 import useStudyStore from '../../stores/useStudyStore';
-import SubjectSelector from './SubjectSelector';
 
 const TABS = [
   { value: 'chat', label: '학습 채팅', icon: MessageCircle },
@@ -41,9 +40,6 @@ export default function StudySubTabs() {
       role="tablist"
       className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border-light bg-bg-primary"
     >
-      {/* 과목 선택기 — 탭 바 좌측에 별도 배치, 가벼운 구분선으로 분리 */}
-      <SubjectSelector />
-      <div className="w-px h-5 bg-border-light" aria-hidden />
       {TABS.map(({ value, label, icon: Icon }) => {
         const active = studySubTab === value;
         const badge = getBadge(value);
