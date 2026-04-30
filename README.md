@@ -100,31 +100,6 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 
 ---
 
-## 프로젝트 회고
-
-### 잘한 것
-
-- **모드 레지스트리 도입** — `src/registry/modes.js` 한 파일에 모드를 선언적으로 정의하고 동적 import로 지연 로드. 새 모드를 추가할 때 라우팅·사이드바·헤더를 따로 손대지 않아도 되는 구조가 후반부 변경 비용을 크게 줄였다.
-- **모드별 마인드맵 격리 구조** — 처음엔 마인드맵 하나를 전역으로 두고 모드 전환 시 덮어쓰는 방식이었는데, "다른 모드로 잠깐 갔다 오면 작업이 사라진다"는 문제가 바로 드러났다. `maps{}` + `activeMapId` + `lastActiveByMode` 3-tier 구조로 바꾸고 나서야 모드 전환이 자유로워졌다.
-- **JWT 인터셉터의 소프트 로그아웃** — 401에서 곧장 `window.location` 으로 튕기던 초기 구현이 마인드맵 작성 중 토큰 만료를 만나면 다 날아가는 사고를 만들었다. 토큰 상태만 비우고 React 상태는 보존하는 소프트 로그아웃으로 바꾸고서야 안정.
-- **하네스(워크트리 + 5단계 게이트) 도입** — 솔로 프로젝트일수록 "그냥 master에서 고치자" 의 유혹이 커지는데, 워크트리 격리 + 단계 게이트를 강제하니 회귀가 줄었고, 사후 워크 로그를 따로 정리하지 않아도 설계 문서가 남는 효과.
-
-### 시행착오
-
-- **화면 선명도 1차 안 폐기** — `globals.css` surface 토큰을 RGB triplet + 알파로 합성한 1차 안은 톤 단계 차이만 흐려져 의도한 "사생활 보호필름" 효과가 안 났다. 화면 전체에 fixed 오버레이(`ClarityFilm`)를 깔고 `backdrop-filter: blur` + 크림톤 알파 가변으로 갈아엎고서야 의도와 일치.
-- **파인만 학습 모드를 별도 메인 모드로 분리했다가 공부 모드 안의 칩으로 통합** — 별도 모드로 분리하니 기존 학습 대화 UX와 단절되고 챕터 선택이 모드 전환 단계에 끼어들어 번거로웠다. 공부 모드 안의 스타일 칩으로 편입.
-- **퀴즈 생성 동기 호출 → 비동기 잡 + 폴링** — 로컬 32B 모델이 수 분 걸리는 동안 단일 HTTP 요청을 열어두니 타임아웃·스레드 부담·UX 모두 나빴다. `POST /generate-quiz` 즉시 `{quizId, status: processing}` 반환 + `@Async`로 백그라운드 진행 + `GET /quizzes/{id}` 폴링 구조로 전환.
-- **멀티파트 업로드 boundary 사라짐** — Axios 인스턴스 기본 `Content-Type: application/json` 때문에 FormData의 boundary가 덮어씌워져 Spring이 파트를 못 파싱하던 함정. 인스턴스에서 기본 Content-Type을 제거하고 브라우저 자동 생성에 위임.
-
-### 아쉬운 점 / 다음에 할 것
-
-- 현재 다크 모드는 CSS 변수만 준비된 상태(토글 UI 미구현). 라이트 톤 단일.
-- 모바일 레이아웃은 분할 뷰 50:50 가정이 깨져 추가 작업 필요.
-- E2E 테스트(Playwright) 미도입 — 회귀는 현재 하네스의 수동 회귀 노트로만 보장.
-- 로컬 LLM 모니터의 권한 모델은 현재 `/api/public/llm-activity` permitAll. 운영 배포 시 readonly admin 토큰 게이팅 필요.
-
----
-
 ## Reference
 
 - 백엔드 저장소 — [DevLearn_BE](https://github.com/hsm1020s/DevLearn_BE) (Spring Boot · MyBatis · PostgreSQL · Ollama)
