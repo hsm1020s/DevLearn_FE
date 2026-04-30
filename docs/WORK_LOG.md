@@ -1,5 +1,15 @@
 # 개발 로그
 
+## 2026-04-30 — 자격증 모드 → 공부 모드 리네이밍 + 과목 선택기 제거
+- 사용자 피드백: 학습 워크스페이스 상단의 SQLP/DAP/기타 드롭다운이 실제로 채팅·퀴즈·문서 동작에 거의 영향을 주지 않아 사용자에게 의미 없는 선택지로 보임. 모드 이름도 PDF 업로드 기반 일반 학습이 가능한 점을 가리지 못하는 "자격증" 표현이라 혼선.
+- 변경:
+  - [src/registry/modes.js](../src/registry/modes.js) — `study.label` "자격증" → "공부", description "PDF 기반 학습 채팅 · 퀴즈 · 오답 기록"으로 갱신
+  - [src/components/study/StudySubTabs.jsx](../src/components/study/StudySubTabs.jsx) — `<SubjectSelector />` 및 좌측 구분선·import 제거
+  - `src/components/study/SubjectSelector.jsx` 파일 삭제 (잔여 import 0건 grep 확인)
+  - [src/components/admin/RecentConversations.jsx](../src/components/admin/RecentConversations.jsx) — `MODE_LABELS.study` 라벨 동기화
+- 보존: `useStudyStore.subjects[*]` 버킷 스키마 유지(persist 마이그레이션 미수행). `activeSubject`는 외부 변경 경로가 사라져 사실상 기본값 `sqlp`에 고정되며, 모의고사 결과 화면의 parts 기반 집계는 그대로 동작.
+- 설계 문서: [docs/designs/2026-04-30-study-mode-rename.md](designs/2026-04-30-study-mode-rename.md)
+
 ## 2026-04-27 (20차) — 로컬 LLM 활동 모니터 + 백엔드 라이브 로그 캡처
 - 요청: 파이프라인을 돌릴 때 로컬 모델이 어디에 어떤 작업으로 투입되는지 보이지 않음 → 권한 없이 어디서든 띄울 수 있는 모니터 페이지/팝업 + 모든 `log.info` 도 라이브로 흐르게.
 - BE(별도 repo, 같이 푸시): `monitor/LlmActivityRegistry` 인메모리 레지스트리 + `LlmActivityContext` ThreadLocal 스코프 도입. `OllamaProvider` 와 `EmbeddingClient` 가 호출 직전/후/실패 시 레지스트리에 이벤트 송신. 호출자 6곳(`ChatService`, `FeynmanService.verify/streamFeynmanChat`, `AnswerGraderService`, `QuestionSynthesisService`, `MindmapSynthesisService`, `StudyService`) 에 source/action/target 컨텍스트 래핑. Python 파이프라인은 `scripts/feynman_pipeline/llm_event.py` 헬퍼로 `[LLM-EVT] {json}` 라인을 stdout 으로 흘리고, `FeynmanService` reader 가 파싱해 동일 레지스트리에 합류. `monitor/RingBufferLogAppender` + `LogCaptureConfig` 로 `com.moon.devlearn.*` 의 모든 log.info/.warn/.error 를 인메모리 ring buffer (500줄) 에 캡처. `GET /api/public/llm-activity` (permitAll) 가 `{inflight, recent, stats, logs}` 스냅샷 반환.
