@@ -4,7 +4,9 @@
  * 로그아웃 상태로 모니터 페이지에 진입해도 401 인터셉터가 발동하지 않는다.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+import { resolveApiBaseUrl } from './apiBaseUrl';
+
+const BASE_URL = resolveApiBaseUrl();
 
 /**
  * 현재 진행 중인 LLM 호출 + 최근 완료/실패 로그 + 소스별 누적 통계를 가져온다.
