@@ -5,6 +5,7 @@
 import { RotateCcw, ChevronLeft, FileText } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 
 /**
  * 점수에 따른 색상 클래스를 반환한다.
@@ -57,7 +58,7 @@ export default function FeynmanResult({ result, onRetry, onBack }) {
           prose-headings:text-text-primary prose-headings:text-sm prose-headings:font-semibold
           prose-li:text-text-secondary prose-p:text-text-secondary
           prose-strong:text-text-primary">
-          <ReactMarkdown>{feedback}</ReactMarkdown>
+          <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{feedback}</ReactMarkdown>
         </div>
       </div>
 

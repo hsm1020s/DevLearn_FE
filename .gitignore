@@ -95,3 +95,9 @@ pids
 *.bak
 *.orig
 *~
+
+# direnv 자동 로드 환경변수 (실수로 키 박힘 방지)
+.envrc
+
+# DevTools Network export — 헤더에 Bearer 토큰이 들어가는 사고 빈발
+*.har
