@@ -1,12 +1,9 @@
 /**
- * @fileoverview 자격증 모의고사 과목별 집계 유틸.
+ * @fileoverview 모의고사 파트별 집계 유틸 (현재는 도달 불가 코드 — 향후 재도입 대비 보존).
  *
- * SQLP/DAP처럼 `SUBJECT_CATALOG[subject].parts`가 있는 과목에서 사용한다.
- * 각 문제의 `part` 태그(mock이 생성 시 주입)를 보고 과목별 정답/문항수/정답률을
- * 집계하고, `passingCriteria`(총점 ≥ 75, 과목별 ≥ 40%)로 과락/합격 여부까지 계산한다.
- *
- * 총점 산정: 과목별 `points * (correctInPart / questionCountInPart)` 합.
- *   즉 각 part의 배점을 정답률로 비율 배분 — 실제 시험과 동일한 배점 체계.
+ * 카탈로그 엔트리에 `parts`가 있을 때 사용한다. 각 문제의 `part` 태그를 보고
+ * 파트별 정답/문항수/정답률을 집계하고, `passingCriteria`로 과락/합격 여부를
+ * 계산한다. 총점 = 파트별 `points * (correctInPart / questionCountInPart)` 합.
  */
 
 /**

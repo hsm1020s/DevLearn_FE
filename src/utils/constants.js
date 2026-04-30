@@ -28,8 +28,7 @@ export const QUIZ_DIFFICULTIES = [
   { value: 'hard', label: '어려움' },
 ];
 
-// 퀴즈 유형 옵션 — SQLP/DAP 실제 시험 구성이 객관식 + 실기(서술형)이고 단답형이
-// 없어 4지선다만 제공한다. 실기 서술형은 앱의 객관식 mock 구조 밖(후속 태스크).
+// 퀴즈 유형 옵션 — 현재는 4지선다 단일. 서술형/단답형은 후속 태스크에서 추가.
 export const QUIZ_TYPES = [
   { value: 'multiple', label: '4지선다' },
 ];
@@ -40,8 +39,7 @@ export const CHAT_STYLES = [
   { value: 'feynman', label: '파인만', short: '🧠', description: '내가 설명하면 AI가 빠진 개념을 짚어준다' },
 ];
 
-// 모의고사 프리셋은 과목별로 분기되어 `src/registry/subjects.js` 에 정의한다.
-// (SQLP 180분/72문항, DAP 240분/76문항, custom 30분/30문항)
+// 모의고사 프리셋은 `src/registry/subjects.js` 의 카탈로그 엔트리에서 정의한다.
 
 // 문서 처리 상태별 라벨 및 색상 매핑
 export const DOC_STATUS = {

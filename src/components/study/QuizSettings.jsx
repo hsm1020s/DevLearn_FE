@@ -4,8 +4,8 @@
  * 해당 문서의 챕터(rag_chunks) 중 출제 범위를 고른 뒤 퀴즈 생성을 요청한다.
  * 🎯 모의고사 프리셋 버튼도 포함한다.
  *
- * 문제 유형은 SQLP/DAP 실제 시험 구성에 맞춰 4지선다만 지원하므로 UI 선택지
- * 없이 내부에서 `['multiple']`로 고정 전송한다(실기 서술형은 별도 태스크 대상).
+ * 문제 유형은 4지선다 단일로 고정 전송한다(`['multiple']`). 추가 유형은
+ * 별도 태스크에서 도입.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, Play, Sparkles, Loader2 } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function QuizSettings() {
   const selectedLLM = useAppStore((s) => s.selectedLLM);
   const activeSubject = useActiveSubjectId();
   const subjectMeta = useActiveSubjectMeta();
-  // 과목별 모의고사 프리셋 (SQLP 90분/40문항, DAP 100분/50문항, …)
+  // 모의고사 프리셋 (문항수·시간·난이도) — 카탈로그 기본값.
   const examPreset = subjectMeta.examPreset;
 
   // 문제 유형은 현재 4지선다 하나로 고정 전송 (QUIZ_TYPES가 1개짜리).
@@ -47,7 +47,7 @@ export default function QuizSettings() {
     difficulty: QUIZ_DIFFICULTIES[1].value, // 기본 '혼합'
   });
 
-  // 모의고사 모드 여부 — on이면 과목별 프리셋(문항수·시간·난이도)을 자동 세팅
+  // 모의고사 모드 여부 — on이면 카탈로그 프리셋(문항수·시간·난이도)을 자동 세팅
   const [examMode, setExamMode] = useState(false);
   const [loading, setLoading] = useState(false);
   // 폴링 진행 상황 표시용 — 경과 초. 폴링 중 언마운트 감지용 cancelRef.
@@ -111,7 +111,7 @@ export default function QuizSettings() {
     });
   };
 
-  // 모의고사 프리셋 적용 — 활성 과목의 examPreset(시간/문항/난이도)을 세팅
+  // 모의고사 프리셋 적용 — 카탈로그 examPreset(시간/문항/난이도)을 세팅
   const applyExamPreset = () => {
     setExamMode(true);
     setSettings((prev) => ({
@@ -231,19 +231,8 @@ export default function QuizSettings() {
         <div className="flex items-start gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs text-text-secondary">
           <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1">
-            <p className="text-text-primary font-medium">{subjectMeta.label} 모의고사</p>
+            <p className="text-text-primary font-medium">모의고사 프리셋</p>
             <p>{examPreset.count}문제 · 혼합 난이도 · 전체 범위 · 4지선다 · {Math.floor(examPreset.timerSec / 60)}분 타이머</p>
-            {subjectMeta.passingCriteria && (
-              <p>
-                합격 기준 · 총점 {subjectMeta.passingCriteria.totalMin}점 이상 + 과목별{' '}
-                {subjectMeta.passingCriteria.partMinPercent}% 이상
-              </p>
-            )}
-            {subjectMeta.parts && (
-              <p className="text-text-tertiary">
-                과목별 출제: {subjectMeta.parts.map((p) => `${p.label}(${p.questionCount})`).join(' · ')}
-              </p>
-            )}
           </div>
         </div>
       )}

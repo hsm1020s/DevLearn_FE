@@ -1,11 +1,11 @@
 /**
- * @fileoverview 학습 계열 모드의 채팅 탭 (자격증 모드 + 업무학습 모드 공용).
+ * @fileoverview 학습 계열 모드의 채팅 탭 (공부 모드 + 업무학습 모드 공용).
  *
  * 학습 성격을 가진 모드(`study` · `worklearn`)는 파인만 같은 **학습 채팅
  * UX**를 공유한다. 내부 구조를 한 곳에 두되, 호출부가 모드/타이틀/예시 질문을
  * prop으로 주입해 컨텍스트를 바꿀 수 있게 한다.
  *
- * 기본값은 과거 학습 모드와 동일하게 동작한다 — 자격증 모드에서는 prop 없이 호출.
+ * 기본값은 공부 모드 진입 시 동작한다 — prop 없이 호출하면 기본 헤더/예시.
  * 업무학습 모드에서는 `mode="worklearn"`과 업무 맥락 예시·타이틀을 넘긴다.
  *
  * 출처는 ChatMessage 내부의 SourcesPopover 가 메시지별로 담당하므로,
@@ -28,12 +28,12 @@ import { useActiveSubjectMeta } from '../../hooks/useActiveSubject';
  * @param {'study'|'worklearn'} [props.mode='study']
  *   채팅 훅에 전달할 모드 키. useStreamingChat이 이 값으로 대화 네임스페이스/LLM을 구분.
  * @param {string[]} [props.examples]
- *   빈 상태에 노출할 예시 질문. 없으면 자격증 모드에서는 활성 과목 카탈로그 기본값,
+ *   빈 상태에 노출할 예시 질문. 없으면 공부 모드에서는 카탈로그 기본 예시 사용,
  *   업무학습 모드에서는 빈 배열.
- * @param {string} [props.title] 빈 상태 헤더 타이틀 (기본: 과목 라벨)
- * @param {string} [props.subtitle] 빈 상태 헤더 서브타이틀 (기본: 과목 설명)
+ * @param {string} [props.title] 빈 상태 헤더 타이틀 (기본: '공부')
+ * @param {string} [props.subtitle] 빈 상태 헤더 서브타이틀 (기본: 일반 학습 안내)
  * @param {import('react').ReactNode} [props.homeCards]
- *   빈 상태에서 3카드 런처 영역에 렌더할 컴포넌트. 기본은 `StudyHomeCards`(자격증 모드).
+ *   빈 상태에서 3카드 런처 영역에 렌더할 컴포넌트. 기본은 `StudyHomeCards`(공부 모드).
  *   업무학습 모드처럼 런처가 필요 없으면 `null` 주입.
  */
 export default function StudyChatTab({ mode = 'study', examples, title, subtitle, homeCards }) {
@@ -50,14 +50,16 @@ export default function StudyChatTab({ mode = 'study', examples, title, subtitle
     scrollToBottomNow,
   } = useStreamingChat(mode);
 
-  // 자격증 모드 폴백: 활성 과목 카탈로그에서 라벨/설명/예시를 끌어온다.
-  // 업무학습 모드에서는 prop이 우선이고 과목 메타는 사용하지 않는다.
+  // 공부 모드 폴백: 카탈로그의 기본 예시 질문만 사용한다. 라벨/설명은 카탈로그
+  // 의존을 끊고 단일 "공부" 타이틀로 고정 — SQLP/DAP 같은 자격증 색채 노출을 막는다.
   const subjectMeta = useActiveSubjectMeta();
   const isStudy = mode === 'study';
   const resolvedExamples = examples ?? (isStudy ? subjectMeta.examples || [] : []);
-  const resolvedTitle = title ?? (isStudy ? `학습 · ${subjectMeta.label}` : '학습 채팅');
-  const resolvedSubtitle = subtitle ?? (isStudy ? subjectMeta.description : '업무 지식을 질문·정리해보세요');
-  // 3카드 런처는 자격증 모드에만 기본 노출. null이 prop으로 오면 안 그림.
+  const resolvedTitle = title ?? (isStudy ? '공부' : '학습 채팅');
+  const resolvedSubtitle = subtitle ?? (isStudy
+    ? 'PDF 업로드 후 자동 출제 · 즉시 채점 · 오답 정리'
+    : '업무 지식을 질문·정리해보세요');
+  // 3카드 런처는 공부 모드에만 기본 노출. null이 prop으로 오면 안 그림.
   const resolvedHomeCards = homeCards === undefined ? (isStudy ? <StudyHomeCards /> : null) : homeCards;
 
   const isEmpty = messages.length === 0 && !streamingContent;
