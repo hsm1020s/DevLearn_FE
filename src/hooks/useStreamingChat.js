@@ -211,7 +211,7 @@ export default function useStreamingChat(mode) {
       } catch (err) {
         if (err.name === 'AbortError') return;
         console.error('[useStreamingChat] Feynman init error:', err);
-        showError(err);
+        showError(err, '파인만 학습 시작 실패');
         setStreamingContent('');
         setStreaming(false);
       }
@@ -258,10 +258,10 @@ export default function useStreamingChat(mode) {
               return;
             } catch (retryErr) {
               if (retryErr.name === 'AbortError') return;
-              showError(retryErr);
+              showError(retryErr, '파인만 재시도 실패');
             }
           } else {
-            showError(err);
+            showError(err, '파인만 응답 받기 실패');
           }
           setStreamingContent('');
           setStreaming(false);
@@ -310,11 +310,11 @@ export default function useStreamingChat(mode) {
           } catch (retryErr) {
             if (retryErr.name === 'AbortError') return;
             console.error('[useStreamingChat] Retry failed:', retryErr);
-            showError(retryErr);
+            showError(retryErr, 'AI 응답 재시도 실패');
           }
         } else {
           console.error('[useStreamingChat] Stream error:', err);
-          showError(err);
+          showError(err, 'AI 응답 받기 실패');
         }
         setStreamingContent('');
         setStreaming(false);

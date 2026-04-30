@@ -40,7 +40,8 @@ export function extractBackendMessage(error) {
  */
 export function extractErrorCode(error) {
   if (!error) return null;
-  return error.response?.data?.errorCode || null;
+  // axios 경로(response.data.errorCode) + SSE 경로(throw 시 직접 첨부한 error.errorCode) 둘 다 지원.
+  return error.response?.data?.errorCode || error.errorCode || null;
 }
 
 /**

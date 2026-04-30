@@ -163,6 +163,7 @@ export async function streamFeynmanChat(params) {
     } catch {
       const err = new Error('로그인이 필요합니다');
       err.userMessage = '로그인이 필요합니다';
+      err.errorCode = 'UNAUTHORIZED';
       err.status = 401;
       throw err;
     }
@@ -170,13 +171,17 @@ export async function streamFeynmanChat(params) {
   }
 
   if (!response.ok) {
+    // ApiResponse({success,message,errorCode}) 본문에서 둘 다 추출해 토스트에 노출.
     let msg = `요청 실패 (${response.status})`;
+    let errorCode = null;
     try {
       const b = await response.json();
       if (b?.message) msg = b.message;
+      if (b?.errorCode) errorCode = b.errorCode;
     } catch { /* ignore */ }
     const err = new Error(msg);
     err.userMessage = msg;
+    err.errorCode = errorCode;
     err.status = response.status;
     throw err;
   }
