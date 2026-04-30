@@ -11,9 +11,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
-  Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2,
+  Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2, PlayCircle, X,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
@@ -22,6 +22,7 @@ const PAGE_SIZE = 10;
 /** 상태별 UI 설정 */
 const STATUS_MAP = {
   uploaded:   { label: '업로드 완료', color: 'text-text-secondary', bg: 'bg-bg-secondary', icon: Clock },
+  queued:     { label: '대기 중', color: 'text-blue-600', bg: 'bg-blue-50', icon: Clock },
   extracting: { label: '텍스트 추출 중', color: 'text-warning', bg: 'bg-warning/10', icon: Loader2 },
   grouping:   { label: '챕터 분류 중', color: 'text-warning', bg: 'bg-warning/10', icon: Loader2 },
   embedding:  { label: '임베딩 생성 중', color: 'text-warning', bg: 'bg-warning/10', icon: Loader2 },
@@ -40,7 +41,7 @@ const STATUS_FILTER_OPTIONS = [
 
 /** 파이프라인이 진행 중인 상태인지 확인 */
 function isProcessing(status) {
-  return ['extracting', 'grouping', 'embedding'].includes(status);
+  return ['queued', 'extracting', 'grouping', 'embedding'].includes(status);
 }
 
 export default function FeynmanPipelineTab() {
@@ -267,6 +268,26 @@ export default function FeynmanPipelineTab() {
     setConfirmAction(null);
   };
 
+  // 전체 실행 (큐 일괄 등록)
+  const handleEnqueueAll = async (mode = 'skip_embed') => {
+    const enqueueable = docs.filter(d => d.status === 'uploaded' || d.status === 'error');
+    if (enqueueable.length === 0) return;
+
+    const ok = window.confirm(
+      `${enqueueable.length}개 문서를 일괄 실행할까요?\n` +
+      (mode === 'skip_embed' ? '(임베딩 없이, 마인드맵 생성까지)' : '(전체 파이프라인)')
+    );
+    if (!ok) return;
+
+    try {
+      const result = await enqueueBatch(enqueueable.map(d => d.id), { mode });
+      showSuccess(`${result.enqueuedCount}개 문서가 큐에 등록되었습니다`);
+      await loadDocs(page, status);
+    } catch (err) {
+      showError(err, '일괄 실행 등록에 실패했습니다');
+    }
+  };
+
   // 상태 필터 변경 — 1페이지로 리셋
   const handleStatusChange = (next) => {
     setStatus(next);
@@ -304,6 +325,19 @@ export default function FeynmanPipelineTab() {
           >
             <RefreshCw size={16} />
           </button>
+          {/* 전체 실행 버튼 */}
+          {docs.some(d => d.status === 'uploaded' || d.status === 'error') && (
+            <button
+              onClick={() => handleEnqueueAll('skip_embed')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
+                transition-colors"
+              title="uploaded/error 상태의 모든 문서를 큐에 등록 (임베딩 없이)"
+            >
+              <PlayCircle size={16} />
+              전체 실행
+            </button>
+          )}
           <label
             className={`
               flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium

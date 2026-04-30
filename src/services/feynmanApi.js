@@ -93,6 +93,44 @@ export async function deleteDoc(docId) {
 }
 
 /**
+ * 여러 문서를 파이프라인 큐에 일괄 등록한다.
+ * @param {string[]} docIds - 문서 UUID 배열
+ * @param {Object} options
+ * @param {string} options.mode - 실행 모드 (full, skip_embed, embed_only)
+ * @returns {Promise<{enqueuedCount: number, skippedCount: number}>}
+ */
+export async function enqueueBatch(docIds, { mode = 'skip_embed' } = {}) {
+  const { data } = await api.post('/feynman/queue/enqueue-batch', { docIds, mode });
+  return data.data;
+}
+
+/**
+ * 현재 큐 상태를 조회한다.
+ * @returns {Promise<{running: Array, queued: Array, completedCount: number, failedCount: number}>}
+ */
+export async function fetchQueueStatus() {
+  const { data } = await api.get('/feynman/queue/status');
+  return data.data;
+}
+
+/**
+ * 큐 항목을 취소한다.
+ * @param {string} queueItemId - 큐 항목 UUID
+ */
+export async function cancelQueueItem(queueItemId) {
+  const { data } = await api.delete(`/feynman/queue/${queueItemId}`);
+  return data.data;
+}
+
+/**
+ * 모든 대기 중인 큐 항목을 취소한다.
+ */
+export async function cancelAllQueue() {
+  const { data } = await api.delete('/feynman/queue');
+  return data.data;
+}
+
+/**
  * 사용자의 개념 설명을 원본 텍스트와 대조하여 검증한다.
  * @param {Object} params
  * @param {string} params.docId - 문서 UUID
