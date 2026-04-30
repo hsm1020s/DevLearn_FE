@@ -463,13 +463,12 @@ const useMindmapStore = create(
 
         try {
           // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다.
-          // collapsed/description은 FE 전용 상태 — BE 스키마 추가 전까지 payload에서 제거.
-          // 스키마가 추가되면 아래 map(strip)의 해당 필드만 빼면 된다.
+          // collapsed는 FE 전용 상태 — payload에서 제거. description은 BE에 저장.
           const payload = {
             id: map.isLocal ? undefined : mapId,
             title: map.title,
             mode: map.mode,
-            nodes: map.nodes.map(({ collapsed: _c, description: _d, ...rest }) => rest),
+            nodes: map.nodes.map(({ collapsed: _c, ...rest }) => rest),
           };
           const res = await saveMindmap(payload);
           const serverId = res?.id;
