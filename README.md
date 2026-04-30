@@ -174,20 +174,3 @@ DevLearn은 **여러 LLM(GPT-4o · Claude · Gemini · 로컬 Llama/EXAONE/GPT-O
 | 🟢 화면 선명도 슬라이더 | 0%로 내리면 비밀번호 게이트 팝오버 자동 오픈 |
 | 🟢 관리자 대시보드 | 통계 카드 + 최근 대화 + RAG 문서 현황 |
 
----
-
-## 실행
-
-```bash
-npm install
-npm run dev          # Mock API, http://localhost:3000
-
-# 실서버 연결
-cat > .env.local <<'EOF'
-VITE_MOCK_API=false
-VITE_API_URL=http://localhost:8080/api
-EOF
-npm run dev
-```
-
-백엔드 실행은 [DevLearn_BE](https://github.com/hsm1020s/DevLearn_BE) 의 README 참고.
