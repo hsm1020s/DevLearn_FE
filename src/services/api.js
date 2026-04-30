@@ -9,13 +9,14 @@
  *    `refreshAccessToken` 을 export 한다.
  */
 import axios from 'axios';
+import { resolveApiBaseUrl } from './apiBaseUrl';
 
 /** 기본 baseURL, 타임아웃이 설정된 Axios 인스턴스 */
 // Content-Type을 기본 헤더로 고정하지 않는다.
 // JSON 요청은 axios가 객체를 감지하여 자동으로 application/json을 설정하고,
 // FormData 요청은 브라우저가 multipart/form-data + boundary를 자동 생성한다.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  baseURL: resolveApiBaseUrl(),
   timeout: 30000,
 });
 
