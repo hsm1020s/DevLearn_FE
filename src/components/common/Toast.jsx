@@ -9,7 +9,8 @@
  *
  * ToastContainer를 앱 루트에 배치하여 사용한다.
  */
-import { CheckCircle, AlertCircle, X } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle, AlertCircle, X, Copy, Check } from 'lucide-react';
 import { create } from 'zustand';
 
 /** 토스트 타입별 자동 제거 시간(ms). */
@@ -52,11 +53,43 @@ function normalizeMessage(message) {
   return { title: null, body: String(message ?? ''), code: null };
 }
 
+/** 토스트 내용을 다른 AI 채팅에 그대로 붙여넣기 좋은 형태로 직렬화. */
+function buildCopyText({ title, body, code }) {
+  const lines = [];
+  if (title) lines.push(`[${title}]`);
+  if (body) lines.push(body);
+  if (code) lines.push(`errorCode: ${code}`);
+  return lines.join('\n');
+}
+
 /** 개별 토스트 아이템 — 타입별 아이콘·색상 적용, 제목/본문/errorCode 분리 렌더. */
 function ToastItem({ toast }) {
   const removeToast = useToastStore((s) => s.removeToast);
   const Icon = ICON[toast.type] || ICON.info;
   const { title, body, code } = normalizeMessage(toast.message);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = buildCopyText({ title, body, code });
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // clipboard API 실패 시 textarea + execCommand 폴백
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* 무시 */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // 복사 버튼은 에러 토스트에만 노출 — 성공/정보는 보통 복사할 만한 진단 정보가 없음.
+  const showCopyButton = toast.type === 'error';
 
   return (
     <div
@@ -73,6 +106,16 @@ function ToastItem({ toast }) {
           </div>
         )}
       </div>
+      {showCopyButton && (
+        <button
+          onClick={handleCopy}
+          aria-label={copied ? '복사됨' : '에러 내용 복사'}
+          title={copied ? '복사됨' : '에러 내용 복사 (AI에 붙여넣기)'}
+          className="shrink-0 hover:opacity-70 mt-0.5"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      )}
       <button
         onClick={() => removeToast(toast.id)}
         aria-label="토스트 닫기"
