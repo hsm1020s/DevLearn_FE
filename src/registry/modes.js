@@ -1,5 +1,5 @@
 /**
- * @fileoverview 앱 모드 레지스트리 — 일반 / 자격증(학습) / 업무학습 3모드의 메타데이터.
+ * @fileoverview 앱 모드 레지스트리 — 일반 / 공부 / 업무학습 3모드의 메타데이터.
  *
  * 각 모드의 라벨·아이콘·컴포넌트(지연 로드)·사이드바 액션을 선언적으로 관리한다.
  * 새 모드 추가 시 이 파일에 엔트리 하나만 더하면 사이드바/헤더/MainContent가
@@ -22,9 +22,9 @@ export const MODES = {
   },
   study: {
     value: 'study',
-    label: '자격증',
+    label: '공부',
     icon: GraduationCap,
-    description: 'SQLP · DAP 퀴즈 학습',
+    description: 'PDF 기반 학습 채팅 · 퀴즈 · 오답 기록',
     component: () => import('../components/study/StudyMode'),
     actions: [],
   },
@@ -45,7 +45,7 @@ export const MODE_LIST = Object.values(MODES);
 export const getModeConfig = (modeValue) => MODES[modeValue] || MODES.general;
 
 /**
- * 학습 계열 모드 집합. 자격증 퀴즈 학습과 업무학습은
+ * 학습 계열 모드 집합. 공부 모드와 업무학습은
  * 스타일 칩(파인만/요약)·요약 액션·학습 채팅 같은 학습 전용 UX를 공유한다.
  */
 export const LEARNING_MODES = new Set(['study', 'worklearn']);
