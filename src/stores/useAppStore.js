@@ -29,6 +29,8 @@ const useAppStore = create(
       isMobileSidebarOpen: false,
       // 채팅/마인드맵 분할 시 좌측(채팅) 비율 (%)
       splitLeftPct: 50,
+      // 학습 워크스페이스 좌우 분할 시 좌측(일반 채팅) 비율 (%) — 마인드맵 분할과 독립
+      learningSplitLeftPct: 50,
       // 학습 모드 내부 서브 탭 (chat | quiz | record)
       studySubTab: 'chat',
       // 화면 선명도 (surface 알파값). 1.0=선명, 0.4=흐림.
@@ -52,6 +54,11 @@ const useAppStore = create(
       setSplitLeftPct: (pct) => {
         const clamped = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
         set({ splitLeftPct: clamped });
+      },
+      // 학습 워크스페이스 분할 비율 setter — 같은 클램프 정책 사용
+      setLearningSplitLeftPct: (pct) => {
+        const clamped = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct));
+        set({ learningSplitLeftPct: clamped });
       },
       setUiClarity: (v) => {
         const clamped = Math.min(CLARITY_MAX, Math.max(CLARITY_MIN, v));
@@ -84,6 +91,7 @@ const useAppStore = create(
       // mainMode/isMindmapOn은 새로고침 후에도 직전 세션을 이어가도록 저장.
       partialize: (state) => ({
         splitLeftPct: state.splitLeftPct,
+        learningSplitLeftPct: state.learningSplitLeftPct,
         mainMode: state.mainMode,
         isMindmapOn: state.isMindmapOn,
         studySubTab: state.studySubTab,
