@@ -126,6 +126,19 @@ export default function MindmapPanel() {
     });
   }, []);
 
+  /** 현재 모드 mindmap 이 모두 체크돼 있는지 (전체선택 토글 라벨/아이콘 분기에 사용) */
+  const allSelected = modeMapList.length > 0
+    && modeMapList.every((m) => selectedIds.has(m.id));
+
+  /** 전체선택 / 전체해제 토글 — 현재 모드의 살아있는 mindmap 만 대상 */
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(modeMapList.map((m) => m.id)));
+    }
+  }, [allSelected, modeMapList]);
+
   /** 일괄 삭제 실행 — 팝오버 [확인] 클릭 시 호출 */
   const confirmBatchDelete = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -296,15 +309,29 @@ export default function MindmapPanel() {
         {/* 마인드맵 목록 드롭다운 */}
         {showList && (
           <div className="mb-2 border border-border-light rounded-lg bg-bg-secondary overflow-hidden">
-            {/* 선택 모드 헤더 (활성 시에만 노출) — 진입은 목록 아래 "여러 개 선택" 버튼에서 */}
+            {/* 선택 모드 헤더 — 전체선택 토글 + 안내 + 닫기 */}
             {selectionMode && (
-              <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-light bg-bg-primary">
-                <span className="text-xs text-text-secondary font-medium">
-                  체크박스로 삭제할 마인드맵을 선택하세요
-                </span>
+              <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border-light bg-bg-primary">
+                <div className="flex items-center gap-2 min-w-0">
+                  {modeMapList.length > 0 && (
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors shrink-0"
+                      title={allSelected ? '전체 해제' : '전체 선택'}
+                    >
+                      {allSelected
+                        ? <CheckSquare size={14} className="text-primary" />
+                        : <Square size={14} />}
+                      {allSelected ? '전체해제' : '전체선택'}
+                    </button>
+                  )}
+                  <span className="text-xs text-text-tertiary truncate">
+                    클릭하여 선택
+                  </span>
+                </div>
                 <button
                   onClick={exitSelectionMode}
-                  className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors"
+                  className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors shrink-0"
                   title="선택 모드 종료"
                 >
                   <X size={13} /> 닫기
