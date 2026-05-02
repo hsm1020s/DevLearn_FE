@@ -28,6 +28,11 @@ const useChatStore = create(
       currentConversationId: null,
       // 모드별 마지막으로 보던 대화 id — 모드 전환 시 자동 복원용
       lastActiveByMode: { general: null, study: null, worklearn: null },
+      // 학습 계열 모드의 좌우 분할 채팅 슬롯 — 좌(일반)/우(파인만) 각각 독립 conv id를 보관
+      splitConversationIds: {
+        study: { left: null, right: null },
+        worklearn: { left: null, right: null },
+      },
       // LLM 응답 스트리밍 진행 중 여부
       isStreaming: false,
       // 서버 대화 목록 동기화 상태
@@ -199,6 +204,91 @@ const useChatStore = create(
         return msg;
       },
 
+      /**
+       * 특정 대화 id에 메시지를 추가. split 모드에서 currentConversationId 우회용.
+       * 좌·우 패널이 동시에 다른 대화를 사용해야 하는 학습 워크스페이스에서 사용한다.
+       */
+      addMessageTo: (conversationId, message) => {
+        if (!conversationId) return null;
+        const msg = {
+          id: generateId(),
+          timestamp: new Date().toISOString(),
+          ...message,
+        };
+        set((state) => {
+          const conversations = state.conversations.map((c) => {
+            if (c.id !== conversationId) return c;
+            const updated = { ...c, messages: [...c.messages, msg], updatedAt: new Date().toISOString() };
+            if (c.messages.length === 0 && message.role === 'user') {
+              updated.title = message.content.slice(0, 30);
+            }
+            return updated;
+          });
+          return { conversations };
+        });
+        return msg;
+      },
+
+      /**
+       * split 워크스페이스 전용 대화 생성. 일반 createConversation과 달리
+       * `currentConversationId`를 변경하지 않으므로, 좌·우 패널이 서로의 활성 대화를
+       * 침범하지 않는다. 생성과 동시에 splitConversationIds[mode][paneKey]에 할당.
+       */
+      createSplitConversation: (mode, llm, paneKey, title) => {
+        const id = generateId();
+        const conversation = {
+          id,
+          title: title || '새 채팅',
+          mode,
+          llm,
+          messages: [],
+          isFavorite: false,
+          isLocal: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          conversations: [conversation, ...state.conversations],
+          splitConversationIds: {
+            ...state.splitConversationIds,
+            [mode]: {
+              ...(state.splitConversationIds[mode] || { left: null, right: null }),
+              [paneKey]: id,
+            },
+          },
+        }));
+        if (useAuthStore.getState().isLoggedIn) {
+          apiCreateConversation({ id, mode, llm, title: conversation.title, isFavorite: false })
+            .then(() => get().reconcileConversation(id))
+            .catch(() => { /* silent — 다음 stream 완료 시 승격 */ });
+        }
+        return id;
+      },
+
+      /** split 워크스페이스의 좌/우 슬롯에 conv id 할당. */
+      setSplitConversationId: (mode, paneKey, id) =>
+        set((state) => ({
+          splitConversationIds: {
+            ...state.splitConversationIds,
+            [mode]: {
+              ...(state.splitConversationIds[mode] || { left: null, right: null }),
+              [paneKey]: id,
+            },
+          },
+        })),
+
+      /** split 슬롯 비우기 — 파인만 종료 시 우측 슬롯을 null로 되돌릴 때 사용. */
+      clearSplitConversation: (mode, paneKey) =>
+        set((state) => ({
+          splitConversationIds: {
+            ...state.splitConversationIds,
+            [mode]: {
+              ...(state.splitConversationIds[mode] || { left: null, right: null }),
+              [paneKey]: null,
+            },
+          },
+        })),
+
       setStreaming: (isStreaming) => set({ isStreaming }),
 
       /** 즐겨찾기 토글 — 로컬 갱신 후 isLocal 아닐 때만 서버 전파 */
@@ -264,6 +354,10 @@ const useChatStore = create(
         conversations: [],
         currentConversationId: null,
         lastActiveByMode: { general: null, study: null, worklearn: null },
+        splitConversationIds: {
+          study: { left: null, right: null },
+          worklearn: { left: null, right: null },
+        },
         isStreaming: false,
         isConversationsLoading: false,
         conversationsError: null,
@@ -272,17 +366,19 @@ const useChatStore = create(
     }),
     {
       name: 'chat-store',
-      version: 4,
+      version: 5,
       partialize: (state) => ({
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
         lastActiveByMode: state.lastActiveByMode,
+        splitConversationIds: state.splitConversationIds,
       }),
       /**
        * 마이그레이션:
        * - v1 → v2: messages가 전역 배열 → 대화별 배열 구조로 이관
        * - v2 → v3: lastActiveByMode 기본값 주입 `{general, study}`
        * - v3 → v4: lastActiveByMode 에 `worklearn` 슬롯 추가 (업무학습 모드 도입)
+       * - v4 → v5: 학습 워크스페이스 좌우 분할 도입 — splitConversationIds 슬롯 주입
        */
       migrate: (persisted, version) => {
         try {
@@ -309,12 +405,24 @@ const useChatStore = create(
               ...(persisted.lastActiveByMode || {}),
             };
           }
+          if (version < 5) {
+            // 좌우 분할 도입 — 빈 슬롯으로 초기화. 기존 대화 데이터에는 영향 없음.
+            persisted.splitConversationIds = {
+              study: { left: null, right: null },
+              worklearn: { left: null, right: null },
+              ...(persisted.splitConversationIds || {}),
+            };
+          }
           return persisted;
         } catch {
           return {
             conversations: [],
             currentConversationId: null,
             lastActiveByMode: { general: null, study: null, worklearn: null },
+            splitConversationIds: {
+              study: { left: null, right: null },
+              worklearn: { left: null, right: null },
+            },
           };
         }
       },
