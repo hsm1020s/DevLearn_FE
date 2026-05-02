@@ -11,11 +11,13 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { X, Loader2, Sparkles, RefreshCw, Film, Music, Presentation, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Loader2, Sparkles, RefreshCw, Film, Music, Presentation, ChevronLeft, ChevronRight, Video, Download } from 'lucide-react';
 import {
   fetchLectureScript, streamLectureScript,
   lectureAudioUrl, lectureAudioExists, streamLectureAudio,
   fetchLectureSlides, fetchLectureSlideTimings, lectureSlideImageUrl, streamLectureSlides,
+  fetchLectureVideoMeta, lectureVideoUrl, lectureVideoCaptionsUrl,
+  fetchLectureVideoChapters, streamLectureVideo,
 } from '../../services/lectureApi';
 import { showError } from '../../utils/errorHandler';
 
@@ -34,8 +36,9 @@ function transformSlideMarkers(text) {
  * @param {string} props.chapter
  * @param {boolean} [props.audioExistsHint] - 부모가 알려준 오디오 존재 여부 (즉시 player 노출).
  * @param {boolean} [props.slidesExistsHint] - 부모가 알려준 슬라이드 존재 여부.
+ * @param {boolean} [props.videoExistsHint] - 부모가 알려준 영상 존재 여부.
  */
-export default function LectureScriptDrawer({ open, onClose, docId, chapter, audioExistsHint, slidesExistsHint }) {
+export default function LectureScriptDrawer({ open, onClose, docId, chapter, audioExistsHint, slidesExistsHint, videoExistsHint }) {
   const [loading, setLoading] = useState(false);   // 초기 fetch 로딩
   const [generating, setGenerating] = useState(false);
   const [content, setContent] = useState('');
@@ -74,6 +77,22 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
     const id = setInterval(() => setSlidesTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [slidesGenerating]);
+
+  // 비디오 (Phase 4)
+  const [videoMeta, setVideoMeta] = useState(null);    // {exists, fileSizeBytes, videoUrl}
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoGenerating, setVideoGenerating] = useState(false);
+  const [videoStartedAt, setVideoStartedAt] = useState(0);
+  const [, setVideoTick] = useState(0);
+  const [videoChapters, setVideoChapters] = useState([]);
+  const videoRef = useRef(null);
+  const videoAbortRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoGenerating) return undefined;
+    const id = setInterval(() => setVideoTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [videoGenerating]);
 
   // 드로워 열릴 때 저장된 대본 조회
   useEffect(() => {
@@ -230,6 +249,73 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
     }
   };
 
+  // 비디오 메타 + 챕터 로드
+  const loadVideo = async (cancelledRef) => {
+    setVideoLoading(true);
+    try {
+      const meta = await fetchLectureVideoMeta(docId, chapter);
+      if (cancelledRef.current) return;
+      setVideoMeta(meta);
+      if (meta?.exists) {
+        const cues = await fetchLectureVideoChapters(docId, chapter);
+        if (!cancelledRef.current) setVideoChapters(cues);
+      } else {
+        setVideoChapters([]);
+      }
+    } catch { /* 비치명 */ }
+    finally { if (!cancelledRef.current) setVideoLoading(false); }
+  };
+
+  useEffect(() => {
+    if (!open || !docId || !chapter) return undefined;
+    const cancelled = { current: false };
+    if (videoExistsHint === false) {
+      setVideoMeta(null); setVideoChapters([]); setVideoLoading(false);
+      return () => { cancelled.current = true; };
+    }
+    loadVideo(cancelled);
+    return () => { cancelled.current = true; };
+  }, [open, docId, chapter, videoExistsHint]);
+
+  const handleGenerateVideo = async () => {
+    if (videoGenerating || !hasScript) return;
+    setVideoGenerating(true);
+    setVideoStartedAt(Date.now());
+    setVideoMeta(null); setVideoChapters([]);
+    const controller = new AbortController();
+    videoAbortRef.current = controller;
+    try {
+      await streamLectureVideo({
+        docId, chapter,
+        onDone: () => {
+          if (controller.signal.aborted) return;
+          loadVideo({ current: false });
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (!controller.signal.aborted) showError(err, '강의 영상 생성 실패');
+    } finally {
+      videoAbortRef.current = null;
+      setVideoGenerating(false);
+    }
+  };
+
+  const handleVideoAbort = () => {
+    if (videoAbortRef.current) {
+      videoAbortRef.current.abort();
+      videoAbortRef.current = null;
+      setVideoGenerating(false);
+    }
+  };
+
+  const jumpVideo = (sec) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = sec;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
   // audio.currentTime → slide index 자동 sync
   useEffect(() => {
     if (!autoSync || !audioRef.current || !slideTimings?.slides?.length) return undefined;
@@ -361,6 +447,92 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
             </div>
           ) : (
             <>
+              {/* 영상 섹션 — Phase 4. 스크립트가 있을 때만 노출 */}
+              <section className="mb-4 p-3 rounded-lg border border-border-light bg-bg-secondary/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Video size={14} className="text-primary shrink-0" />
+                  <div className="text-xs font-semibold text-text-primary flex-1">강의 영상</div>
+                  {videoMeta?.exists && !videoGenerating && (
+                    <>
+                      <a
+                        href={lectureVideoUrl(docId, chapter)}
+                        download={`${chapter}.mp4`}
+                        className="text-[11px] text-text-tertiary hover:text-primary transition-colors flex items-center gap-1"
+                        title="mp4 다운로드"
+                      >
+                        <Download size={11} />
+                        {videoMeta.fileSizeBytes
+                          ? `${(videoMeta.fileSizeBytes / 1024 / 1024).toFixed(1)} MB` : '다운로드'}
+                      </a>
+                      <button
+                        onClick={handleGenerateVideo}
+                        className="text-[11px] text-text-tertiary hover:text-primary transition-colors flex items-center gap-1"
+                        title="영상 다시 생성"
+                      >
+                        <RefreshCw size={11} />재생성
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {videoLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                    <Loader2 size={12} className="animate-spin" />영상 확인 중...
+                  </div>
+                ) : videoGenerating ? (
+                  <div className="flex items-center gap-2 text-xs text-primary">
+                    <Loader2 size={12} className="animate-spin" />
+                    <span className="flex-1">
+                      영상 합성 중... ({Math.floor((Date.now() - videoStartedAt) / 1000)}초)
+                    </span>
+                    <button onClick={handleVideoAbort}
+                      className="text-text-tertiary hover:text-text-primary transition-colors">중단</button>
+                  </div>
+                ) : videoMeta?.exists ? (
+                  <div className="space-y-2">
+                    <video
+                      ref={videoRef}
+                      controls
+                      preload="metadata"
+                      crossOrigin="anonymous"
+                      src={lectureVideoUrl(docId, chapter)}
+                      className="w-full rounded bg-black"
+                    >
+                      <track kind="captions" srcLang="ko" label="한국어"
+                        src={lectureVideoCaptionsUrl(docId, chapter)} default />
+                      브라우저가 비디오 재생을 지원하지 않습니다.
+                    </video>
+                    {videoChapters.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {videoChapters.map((c, i) => (
+                          <button key={i}
+                            onClick={() => jumpVideo(c.startSec)}
+                            className="px-2 py-0.5 rounded text-[11px] bg-bg-tertiary
+                              text-text-secondary hover:bg-primary hover:text-white transition-colors"
+                            title={`${Math.floor(c.startSec / 60)}:${String(Math.floor(c.startSec % 60)).padStart(2, '0')}`}
+                          >
+                            {c.text}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-text-tertiary">
+                      자막 (gpt-5.4-mini) + ffmpeg 합성 (~30~60초)
+                    </div>
+                    <button
+                      onClick={handleGenerateVideo}
+                      className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
+                        hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                    >
+                      <Video size={12} />영상 생성
+                    </button>
+                  </div>
+                )}
+              </section>
+
               {/* 슬라이드 섹션 — 스크립트가 있을 때만 노출 */}
               <section className="mb-4 p-3 rounded-lg border border-border-light bg-bg-secondary/30">
                 <div className="flex items-center gap-2 mb-2">

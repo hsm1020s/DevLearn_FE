@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   FileText, ChevronLeft, ChevronRight, Loader2,
-  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film, Music, Presentation,
+  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film, Music, Presentation, Video,
 } from 'lucide-react';
 import { fetchDocs, fetchChapterStatuses, generateMindmaps } from '../../services/feynmanApi';
 import { getMindmap } from '../../services/mindmapApi';
@@ -16,6 +16,8 @@ import {
   startLectureAudioBatch, finishLectureAudioBatch,
   fetchLectureSlidesStatus, streamLectureSlides,
   startLectureSlidesBatch, finishLectureSlidesBatch,
+  fetchLectureVideoStatus, streamLectureVideo,
+  startLectureVideoBatch, finishLectureVideoBatch,
 } from '../../services/lectureApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -57,6 +59,9 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
   // 강의 슬라이드 (Phase 3) — 이미 생성된 챕터의 safe-name Set
   const [lectureSlides, setLectureSlides] = useState(new Set());
+
+  // 강의 영상 (Phase 4) — 이미 생성된 챕터의 safe-name Set
+  const [lectureVideo, setLectureVideo] = useState(new Set());
 
   // 일괄 생성 진행 상태
   // { running, total, idx, currentChapter, batchStartedAt, abort }
@@ -118,6 +123,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setLectureScripts(new Set());
     setLectureAudio(new Set());
     setLectureSlides(new Set());
+    setLectureVideo(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     loadChapters(doc.id);
     fetchLectureStatus(doc.id)
@@ -128,6 +134,9 @@ export default function AutoMindmapTab({ onOpenMap }) {
       .catch(() => { /* 비치명 */ });
     fetchLectureSlidesStatus(doc.id)
       .then((set) => setLectureSlides(set))
+      .catch(() => { /* 비치명 */ });
+    fetchLectureVideoStatus(doc.id)
+      .then((set) => setLectureVideo(set))
       .catch(() => { /* 비치명 */ });
   };
 
@@ -150,6 +159,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setLectureScripts(new Set());
     setLectureAudio(new Set());
     setLectureSlides(new Set());
+    setLectureVideo(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
@@ -176,16 +186,22 @@ export default function AutoMindmapTab({ onOpenMap }) {
     });
     const generatedSet = kind === 'audio' ? lectureAudio
       : kind === 'slides' ? lectureSlides
+      : kind === 'video' ? lectureVideo
       : lectureScripts;
-    // 오디오/슬라이드는 스크립트가 먼저 있어야 생성 가능하므로 lectureScripts 도 필터에 추가.
-    const eligible = (kind === 'audio' || kind === 'slides')
-      ? inScope.filter((ch) => lectureScripts.has(safeChapterName(ch.chapter)))
-      : inScope;
+    // 오디오/슬라이드는 스크립트가 선결, 영상은 스크립트+오디오+슬라이드가 모두 선결.
+    const eligible = kind === 'video'
+      ? inScope.filter((ch) => {
+          const safe = safeChapterName(ch.chapter);
+          return lectureScripts.has(safe) && lectureAudio.has(safe) && lectureSlides.has(safe);
+        })
+      : (kind === 'audio' || kind === 'slides')
+        ? inScope.filter((ch) => lectureScripts.has(safeChapterName(ch.chapter)))
+        : inScope;
     const pending = eligible.filter((ch) => !generatedSet.has(safeChapterName(ch.chapter)));
     return {
       all: eligible.map((c) => c.chapter),
       pending: pending.map((c) => c.chapter),
-      noScriptSkipped: (kind === 'audio' || kind === 'slides') ? inScope.length - eligible.length : 0,
+      noScriptSkipped: (kind === 'audio' || kind === 'slides' || kind === 'video') ? inScope.length - eligible.length : 0,
     };
   };
 
@@ -225,15 +241,19 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
     const startBatchFn = kind === 'audio' ? startLectureAudioBatch
       : kind === 'slides' ? startLectureSlidesBatch
+      : kind === 'video' ? startLectureVideoBatch
       : startLectureBatch;
     const finishBatchFn = kind === 'audio' ? finishLectureAudioBatch
       : kind === 'slides' ? finishLectureSlidesBatch
+      : kind === 'video' ? finishLectureVideoBatch
       : finishLectureBatch;
     const streamFn = kind === 'audio' ? streamLectureAudio
       : kind === 'slides' ? streamLectureSlides
+      : kind === 'video' ? streamLectureVideo
       : streamLectureScript;
     const updateGeneratedSet = kind === 'audio' ? setLectureAudio
       : kind === 'slides' ? setLectureSlides
+      : kind === 'video' ? setLectureVideo
       : setLectureScripts;
 
     // 서버에 batch 행 INSERT — 실패해도 일괄 자체는 진행 (영속화는 best-effort)
@@ -313,7 +333,10 @@ export default function AutoMindmapTab({ onOpenMap }) {
     if (!abort.signal.aborted) {
       setLastBatchResult({ kind, succeeded, failed, finishedAt: Date.now() });
       const skipped = chaptersToRun.length - succeeded.length - failed.length;
-      const label = kind === 'audio' ? '강의 오디오' : kind === 'slides' ? '강의 슬라이드' : '강의 대본';
+      const label = kind === 'audio' ? '강의 오디오'
+        : kind === 'slides' ? '강의 슬라이드'
+        : kind === 'video' ? '강의 영상'
+        : '강의 대본';
       const msg = `${label} ${succeeded.length}개 생성 완료`
         + (failed.length > 0 ? `, ${failed.length}개 실패` : '')
         + (skipped > 0 ? `, ${skipped}개 미실행` : '');
@@ -581,6 +604,20 @@ export default function AutoMindmapTab({ onOpenMap }) {
                 전체 슬라이드
               </button>
 
+              {/* 책 단위 강의 영상 일괄 생성 (Phase 4) */}
+              <button
+                onClick={(e) => openLectureConfirm('book', null, e.currentTarget, 'video')}
+                disabled={lectureBatch?.running
+                  || chapters.filter((c) => c.status === 'completed').length === 0}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                  border border-border-light text-text-secondary hover:border-primary hover:text-primary
+                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="대본+오디오+슬라이드가 있는 챕터의 영상 일괄 합성"
+              >
+                <Video size={12} />
+                전체 영상
+              </button>
+
               {generating ? (
                 <span className="flex items-center gap-1.5 text-xs text-primary">
                   <Loader2 size={12} className="animate-spin" />
@@ -639,7 +676,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
               <div className="mx-2 mt-1 px-3 py-2 rounded-lg bg-bg-secondary text-xs">
                 <div className="flex items-center gap-2">
                   <span className="flex-1 text-text-primary">
-                    최근 일괄 {lastBatchResult.kind === 'audio' ? '오디오' : lastBatchResult.kind === 'slides' ? '슬라이드' : '대본'} 생성 — 성공 <b className="text-success">{lastBatchResult.succeeded.length}</b>
+                    최근 일괄 {lastBatchResult.kind === 'audio' ? '오디오' : lastBatchResult.kind === 'slides' ? '슬라이드' : lastBatchResult.kind === 'video' ? '영상' : '대본'} 생성 — 성공 <b className="text-success">{lastBatchResult.succeeded.length}</b>
                     {lastBatchResult.failed.length > 0 && (
                       <> · 실패 <b className="text-danger">{lastBatchResult.failed.length}</b></>
                     )}
@@ -773,6 +810,20 @@ export default function AutoMindmapTab({ onOpenMap }) {
                               >
                                 <Presentation size={13} />
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openLectureConfirm('parent', group.parent, e.currentTarget, 'video');
+                                }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="이 과목 영상 일괄 합성"
+                                title="이 과목의 챕터 영상 일괄 합성 (대본+오디오+슬라이드 선결)"
+                              >
+                                <Video size={13} />
+                              </button>
                             </>
                           )}
                           <span className="text-xs text-text-tertiary shrink-0">
@@ -878,6 +929,22 @@ export default function AutoMindmapTab({ onOpenMap }) {
                                     ? 'text-primary' : ''
                                 } />
                               </button>
+                              {/* 영상 상태 인디케이터 */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setLectureChapter(ch.chapter); }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="강의 영상"
+                                title={lectureVideo.has(safeChapterName(ch.chapter))
+                                  ? '영상 재생 (드로워 열기)' : '영상 합성 (드로워 열기)'}
+                              >
+                                <Video size={13} className={
+                                  lectureVideo.has(safeChapterName(ch.chapter))
+                                    ? 'text-primary' : ''
+                                } />
+                              </button>
                               {/* 배치 상태 배지 — 배치 동안 또는 마지막 배치 결과 표시 */}
                               {(() => {
                                 const st = chapterBatchStatus[ch.chapter];
@@ -943,6 +1010,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
             fetchLectureStatus(selectedDoc.id).then(setLectureScripts).catch(() => {});
             fetchLectureAudioStatus(selectedDoc.id).then(setLectureAudio).catch(() => {});
             fetchLectureSlidesStatus(selectedDoc.id).then(setLectureSlides).catch(() => {});
+            fetchLectureVideoStatus(selectedDoc.id).then(setLectureVideo).catch(() => {});
           }
           setLectureChapter(null);
         }}
@@ -953,6 +1021,9 @@ export default function AutoMindmapTab({ onOpenMap }) {
           : undefined}
         slidesExistsHint={lectureChapter
           ? lectureSlides.has(safeChapterName(lectureChapter))
+          : undefined}
+        videoExistsHint={lectureChapter
+          ? lectureVideo.has(safeChapterName(lectureChapter))
           : undefined}
       />
 
@@ -970,9 +1041,13 @@ export default function AutoMindmapTab({ onOpenMap }) {
         >
           {(() => {
             const kind = lectureConfirm.kind;
-            const label = kind === 'audio' ? '오디오' : kind === 'slides' ? '슬라이드' : '강의 대본';
+            const label = kind === 'audio' ? '오디오'
+              : kind === 'slides' ? '슬라이드'
+              : kind === 'video' ? '영상'
+              : '강의 대본';
             const modelHint = kind === 'audio' ? 'OpenAI TTS (nova), 챕터당 1~2분, ~$0.075'
               : kind === 'slides' ? 'gpt-5.4-mini bullet + Playwright 캡처, 챕터당 30~60초'
+              : kind === 'video' ? 'gpt-5.4-mini 자막 + ffmpeg, 챕터당 30~60초, ~$0.01'
               : 'gpt-5.4-mini, 챕터당 1~3분';
             const scopeLabel = lectureConfirm.type === 'book' ? '책 전체' : '과목';
             return (

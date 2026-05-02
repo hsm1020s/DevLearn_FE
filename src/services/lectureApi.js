@@ -276,6 +276,144 @@ export async function streamLectureSlides(params) {
 }
 
 // ──────────────────────────────────────────────
+// Phase 4 — 강의 영상 (mp4 + WebVTT 자막/챕터)
+// ──────────────────────────────────────────────
+
+/** 영상 메타 조회 — `{exists, fileSizeBytes?, videoUrl?}`. */
+export async function fetchLectureVideoMeta(docId, chapter) {
+  const { data } = await api.get(
+    `/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/video/meta`,
+  );
+  return data?.data;
+}
+
+/** 문서별 영상 생성 챕터 safe-name Set. */
+export async function fetchLectureVideoStatus(docId) {
+  const { data } = await api.get(`/lectures/${encodeURIComponent(docId)}/video/status`);
+  return new Set(data?.data?.generated || []);
+}
+
+/** mp4 의 직접 URL — <video src=...>. ?access_token= 쿼리로 인증. */
+export function lectureVideoUrl(docId, chapter) {
+  const token = localStorage.getItem('accessToken') || '';
+  return `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/video`
+    + `?access_token=${encodeURIComponent(token)}`;
+}
+
+/** captions.vtt 직접 URL — <track src=...>. */
+export function lectureVideoCaptionsUrl(docId, chapter) {
+  const token = localStorage.getItem('accessToken') || '';
+  return `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/video/captions.vtt`
+    + `?access_token=${encodeURIComponent(token)}`;
+}
+
+/** chapters.vtt 직접 URL. (텍스트 fetch 또는 <track kind=chapters>) */
+export function lectureVideoChaptersUrl(docId, chapter) {
+  const token = localStorage.getItem('accessToken') || '';
+  return `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/video/chapters.vtt`
+    + `?access_token=${encodeURIComponent(token)}`;
+}
+
+/** chapters.vtt 텍스트를 fetch — UI 챕터 점프 메뉴용. */
+export async function fetchLectureVideoChapters(docId, chapter) {
+  try {
+    const res = await fetch(lectureVideoChaptersUrl(docId, chapter));
+    if (!res.ok) return [];
+    const text = await res.text();
+    return parseVttCues(text);
+  } catch { return []; }
+}
+
+/** 매우 단순한 WebVTT 파서 — `[{startSec, endSec, text}]`. */
+function parseVttCues(vtt) {
+  const lines = vtt.split('\n');
+  const cues = [];
+  let i = 0;
+  while (i < lines.length) {
+    const m = /^(\d{2}):(\d{2}):(\d{2}\.\d+)\s+-->\s+(\d{2}):(\d{2}):(\d{2}\.\d+)/.exec(lines[i]);
+    if (m) {
+      const startSec = (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]);
+      const endSec   = (+m[4]) * 3600 + (+m[5]) * 60 + parseFloat(m[6]);
+      let text = '';
+      i++;
+      while (i < lines.length && lines[i].trim() !== '') {
+        text += (text ? ' ' : '') + lines[i].trim();
+        i++;
+      }
+      cues.push({ startSec, endSec, text });
+    }
+    i++;
+  }
+  return cues;
+}
+
+/** 영상 일괄 배치 시작 (kind=video). */
+export async function startLectureVideoBatch(docId, scope, parent, targetCount) {
+  const { data } = await api.post(`/lectures/${encodeURIComponent(docId)}/video/batches`,
+    { scope, parent, targetCount });
+  return data?.data?.batchId;
+}
+
+/** 영상 일괄 배치 종료. */
+export async function finishLectureVideoBatch(batchId, payload) {
+  const { data } = await api.post(`/lectures/video/batches/${encodeURIComponent(batchId)}/finish`,
+    payload);
+  return data?.data;
+}
+
+/** 영상 SSE 생성. done payload: {videoDurSec, fileSizeBytes, audioDurSec, slideCount, costUsd} */
+export async function streamLectureVideo(params) {
+  const { docId, chapter, batchId, onDone, signal } = params;
+  const url = `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/video/stream`;
+  const body = JSON.stringify({ batchId });
+
+  const doFetch = (token) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { method: 'POST', headers, body, signal });
+  };
+
+  let accessToken = localStorage.getItem('accessToken');
+  let response = await doFetch(accessToken);
+  if (response.status === 401) {
+    try { accessToken = await refreshAccessToken(); }
+    catch { const err = new Error('로그인이 필요합니다'); err.userMessage = '로그인이 필요합니다'; err.status = 401; throw err; }
+    response = await doFetch(accessToken);
+  }
+  if (!response.ok) {
+    let msg = `요청 실패 (${response.status})`;
+    try { const b = await response.json(); if (b?.message) msg = b.message; } catch { /* ignore */ }
+    const err = new Error(msg); err.userMessage = msg; err.status = response.status; throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n');
+      buffer = parts.pop();
+      for (const line of parts) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(5));
+          if (parsed.type === 'done') {
+            let payload = {};
+            try { payload = JSON.parse(parsed.content || '{}'); } catch { /* ignore */ }
+            onDone?.(payload);
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ──────────────────────────────────────────────
 // Phase 1 — 강의 대본 (스크립트)
 // ──────────────────────────────────────────────
 
