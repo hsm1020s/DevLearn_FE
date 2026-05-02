@@ -45,20 +45,38 @@ export async function fetchLectureScript(docId, chapter) {
 }
 
 /**
+ * 일괄 배치 시작 — 서버에 batch 행을 INSERT(running) 하고 batchId 반환.
+ * 이후 streamLectureScript 호출에 batchId 를 함께 넘기면 각 run 이 batch 와 묶임.
+ */
+export async function startLectureBatch(docId, scope, parent, targetCount) {
+  const { data } = await api.post(`/lectures/${encodeURIComponent(docId)}/batches`,
+    { scope, parent, targetCount });
+  return data?.data?.batchId;
+}
+
+/** 일괄 배치 종료 — 카운터 + status(completed|aborted) 갱신. */
+export async function finishLectureBatch(batchId, payload) {
+  const { data } = await api.post(`/lectures/batches/${encodeURIComponent(batchId)}/finish`,
+    payload);
+  return data?.data;
+}
+
+/**
  * 강의 대본을 SSE 로 스트림 생성한다. 종료 시 서버가 디스크에 저장한다.
  *
  * @param {Object} params
  * @param {string} params.docId
  * @param {string} params.chapter
  * @param {string} [params.llm]
+ * @param {string} [params.batchId] — 있으면 lecture_script_runs.batch_id 로 묶임
  * @param {Function} params.onToken (accumulated)
  * @param {Function} params.onDone ({content})
  * @param {AbortSignal} [params.signal]
  */
 export async function streamLectureScript(params) {
-  const { docId, chapter, llm, onToken, onDone, signal } = params;
+  const { docId, chapter, llm, batchId, onToken, onDone, signal } = params;
   const url = `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/script/stream`;
-  const body = JSON.stringify({ llm });
+  const body = JSON.stringify({ llm, batchId });
 
   const doFetch = (token) => {
     const headers = { 'Content-Type': 'application/json' };

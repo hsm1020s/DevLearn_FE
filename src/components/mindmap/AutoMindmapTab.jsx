@@ -11,6 +11,7 @@ import { fetchDocs, fetchChapterStatuses, generateMindmaps } from '../../service
 import { getMindmap } from '../../services/mindmapApi';
 import {
   fetchLectureStatus, streamLectureScript, safeChapterName,
+  startLectureBatch, finishLectureBatch,
 } from '../../services/lectureApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -162,9 +163,18 @@ export default function AutoMindmapTab({ onOpenMap }) {
     const rect = btnEl.getBoundingClientRect();
     const { all, pending } = collectLectureChapters(scope, parent);
     if (all.length === 0) return;
+    // 팝오버 사이즈(추정) — 하단 공간 부족하면 버튼 위쪽으로 띄움 (flip)
+    const POPOVER_W = 280;
+    const POPOVER_H_EST = pending.length > 0 ? 180 : 140;
+    const vh = window.innerHeight;
+    const spaceBelow = vh - rect.bottom;
+    const placeAbove = spaceBelow < POPOVER_H_EST + 8;
+    const top = placeAbove ? Math.max(8, rect.top - POPOVER_H_EST - 4) : rect.bottom + 4;
+    const left = Math.min(window.innerWidth - POPOVER_W - 8,
+                          Math.max(8, rect.right - POPOVER_W));
     setLectureConfirm({
       type: scope, parent, all, pending,
-      anchor: { top: rect.bottom + 4, left: rect.right - 280, width: 280 },
+      anchor: { top, left, width: POPOVER_W, placeAbove },
     });
   };
 
@@ -173,7 +183,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setLectureBatch(null);
   };
 
-  const runLectureBatch = async (chaptersToRun) => {
+  const runLectureBatch = async (chaptersToRun, scope = 'book', parent = null) => {
     if (chaptersToRun.length === 0) {
       setLectureConfirm(null);
       return;
@@ -183,7 +193,15 @@ export default function AutoMindmapTab({ onOpenMap }) {
     const abort = new AbortController();
     const batchStartedAt = Date.now();
 
-    // 모든 대상 챕터를 queued 로 초기화
+    // 서버에 batch 행 INSERT — 실패해도 일괄 자체는 진행 (영속화는 best-effort)
+    let batchId = null;
+    try {
+      batchId = await startLectureBatch(selectedDoc.id, scope, parent, chaptersToRun.length);
+    } catch (err) {
+      // 영속화 실패 — 사용자에게 알리되 진행
+      showError(err, '배치 이력 저장 시작 실패 (생성은 계속 진행)');
+    }
+
     const initStatus = {};
     for (const ch of chaptersToRun) {
       initStatus[ch] = { status: 'queued' };
@@ -192,7 +210,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
     setLectureBatch({
       running: true, total: chaptersToRun.length, idx: 0,
-      currentChapter: chaptersToRun[0], batchStartedAt, abort,
+      currentChapter: chaptersToRun[0], batchStartedAt, abort, batchId,
     });
 
     const succeeded = [];
@@ -210,6 +228,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
         await streamLectureScript({
           docId: selectedDoc.id,
           chapter,
+          batchId,
           onDone: () => {
             setLectureScripts((prev) => {
               const next = new Set(prev);
@@ -236,6 +255,21 @@ export default function AutoMindmapTab({ onOpenMap }) {
     }
 
     setLectureBatch(null);
+
+    // 배치 종료 영속화 — 중단/완료 모두 보고
+    if (batchId) {
+      const finalStatus = abort.signal.aborted ? 'aborted' : 'completed';
+      const skipped = chaptersToRun.length - succeeded.length - failed.length;
+      try {
+        await finishLectureBatch(batchId, {
+          status: finalStatus, succeeded: succeeded.length, failed: failed.length, skipped,
+        });
+      } catch (err) {
+        // 종료 보고 실패는 로그만 (UI 흐름 끊지 않음)
+        console.warn('[Lecture] batch finish 보고 실패', err);
+      }
+    }
+
     if (!abort.signal.aborted) {
       setLastBatchResult({ succeeded, failed, finishedAt: Date.now() });
       const skipped = chaptersToRun.length - succeeded.length - failed.length;
@@ -811,7 +845,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
               취소
             </button>
             <button
-              onClick={() => runLectureBatch(lectureConfirm.pending)}
+              onClick={() => runLectureBatch(lectureConfirm.pending, lectureConfirm.type, lectureConfirm.parent)}
               disabled={lectureConfirm.pending.length === 0}
               className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
                 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
