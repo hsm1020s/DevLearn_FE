@@ -2,8 +2,8 @@
  * @fileoverview AI 메시지 버블 하단에 붙는 출처 팝오버.
  *
  * 클릭 토글 방식:
- *   - 📎 아이콘 + 근거 개수 배지의 작은 버튼
- *   - 클릭하면 버튼 바로 아래로 팝오버가 열려 5개 이하의 근거 카드를 보여주고,
+ *   - 출처유형(정답세트 / 벡터검색)별 라벨이 붙은 작은 버튼
+ *   - 클릭하면 버튼 바로 아래로 팝오버가 열려 sourceType별 섹션으로 근거 카드를 보여주고,
  *     다시 클릭하거나 외부 클릭 시 닫힌다.
  *   - 팝오버 안 카드를 클릭하면 {@link SourceDetailModal} 로 원문 전체를 본다.
  *
@@ -11,7 +11,7 @@
  * 열리는 것도 자연스럽다. (각자 자신의 state 를 가진다)
  */
 import { useEffect, useRef, useState } from 'react';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Search } from 'lucide-react';
 import SourceDetailModal from './SourceDetailModal';
 
 /** 유사도 → 배지 색상 클래스. */
@@ -22,9 +22,24 @@ function similarityClass(sim) {
   return 'bg-bg-tertiary text-text-secondary';
 }
 
+/** sourceType 메타. 'goldset' = 사전 정답세트, 'rag' = 벡터검색. */
+const TYPE_META = {
+  goldset: {
+    label: '정답세트',
+    desc: '사전 생성된 모범답안의 근거 청크',
+    Icon: Paperclip,
+  },
+  rag: {
+    label: '벡터검색',
+    desc: '실시간 의미 유사도 검색 결과',
+    Icon: Search,
+  },
+};
+
 /**
  * @param {object} props
- * @param {Array<object>} props.sources 근거 청크 배열. 비어있거나 null 이면 렌더하지 않는다.
+ * @param {Array<object>} props.sources 근거 청크 배열. 각 항목에 `sourceType` ('goldset'|'rag')이
+ *   있으면 그룹/라벨로 구분 표시. 없으면 라벨 없이 기존 동작(근거 N건)으로 폴백.
  */
 export default function SourcesPopover({ sources }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +61,21 @@ export default function SourcesPopover({ sources }) {
 
   if (!sources || sources.length === 0) return null;
 
-  const count = sources.length;
+  // sourceType 별로 분리 (없는 항목은 'unknown' 그룹으로 — 라벨 없는 폴백)
+  const groups = { goldset: [], rag: [], unknown: [] };
+  for (const s of sources) {
+    const t = s.sourceType === 'goldset' || s.sourceType === 'rag' ? s.sourceType : 'unknown';
+    groups[t].push(s);
+  }
+
+  // 트리거 버튼 라벨: 알려진 타입만 카운트로 표시. 폴백은 총합만.
+  const knownPairs = ['goldset', 'rag']
+    .filter((t) => groups[t].length > 0)
+    .map((t) => `${TYPE_META[t].label} ${groups[t].length}`);
+  const triggerLabel = knownPairs.length > 0
+    ? knownPairs.join(' · ')
+    : `근거 ${groups.unknown.length}`;
+  const TriggerIcon = groups.rag.length > 0 && groups.goldset.length === 0 ? Search : Paperclip;
 
   return (
     <div ref={rootRef} className="relative inline-block">
@@ -55,15 +84,15 @@ export default function SourcesPopover({ sources }) {
         onClick={(e) => { e.stopPropagation(); setIsOpen((v) => !v); }}
         aria-haspopup="true"
         aria-expanded={isOpen}
-        aria-label={`출처 ${count}개 보기`}
+        aria-label={`출처 ${sources.length}개 보기`}
         className="
           inline-flex items-center gap-1 px-1.5 py-1 rounded
           text-text-secondary hover:text-text-primary hover:bg-bg-tertiary
           transition-colors
         "
       >
-        <Paperclip size={14} />
-        <span className="text-xs font-medium">{count}</span>
+        <TriggerIcon size={14} />
+        <span className="text-xs font-medium">{triggerLabel}</span>
       </button>
 
       {isOpen && (
@@ -78,46 +107,67 @@ export default function SourcesPopover({ sources }) {
           // 팝오버 내부 클릭이 버블의 기타 핸들러로 전파되지 않도록 차단.
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-2 py-1 text-[11px] text-text-tertiary font-medium">
-            이 답변의 근거 · {count}건 (클릭하면 원문 전체 보기)
-          </div>
-          <ul className="flex flex-col gap-1.5">
-            {sources.map((s, idx) => (
-              <li key={idx}>
-                <button
-                  type="button"
-                  onClick={() => setModalSource(s)}
-                  className="
-                    w-full text-left rounded-md border border-border-light
-                    bg-bg-secondary hover:bg-bg-tertiary
-                    p-2.5 flex flex-col gap-1 transition-colors
-                  "
-                >
-                  <div className="flex items-start gap-2">
-                    <Paperclip size={11} className="text-text-tertiary shrink-0 mt-0.5" />
-                    <span className="text-xs text-text-primary break-all">
-                      {s.docName || '문서명 없음'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
-                    {s.page != null && <span>p.{s.page}</span>}
-                    {s.similarity != null && (
-                      <span
-                        className={`ml-auto px-1.5 py-0.5 rounded-full font-medium ${similarityClass(s.similarity)}`}
-                      >
-                        {Math.round(s.similarity * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  {(s.snippet || s.chunk) && (
-                    <p className="text-[11px] text-text-secondary whitespace-pre-wrap break-words leading-relaxed line-clamp-3">
-                      {s.snippet || s.chunk}
-                    </p>
+          {['goldset', 'rag', 'unknown'].map((type) => {
+            const items = groups[type];
+            if (items.length === 0) return null;
+            const meta = TYPE_META[type];
+            return (
+              <section key={type} className="mb-2 last:mb-0">
+                <header className="px-2 py-1">
+                  {meta ? (
+                    <>
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-secondary">
+                        <meta.Icon size={11} />
+                        {meta.label} · {items.length}건
+                      </div>
+                      <div className="text-[10px] text-text-tertiary mt-0.5">{meta.desc}</div>
+                    </>
+                  ) : (
+                    <div className="text-[11px] text-text-tertiary font-medium">
+                      근거 · {items.length}건
+                    </div>
                   )}
-                </button>
-              </li>
-            ))}
-          </ul>
+                </header>
+                <ul className="flex flex-col gap-1.5">
+                  {items.map((s, idx) => (
+                    <li key={`${type}-${idx}`}>
+                      <button
+                        type="button"
+                        onClick={() => setModalSource(s)}
+                        className="
+                          w-full text-left rounded-md border border-border-light
+                          bg-bg-secondary hover:bg-bg-tertiary
+                          p-2.5 flex flex-col gap-1 transition-colors
+                        "
+                      >
+                        <div className="flex items-start gap-2">
+                          <Paperclip size={11} className="text-text-tertiary shrink-0 mt-0.5" />
+                          <span className="text-xs text-text-primary break-all">
+                            {s.docName || '문서명 없음'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
+                          {s.page != null && <span>p.{s.page}</span>}
+                          {s.similarity != null && (
+                            <span
+                              className={`ml-auto px-1.5 py-0.5 rounded-full font-medium ${similarityClass(s.similarity)}`}
+                            >
+                              {Math.round(s.similarity * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        {(s.snippet || s.chunk) && (
+                          <p className="text-[11px] text-text-secondary whitespace-pre-wrap break-words leading-relaxed line-clamp-3">
+                            {s.snippet || s.chunk}
+                          </p>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </div>
       )}
 
