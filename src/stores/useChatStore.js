@@ -331,12 +331,25 @@ const useChatStore = create(
               idSet.has(id) ? null : id,
             ]),
           );
+          // split 좌·우 슬롯도 함께 청소 — 누락하면 좌측이 삭제된 우측 파인만 conv id를
+          // 그대로 들고 있다가 BE에 dangling id로 전송되어, ON CONFLICT DO NOTHING
+          // 경로로 옛 conv 히스토리에 메시지가 INSERT되는 누수가 발생.
+          const cleanedSplit = Object.fromEntries(
+            Object.entries(state.splitConversationIds).map(([mode, slots]) => [
+              mode,
+              {
+                left: idSet.has(slots?.left) ? null : (slots?.left ?? null),
+                right: idSet.has(slots?.right) ? null : (slots?.right ?? null),
+              },
+            ]),
+          );
           return {
             conversations: state.conversations.filter((c) => !idSet.has(c.id)),
             currentConversationId: idSet.has(state.currentConversationId)
               ? null
               : state.currentConversationId,
             lastActiveByMode: cleanedSlots,
+            splitConversationIds: cleanedSplit,
           };
         });
         if (serverIds.length === 0) return;

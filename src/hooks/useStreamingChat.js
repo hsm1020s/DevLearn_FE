@@ -51,12 +51,20 @@ export default function useStreamingChat(mode, options = {}) {
   const autoStartFeynman = options.autoStartFeynman ?? !isSplit;
 
   const currentConversationId = useChatStore((s) => s.currentConversationId);
-  const splitConvId = useChatStore((s) =>
+  const conversations = useChatStore((s) => s.conversations);
+  // split 슬롯의 id가 conversations에 실재하는지 검증 — 사이드바에서 삭제된
+  // 옛 conv id가 슬롯에 dangling으로 남아 있으면 null 취급해서 호출자가 새 conv를
+  // 만들도록 한다(기존 누수: 좌측이 옛 우측 파인만 conv id를 BE로 보내 옛 히스토리에
+  // 메시지가 INSERT됐던 사고).
+  const splitConvIdRaw = useChatStore((s) =>
     isSplit ? (s.splitConversationIds[mode]?.[paneKey] ?? null) : null,
   );
+  const splitConvId = useMemo(() => {
+    if (!splitConvIdRaw) return null;
+    return conversations.some((c) => c.id === splitConvIdRaw) ? splitConvIdRaw : null;
+  }, [splitConvIdRaw, conversations]);
   const effectiveConvId = isSplit ? splitConvId : currentConversationId;
 
-  const conversations = useChatStore((s) => s.conversations);
   const currentConvMessages = useMemo(() => {
     const conv = conversations.find((c) => c.id === effectiveConvId);
     return conv?.messages || [];
