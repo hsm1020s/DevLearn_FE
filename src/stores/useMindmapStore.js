@@ -12,6 +12,7 @@ import {
   getMindmap,
   getMindmapList,
   deleteMindmap,
+  deleteMindmapsBatch,
 } from '../services/mindmapApi';
 import { showError } from '../utils/errorHandler';
 
@@ -133,6 +134,77 @@ const useMindmapStore = create(
             lastServerSyncAt: restLastSync,
           };
         });
+      },
+
+      /**
+       * 여러 마인드맵을 한 번에 soft 삭제한다 (체크박스 일괄 삭제 UI 용).
+       * - 로컬 상태에서 즉시 제거 (optimistic) — 활성 맵이 포함되면 activeMapId 도 리셋
+       * - 서버 호출 결과의 deletedCount 를 그대로 반환하여 호출 측 토스트에 사용
+       * - isLocal=true 인 신규 미저장 맵은 서버 호출에서 자동 제외 (해당 ID 가 서버에 없으므로 카운트 0)
+       * - 실패 시 fetchMapList() 로 서버 상태와 재동기화 후 예외 재전달
+       *
+       * @param {string[]} ids - 삭제할 마인드맵 ID 목록
+       * @returns {Promise<number>} 실제로 삭제된 행 수
+       */
+      deleteManyMaps: async (ids) => {
+        if (!ids || ids.length === 0) return 0;
+        const idSet = new Set(ids);
+
+        // 서버 호출 대상은 isLocal=false 인 것만 (로컬 미저장 맵은 서버에 없음)
+        const serverIds = ids.filter((id) => {
+          const m = get().maps[id];
+          return m && !m.isLocal;
+        });
+
+        // optimistic 로컬 제거 + 예약된 저장 타이머 정리
+        ids.forEach((id) => {
+          if (saveTimers.has(id)) {
+            clearTimeout(saveTimers.get(id));
+            saveTimers.delete(id);
+          }
+          dirtySet.delete(id);
+        });
+
+        set((state) => {
+          const maps = { ...state.maps };
+          ids.forEach((id) => { delete maps[id]; });
+
+          const updatedLastActive = { ...state.lastActiveByMode };
+          Object.entries(updatedLastActive).forEach(([mode, id]) => {
+            if (idSet.has(id)) delete updatedLastActive[mode];
+          });
+
+          const syncStatus = { ...state.syncStatus };
+          const lastServerSyncAt = { ...state.lastServerSyncAt };
+          ids.forEach((id) => {
+            delete syncStatus[id];
+            delete lastServerSyncAt[id];
+          });
+
+          const activeIncluded = state.activeMapId && idSet.has(state.activeMapId);
+          return {
+            maps,
+            activeMapId: activeIncluded ? null : state.activeMapId,
+            selectedNodeId: activeIncluded ? null : state.selectedNodeId,
+            lastActiveByMode: updatedLastActive,
+            syncStatus,
+            lastServerSyncAt,
+          };
+        });
+
+        // 서버 호출이 필요 없는 케이스(전부 isLocal) → 로컬에서 지운 수만큼 카운트
+        if (serverIds.length === 0) {
+          return ids.length;
+        }
+
+        try {
+          const { deletedCount } = await deleteMindmapsBatch(serverIds);
+          return deletedCount;
+        } catch (err) {
+          // 서버 실패 시 정확한 상태 복구를 위해 목록 재조회
+          get().fetchMapList();
+          throw err;
+        }
       },
 
       /** 마인드맵 제목 변경 */

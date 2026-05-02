@@ -36,3 +36,14 @@ export async function deleteMindmap(id) {
   // 백엔드 ApiResponse 래핑 해제 (본문이 없으면 undefined 반환)
   return data?.data;
 }
+
+/**
+ * 여러 마인드맵을 한 번에 soft 삭제한다 (체크박스 일괄 삭제 UI 용).
+ * @param {string[]} ids - 삭제할 마인드맵 ID 목록
+ * @returns {Promise<{ deletedCount: number }>} 실제로 삭제된 행 수
+ */
+export async function deleteMindmapsBatch(ids) {
+  if (API_CONFIG.useMock) return mock.deleteMindmapsBatch(ids);
+  const { data } = await api.post('/mindmap/delete-batch', { ids });
+  return data.data;
+}

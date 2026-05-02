@@ -86,3 +86,19 @@ export async function deleteMindmap(id) {
   mockMaps.delete(id);
   return { id };
 }
+
+/**
+ * 여러 마인드맵을 한 번에 삭제한다 (mock).
+ * 실제로 존재했던 ID 만 카운트하여 반환 → 서버의 멱등 동작과 동일하게 시뮬레이트.
+ */
+export async function deleteMindmapsBatch(ids) {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
+  let deletedCount = 0;
+  (ids || []).forEach((id) => {
+    if (mockMaps.has(id)) {
+      mockMaps.delete(id);
+      deletedCount += 1;
+    }
+  });
+  return { deletedCount };
+}

@@ -4,12 +4,13 @@
  * 현재 모드에 해당하는 마인드맵만 필터링하여 보여준다.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle, BrainCircuit, PenTool } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, X, Edit3, Loader2, Check, AlertTriangle, BrainCircuit, PenTool, CheckSquare, Square } from 'lucide-react';
 
 import useAppStore from '../../stores/useAppStore';
 import useAuthStore from '../../stores/useAuthStore';
 import useMindmapStore from '../../stores/useMindmapStore';
-import { showSuccess } from '../../utils/errorHandler';
+import { showSuccess, showError } from '../../utils/errorHandler';
+import { useToastStore } from '../common/Toast';
 import Button from '../common/Button';
 import MindmapCanvas from './MindmapCanvas';
 import AutoMindmapTab from './AutoMindmapTab';
@@ -25,6 +26,7 @@ export default function MindmapPanel() {
   const selectedNodeId = useMindmapStore((s) => s.selectedNodeId);
   const createMap = useMindmapStore((s) => s.createMap);
   const deleteMap = useMindmapStore((s) => s.deleteMap);
+  const deleteManyMaps = useMindmapStore((s) => s.deleteManyMaps);
   const loadMap = useMindmapStore((s) => s.loadMap);
   const renameMap = useMindmapStore((s) => s.renameMap);
   const addNode = useMindmapStore((s) => s.addNode);
@@ -36,6 +38,7 @@ export default function MindmapPanel() {
   const saveActiveNow = useMindmapStore((s) => s.saveActiveNow);
   const syncStatus = useMindmapStore((s) => s.syncStatus);
   const lastServerSyncAt = useMindmapStore((s) => s.lastServerSyncAt);
+  const addToast = useToastStore((s) => s.addToast);
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
   const nodes = activeMap ? activeMap.nodes : [];
@@ -54,6 +57,12 @@ export default function MindmapPanel() {
   const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  /** 다중 선택(체크박스) 모드 — 활성 시 단건 호버 휴지통 숨김 + 행 클릭 = 토글 */
+  const [selectionMode, setSelectionMode] = useState(false);
+  /** 체크된 mapId 들. Set 으로 추가/제거 O(1). */
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  /** 일괄 삭제 확인 팝오버 표시 여부 */
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
   /** 인디케이터 상대 시간 표시 갱신용 틱 (lastServerSyncAt 변경과 별개로 30초마다 재렌더) */
   const [, setNowTick] = useState(0);
 
@@ -99,6 +108,47 @@ export default function MindmapPanel() {
     setShowDeleteConfirm(null);
     showSuccess('마인드맵이 삭제되었습니다');
   }, [deleteMap]);
+
+  /** 선택 모드 종료 — 체크 비우고 팝오버도 닫는다 */
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setShowBatchConfirm(false);
+  }, []);
+
+  /** 체크박스 토글 */
+  const toggleSelected = useCallback((mapId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(mapId)) next.delete(mapId);
+      else next.add(mapId);
+      return next;
+    });
+  }, []);
+
+  /** 일괄 삭제 실행 — 팝오버 [확인] 클릭 시 호출 */
+  const confirmBatchDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setShowBatchConfirm(false);
+    try {
+      const deletedCount = await deleteManyMaps(ids);
+      if (deletedCount > 0) {
+        addToast(`${deletedCount}개 마인드맵이 삭제되었습니다`, 'success');
+      } else {
+        // 서버에 이미 없던 케이스 (중복 삭제 등)
+        addToast('삭제할 마인드맵이 없었습니다', 'info');
+      }
+      exitSelectionMode();
+    } catch (err) {
+      showError(err, '마인드맵 삭제에 실패했습니다');
+    }
+  }, [selectedIds, deleteManyMaps, addToast, exitSelectionMode]);
+
+  // 모드 탭 전환 시 선택 모드 자동 종료 (UX 일관성)
+  useEffect(() => {
+    exitSelectionMode();
+  }, [mainMode, exitSelectionMode]);
 
   /** 현재 맵의 모든 노드 삭제 (확인 후) */
   const handleClearNodes = useCallback(() => {
@@ -245,56 +295,157 @@ export default function MindmapPanel() {
 
         {/* 마인드맵 목록 드롭다운 */}
         {showList && (
-          <div className="mb-2 border border-border-light rounded-lg bg-bg-secondary max-h-40 overflow-y-auto">
-            {modeMapList.length === 0 ? (
-              <p className="text-xs text-text-tertiary text-center py-3">
-                이 모드에 저장된 마인드맵이 없습니다
-              </p>
-            ) : (
-              modeMapList.map((m) => (
-                <div
-                  key={m.id}
-                  className={`flex items-center justify-between px-3 py-2 text-sm cursor-pointer
-                    hover:bg-bg-tertiary transition-colors
-                    ${m.id === activeMapId ? 'bg-primary/10 text-primary' : 'text-text-primary'}`}
+          <div className="mb-2 border border-border-light rounded-lg bg-bg-secondary overflow-hidden">
+            {/* 선택 모드 헤더 (활성 시에만 노출) — 진입은 목록 아래 "여러 개 선택" 버튼에서 */}
+            {selectionMode && (
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-light bg-bg-primary">
+                <span className="text-xs text-text-secondary font-medium">
+                  체크박스로 삭제할 마인드맵을 선택하세요
+                </span>
+                <button
+                  onClick={exitSelectionMode}
+                  className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors"
+                  title="선택 모드 종료"
                 >
-                  <button
-                    onClick={() => handleSelect(m.id)}
-                    className="flex-1 text-left truncate"
-                  >
-                    {m.title}
-                    <span className="ml-2 text-xs text-text-tertiary">{m.nodes.length}개 노드</span>
-                  </button>
+                  <X size={13} /> 닫기
+                </button>
+              </div>
+            )}
 
-                  {/* 삭제 버튼 */}
-                  {showDeleteConfirm === m.id ? (
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      <button
-                        onClick={() => handleDelete(m.id)}
-                        className="px-2 py-0.5 text-xs text-white bg-danger rounded hover:bg-danger/80"
-                      >
-                        확인
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteConfirm(null)}
-                        className="text-text-tertiary hover:text-text-primary"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowDeleteConfirm(m.id)}
-                      className="text-text-tertiary hover:text-danger shrink-0 ml-2 opacity-0 group-hover:opacity-100
-                                 transition-opacity"
-                      style={{ opacity: 1 }}
-                      title="삭제"
+            {/* 스크롤 영역 — 액션바를 항상 보이게 하려고 분리 */}
+            <div className="max-h-40 overflow-y-auto">
+              {modeMapList.length === 0 ? (
+                <p className="text-xs text-text-tertiary text-center py-3">
+                  이 모드에 저장된 마인드맵이 없습니다
+                </p>
+              ) : (
+                modeMapList.map((m) => {
+                  const checked = selectedIds.has(m.id);
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors
+                        ${selectionMode
+                          ? `cursor-pointer ${checked ? 'bg-primary/10' : 'hover:bg-bg-tertiary'}`
+                          : 'cursor-pointer hover:bg-bg-tertiary'}
+                        ${!selectionMode && m.id === activeMapId ? 'bg-primary/10 text-primary' : 'text-text-primary'}`}
+                      onClick={selectionMode ? () => toggleSelected(m.id) : undefined}
                     >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                      {/* 체크박스 (선택 모드 시) */}
+                      {selectionMode && (
+                        <span className="shrink-0 text-primary" aria-hidden>
+                          {checked ? <CheckSquare size={16} /> : <Square size={16} className="text-text-tertiary" />}
+                        </span>
+                      )}
+
+                      {selectionMode ? (
+                        <span className="flex-1 text-left truncate">
+                          {m.title}
+                          <span className="ml-2 text-xs text-text-tertiary">{m.nodes.length}개 노드</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleSelect(m.id)}
+                          className="flex-1 text-left truncate"
+                        >
+                          {m.title}
+                          <span className="ml-2 text-xs text-text-tertiary">{m.nodes.length}개 노드</span>
+                        </button>
+                      )}
+
+                      {/* 단건 삭제 — 선택 모드 시 숨김 */}
+                      {!selectionMode && (
+                        showDeleteConfirm === m.id ? (
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <button
+                              onClick={() => handleDelete(m.id)}
+                              className="px-2 py-0.5 text-xs text-white bg-danger rounded hover:bg-danger/80"
+                            >
+                              확인
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(null)}
+                              className="text-text-tertiary hover:text-text-primary"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowDeleteConfirm(m.id)}
+                            className="text-text-tertiary hover:text-danger shrink-0 ml-2 transition-colors"
+                            title="삭제"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 평시 푸터 — 선택 모드 진입 토글 */}
+            {!selectionMode && modeMapList.length > 0 && (
+              <div className="flex justify-end px-3 py-1.5 border-t border-border-light bg-bg-primary">
+                <button
+                  onClick={() => setSelectionMode(true)}
+                  className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors"
+                  title="여러 개 선택해서 한 번에 삭제"
+                >
+                  <CheckSquare size={13} /> 여러 개 선택
+                </button>
+              </div>
+            )}
+
+            {/* 선택 모드 액션바 — 확인 팝오버 인라인 노출 */}
+            {selectionMode && (
+              <div className="border-t border-border-light bg-bg-primary">
+                {showBatchConfirm && (
+                  <div className="px-3 py-2 border-b border-border-light bg-danger/5">
+                    <p className="text-xs text-text-primary mb-1">
+                      <span className="font-semibold text-danger">{selectedIds.size}개</span> 마인드맵을 삭제할까요?
+                    </p>
+                    <p className="text-[11px] text-text-tertiary">
+                      삭제된 마인드맵은 보관되지만, 목록에서는 사라집니다.
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-xs text-text-secondary">
+                    <span className="font-semibold text-text-primary">{selectedIds.size}개</span> 선택됨
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {showBatchConfirm ? (
+                      <>
+                        <button
+                          onClick={() => setShowBatchConfirm(false)}
+                          className="px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary rounded transition-colors"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={confirmBatchDelete}
+                          className="px-2.5 py-1 text-xs text-white bg-danger rounded hover:bg-danger/80 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setShowBatchConfirm(true)}
+                        disabled={selectedIds.size === 0}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-white bg-danger rounded
+                                   hover:bg-danger/80 disabled:bg-text-tertiary/40 disabled:cursor-not-allowed
+                                   transition-colors"
+                      >
+                        <Trash2 size={12} /> 삭제
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ))
+              </div>
             )}
           </div>
         )}
