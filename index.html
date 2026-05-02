@@ -19,9 +19,11 @@
                                                 운영에선 reverse proxy 헤더로 도메인을 좁혀 강화 권장.
         - object-src 'none' : Flash/플러그인 차단
         - base-uri  'self' : <base> 주입 공격 차단
-        - media-src http: https: blob: : 강의 오디오(<audio>) 가 BE 의 cross-origin URL 을 로드. 운영에선 도메인 좁혀 강화 권장.
+        - media-src http: https: blob: : 강의 오디오(<audio>) 가 BE 의 cross-origin URL 을 로드.
+        - img-src http: https: : 강의 슬라이드 PNG (<img>) 가 BE 의 cross-origin URL 을 로드.
+                                  운영에선 도메인 좁혀 강화 권장.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' http: https: blob:; connect-src 'self' http: https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: http: https:; media-src 'self' http: https: blob:; connect-src 'self' http: https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DevLearn</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
