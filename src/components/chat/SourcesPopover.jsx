@@ -11,7 +11,7 @@
  * 열리는 것도 자연스럽다. (각자 자신의 state 를 가진다)
  */
 import { useEffect, useRef, useState } from 'react';
-import { Paperclip, Search } from 'lucide-react';
+import { Paperclip, Search, BrainCircuit } from 'lucide-react';
 import SourceDetailModal from './SourceDetailModal';
 
 /** 유사도 → 배지 색상 클래스. */
@@ -22,8 +22,18 @@ function similarityClass(sim) {
   return 'bg-bg-tertiary text-text-secondary';
 }
 
-/** sourceType 메타. 'goldset' = 사전 정답세트, 'rag' = 벡터검색. */
+/**
+ * sourceType 메타.
+ * - 'mindmap' : 파인만 챗이 면접 질문의 grounding 으로 사용한 마인드맵 노드.
+ * - 'goldset' : 사전 정답세트(chapter_questions.linked_chunk_ids).
+ * - 'rag'     : 실시간 pgvector 유사도 검색 결과.
+ */
 const TYPE_META = {
+  mindmap: {
+    label: '마인드맵',
+    desc: '면접 질문이 참조한 마인드맵 노드',
+    Icon: BrainCircuit,
+  },
   goldset: {
     label: '정답세트',
     desc: '사전 생성된 모범답안의 근거 청크',
@@ -35,6 +45,9 @@ const TYPE_META = {
     Icon: Search,
   },
 };
+
+const TYPE_ORDER = ['mindmap', 'goldset', 'rag'];
+const KNOWN_TYPES = new Set(TYPE_ORDER);
 
 /**
  * @param {object} props
@@ -62,20 +75,22 @@ export default function SourcesPopover({ sources }) {
   if (!sources || sources.length === 0) return null;
 
   // sourceType 별로 분리 (없는 항목은 'unknown' 그룹으로 — 라벨 없는 폴백)
-  const groups = { goldset: [], rag: [], unknown: [] };
+  const groups = { mindmap: [], goldset: [], rag: [], unknown: [] };
   for (const s of sources) {
-    const t = s.sourceType === 'goldset' || s.sourceType === 'rag' ? s.sourceType : 'unknown';
+    const t = KNOWN_TYPES.has(s.sourceType) ? s.sourceType : 'unknown';
     groups[t].push(s);
   }
 
   // 트리거 버튼 라벨: 알려진 타입만 카운트로 표시. 폴백은 총합만.
-  const knownPairs = ['goldset', 'rag']
+  const knownPairs = TYPE_ORDER
     .filter((t) => groups[t].length > 0)
     .map((t) => `${TYPE_META[t].label} ${groups[t].length}`);
   const triggerLabel = knownPairs.length > 0
     ? knownPairs.join(' · ')
     : `근거 ${groups.unknown.length}`;
-  const TriggerIcon = groups.rag.length > 0 && groups.goldset.length === 0 ? Search : Paperclip;
+  // 트리거 아이콘: mindmap > goldset > rag 우선순위로 단일 타입 케이스에서 가장 적합한 것.
+  const dominantType = TYPE_ORDER.find((t) => groups[t].length > 0);
+  const TriggerIcon = dominantType ? TYPE_META[dominantType].Icon : Paperclip;
 
   return (
     <div ref={rootRef} className="relative inline-block">
@@ -107,7 +122,7 @@ export default function SourcesPopover({ sources }) {
           // 팝오버 내부 클릭이 버블의 기타 핸들러로 전파되지 않도록 차단.
           onClick={(e) => e.stopPropagation()}
         >
-          {['goldset', 'rag', 'unknown'].map((type) => {
+          {[...TYPE_ORDER, 'unknown'].map((type) => {
             const items = groups[type];
             if (items.length === 0) return null;
             const meta = TYPE_META[type];
