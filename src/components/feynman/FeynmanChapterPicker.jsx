@@ -1,12 +1,17 @@
 /**
  * @fileoverview 파인만 학습 문서·챕터 2단계 선택 패널.
- * 1단계: 임베딩 완료된 문서(책) 목록에서 하나 선택
- * 2단계: 선택한 문서의 챕터 목록에서 학습할 챕터 선택
+ * 1단계: 문서(책) 목록에서 하나 선택
+ * 2단계: 선택한 문서의 챕터 중 마인드맵이 생성된 것만 노출(parentChapter 2뎁스 그룹핑).
+ *
+ * 챕터 출처: `fetchChapterStatuses` (toc.json 기반, parentChapter 포함).
+ * 파인만 챗이 마인드맵을 컨텍스트로 사용하므로(`5d24e76`), 학습 가능 챕터 = 마인드맵 생성 완료 챕터.
  */
 import { useState, useEffect } from 'react';
 import { BookOpen, ChevronLeft, Loader2, X, FileText } from 'lucide-react';
-import { fetchDocs, fetchTopics } from '../../services/feynmanApi';
+import { fetchDocs, fetchChapterStatuses } from '../../services/feynmanApi';
 import { showError } from '../../utils/errorHandler';
+
+const chKey = (ch) => `${ch.parentChapter || ''}::${ch.chapter}`;
 
 /**
  * 2단계 선택 패널.
@@ -41,18 +46,15 @@ export default function FeynmanChapterPicker({ onClose, onSelect }) {
     return () => { cancelled = true; };
   }, []);
 
-  // 2단계: 문서 선택 시 챕터 로드
+  // 2단계: 문서 선택 시 챕터 로드 — 마인드맵이 생성된 것만 노출
   const handleDocSelect = (doc) => {
     setSelectedDoc(doc);
     setTopicsLoading(true);
-    fetchTopics(doc.id)
+    fetchChapterStatuses(doc.id)
       .then((data) => {
-        const sorted = [...data].sort((a, b) => {
-          const numA = parseInt(a.chapter.match(/\d+/)?.[0] || '0');
-          const numB = parseInt(b.chapter.match(/\d+/)?.[0] || '0');
-          return numA - numB;
-        });
-        setTopics(sorted);
+        // 마인드맵이 생성 완료된 챕터만 학습 가능 (사용자 요구: 미생성 챕터는 숨김)
+        const completed = (data || []).filter((c) => c.status === 'completed');
+        setTopics(completed);
       })
       .catch((err) => showError(err, '챕터 목록을 불러올 수 없습니다'))
       .finally(() => setTopicsLoading(false));
@@ -143,25 +145,56 @@ export default function FeynmanChapterPicker({ onClose, onSelect }) {
             </div>
           ) : topics.length === 0 ? (
             <div className="text-center text-text-tertiary text-sm py-8">
-              챕터가 없습니다
+              마인드맵이 생성된 챕터가 없습니다.<br />
+              마인드맵 탭에서 먼저 생성해주세요.
             </div>
           ) : (
-            <div className="space-y-1">
-              {topics.map((t) => (
-                <button
-                  key={t.chapter}
-                  onClick={() => onSelect(selectedDoc.id, t.chapter)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg
-                    text-left text-sm hover:bg-bg-secondary transition-colors group"
-                >
-                  <span className="text-text-primary group-hover:text-primary transition-colors">
-                    {t.chapter}
-                  </span>
-                  <span className="text-xs text-text-tertiary">
-                    {t.chunkCount}개 청크
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-0.5">
+              {(() => {
+                // parentChapter 기준 2뎁스 그룹핑 (AutoMindmapTab과 동일 패턴)
+                const groups = [];
+                let currentParent = null;
+                for (const ch of topics) {
+                  const parent = ch.parentChapter || null;
+                  if (parent !== currentParent) {
+                    groups.push({ parent, items: [ch] });
+                    currentParent = parent;
+                  } else {
+                    groups[groups.length - 1].items.push(ch);
+                  }
+                }
+                return groups.map((group) => (
+                  <div key={group.parent || '__flat__'}>
+                    {group.parent && (
+                      <div className="flex items-center gap-2 px-3 py-2 mt-2 first:mt-0">
+                        <FileText size={13} className="text-primary/60 shrink-0" />
+                        <span className="text-xs font-semibold text-text-secondary truncate flex-1">
+                          {group.parent}
+                        </span>
+                        <span className="text-xs text-text-tertiary shrink-0">
+                          {group.items.length}개
+                        </span>
+                      </div>
+                    )}
+                    {group.items.map((t) => (
+                      <button
+                        key={chKey(t)}
+                        onClick={() => onSelect(selectedDoc.id, t.chapter)}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg
+                          text-left text-sm hover:bg-bg-secondary transition-colors group
+                          ${group.parent ? 'pl-6' : ''}`}
+                      >
+                        <span className="text-text-primary group-hover:text-primary transition-colors truncate">
+                          {t.chapter}
+                        </span>
+                        <span className="text-xs text-text-tertiary shrink-0 ml-2">
+                          {t.nodeCount}개 노드
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ));
+              })()}
             </div>
           )
         )}
