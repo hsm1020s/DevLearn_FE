@@ -247,8 +247,10 @@ export default function useStreamingChat(mode, options = {}) {
   );
 
   // 파인만 세션 시작 시 AI 첫 질문 자동 트리거 (단일 모드 / split 좌측 비활성)
-  const feynmanDocId = useStudyStore((s) => s.feynmanDocId);
-  const feynmanChapter = useStudyStore((s) => s.feynmanChapter);
+  // 파인만 세션은 모드별 슬롯에 보관 — 학습 모드(study/worklearn)일 때만 의미 있고,
+  // 그 외 모드에서는 항상 비어있어 자동 트리거 useEffect의 가드(if !docId || !chapter)에서 걸러진다.
+  const feynmanDocId = useStudyStore((s) => s.feynmanByMode?.[mode]?.docId ?? null);
+  const feynmanChapter = useStudyStore((s) => s.feynmanByMode?.[mode]?.chapter ?? null);
 
   // 파인만 세션을 명시적으로 시작 (split 우측의 [▶ 시작] 버튼이 호출).
   // 챕터/문서가 store에 세팅된 직후 호출하면 새 대화를 만들고 AI 첫 질문을 트리거.
@@ -318,7 +320,7 @@ export default function useStreamingChat(mode, options = {}) {
   const handleSend = useCallback(
     async (content) => {
       const studyState = useStudyStore.getState();
-      const { feynmanDocId: fDocId, feynmanChapter: fChapter } = studyState;
+      const { docId: fDocId, chapter: fChapter } = studyState.getFeynmanSession(mode);
 
       // 라우팅 결정:
       // - split left: 항상 일반 라우트 (style='general' 강제)
