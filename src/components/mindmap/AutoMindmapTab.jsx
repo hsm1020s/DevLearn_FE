@@ -5,12 +5,16 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   FileText, ChevronLeft, ChevronRight, Loader2,
-  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare,
+  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film,
 } from 'lucide-react';
 import { fetchDocs, fetchChapterStatuses, generateMindmaps } from '../../services/feynmanApi';
 import { getMindmap } from '../../services/mindmapApi';
+import {
+  fetchLectureStatus, streamLectureScript, safeChapterName,
+} from '../../services/lectureApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useMindmapStore from '../../stores/useMindmapStore';
+import LectureScriptDrawer from '../lecture/LectureScriptDrawer';
 
 /** 소단원의 고유 키를 생성한다. 같은 이름의 소단원이 다른 대단원에 있어도 구별된다. */
 const chKey = (ch) => `${ch.parentChapter || ''}::${ch.chapter}`;
@@ -36,6 +40,37 @@ export default function AutoMindmapTab({ onOpenMap }) {
   // 생성 진행 상태
   const [generating, setGenerating] = useState(false);
   const pollRef = useRef(null);
+
+  // 강의 대본 드로워 — 열린 챕터명 (null 이면 닫힘)
+  const [lectureChapter, setLectureChapter] = useState(null);
+
+  // 강의 대본 — 이미 생성된 챕터의 safe-name Set
+  const [lectureScripts, setLectureScripts] = useState(new Set());
+
+  // 일괄 생성 진행 상태
+  // { running, total, idx, currentChapter, batchStartedAt, abort }
+  const [lectureBatch, setLectureBatch] = useState(null);
+
+  // 챕터별 진행 상태 — 배치 동안만 유효, 종료 후엔 lastBatchResult 로 정리됨
+  // { [chapter]: { status: 'queued'|'running'|'done'|'error', startedAt?, finishedAt?, error? } }
+  const [chapterBatchStatus, setChapterBatchStatus] = useState({});
+
+  // 마지막 배치 결과 패널 — 사용자가 닫을 때까지 유지
+  // { succeeded: [chapter], failed: [{chapter, error}], finishedAt: number }
+  const [lastBatchResult, setLastBatchResult] = useState(null);
+
+  // 일괄 생성 confirm 팝오버
+  // { type: 'book'|'parent', parent?: string, chapters: string[], anchor: DOMRect }
+  const [lectureConfirm, setLectureConfirm] = useState(null);
+  const lectureConfirmRef = useRef(null);
+
+  // 배치 동안 1초 tick — elapsed 시간 강제 리렌더용 (값 자체는 사용 안 함)
+  const [, setBatchTick] = useState(0);
+  useEffect(() => {
+    if (!lectureBatch?.running) return undefined;
+    const id = setInterval(() => setBatchTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [lectureBatch?.running]);
 
   // 문서 목록 로드
   useEffect(() => {
@@ -64,13 +99,17 @@ export default function AutoMindmapTab({ onOpenMap }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  // 문서 선택 시 챕터 상태 로드
+  // 문서 선택 시 챕터 상태 로드 + 강의 대본 현황 동시 로드
   const handleDocSelect = (doc) => {
     setSelectedDoc(doc);
     setChecked(new Set());
     setGenerating(false);
+    setLectureScripts(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     loadChapters(doc.id);
+    fetchLectureStatus(doc.id)
+      .then((set) => setLectureScripts(set))
+      .catch(() => { /* 비치명 — 일괄 생성 시 모두 미생성으로 간주됨 */ });
   };
 
   const loadChapters = (docId) => {
@@ -89,7 +128,130 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setChapters([]);
     setChecked(new Set());
     setGenerating(false);
+    setLectureScripts(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  // ── 강의 대본 일괄 생성 ──
+
+  // 외부 클릭 시 confirm 팝오버 닫기
+  useEffect(() => {
+    if (!lectureConfirm) return undefined;
+    const onDoc = (e) => {
+      if (lectureConfirmRef.current && !lectureConfirmRef.current.contains(e.target)) {
+        setLectureConfirm(null);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [lectureConfirm]);
+
+  /** 주어진 scope 의 대상 챕터 목록을 계산 (마인드맵 완료된 것만 + 이미 생성된 건 제외 후의 [pending, all]). */
+  const collectLectureChapters = (scope, parent) => {
+    const inScope = chapters.filter((ch) => {
+      if (ch.status !== 'completed') return false;
+      if (scope === 'parent') return (ch.parentChapter || null) === parent;
+      return true; // book scope
+    });
+    const pending = inScope.filter((ch) => !lectureScripts.has(safeChapterName(ch.chapter)));
+    return { all: inScope.map((c) => c.chapter), pending: pending.map((c) => c.chapter) };
+  };
+
+  const openLectureConfirm = (scope, parent, btnEl) => {
+    if (lectureBatch?.running) return;
+    const rect = btnEl.getBoundingClientRect();
+    const { all, pending } = collectLectureChapters(scope, parent);
+    if (all.length === 0) return;
+    setLectureConfirm({
+      type: scope, parent, all, pending,
+      anchor: { top: rect.bottom + 4, left: rect.right - 280, width: 280 },
+    });
+  };
+
+  const cancelLectureBatch = () => {
+    if (lectureBatch?.abort) lectureBatch.abort.abort();
+    setLectureBatch(null);
+  };
+
+  const runLectureBatch = async (chaptersToRun) => {
+    if (chaptersToRun.length === 0) {
+      setLectureConfirm(null);
+      return;
+    }
+    setLectureConfirm(null);
+    setLastBatchResult(null);
+    const abort = new AbortController();
+    const batchStartedAt = Date.now();
+
+    // 모든 대상 챕터를 queued 로 초기화
+    const initStatus = {};
+    for (const ch of chaptersToRun) {
+      initStatus[ch] = { status: 'queued' };
+    }
+    setChapterBatchStatus(initStatus);
+
+    setLectureBatch({
+      running: true, total: chaptersToRun.length, idx: 0,
+      currentChapter: chaptersToRun[0], batchStartedAt, abort,
+    });
+
+    const succeeded = [];
+    const failed = [];
+    for (let i = 0; i < chaptersToRun.length; i += 1) {
+      if (abort.signal.aborted) break;
+      const chapter = chaptersToRun[i];
+      const startedAt = Date.now();
+      setLectureBatch((prev) => prev ? { ...prev, idx: i, currentChapter: chapter } : prev);
+      setChapterBatchStatus((prev) => ({
+        ...prev,
+        [chapter]: { status: 'running', startedAt },
+      }));
+      try {
+        await streamLectureScript({
+          docId: selectedDoc.id,
+          chapter,
+          onDone: () => {
+            setLectureScripts((prev) => {
+              const next = new Set(prev);
+              next.add(safeChapterName(chapter));
+              return next;
+            });
+          },
+          signal: abort.signal,
+        });
+        succeeded.push(chapter);
+        setChapterBatchStatus((prev) => ({
+          ...prev,
+          [chapter]: { status: 'done', startedAt, finishedAt: Date.now() },
+        }));
+      } catch (err) {
+        if (abort.signal.aborted) break;
+        const message = err?.userMessage || err?.message || '알 수 없는 오류';
+        failed.push({ chapter, error: message });
+        setChapterBatchStatus((prev) => ({
+          ...prev,
+          [chapter]: { status: 'error', startedAt, finishedAt: Date.now(), error: message },
+        }));
+      }
+    }
+
+    setLectureBatch(null);
+    if (!abort.signal.aborted) {
+      setLastBatchResult({ succeeded, failed, finishedAt: Date.now() });
+      const skipped = chaptersToRun.length - succeeded.length - failed.length;
+      const msg = `강의 대본 ${succeeded.length}개 생성 완료`
+        + (failed.length > 0 ? `, ${failed.length}개 실패` : '')
+        + (skipped > 0 ? `, ${skipped}개 미실행` : '');
+      if (failed.length === 0) showSuccess(msg);
+    }
+  };
+
+  /** ms → "M:SS" 또는 "MM:SS" 포맷. */
+  const formatElapsed = (ms) => {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
   };
 
   // 소단원 체크박스 토글
@@ -302,6 +464,20 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
               <div className="flex-1" />
 
+              {/* 책 단위 강의 대본 일괄 생성 */}
+              <button
+                onClick={(e) => openLectureConfirm('book', null, e.currentTarget)}
+                disabled={lectureBatch?.running
+                  || chapters.filter((c) => c.status === 'completed').length === 0}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                  border border-border-light text-text-secondary hover:border-primary hover:text-primary
+                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="이 책의 모든 챕터에 대해 강의 대본 일괄 생성"
+              >
+                <Film size={12} />
+                전체 강의
+              </button>
+
               {generating ? (
                 <span className="flex items-center gap-1.5 text-xs text-primary">
                   <Loader2 size={12} className="animate-spin" />
@@ -320,6 +496,81 @@ export default function AutoMindmapTab({ onOpenMap }) {
                 </button>
               )}
             </div>
+
+            {/* 강의 대본 일괄 진행 배너 */}
+            {lectureBatch?.running && (() => {
+              const totalElapsed = formatElapsed(Date.now() - lectureBatch.batchStartedAt);
+              const curStatus = chapterBatchStatus[lectureBatch.currentChapter];
+              const curElapsed = curStatus?.startedAt
+                ? formatElapsed(Date.now() - curStatus.startedAt) : '0:00';
+              const doneCount = Object.values(chapterBatchStatus).filter((s) => s.status === 'done').length;
+              const errorCount = Object.values(chapterBatchStatus).filter((s) => s.status === 'error').length;
+              return (
+                <div className="mx-2 mt-1 flex flex-col gap-1 px-3 py-2 rounded-lg
+                  bg-primary/5 text-primary text-xs">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={12} className="animate-spin shrink-0" />
+                    <span className="flex-1 truncate">
+                      ({lectureBatch.idx + 1}/{lectureBatch.total}) {lectureBatch.currentChapter}
+                    </span>
+                    <span className="shrink-0 text-text-tertiary">현재 {curElapsed}</span>
+                    <button
+                      onClick={cancelLectureBatch}
+                      className="shrink-0 text-text-tertiary hover:text-text-primary transition-colors"
+                    >
+                      중단
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-text-tertiary pl-4">
+                    <span>전체 {totalElapsed}</span>
+                    <span>✓ {doneCount}</span>
+                    {errorCount > 0 && <span className="text-danger">⚠️ {errorCount}</span>}
+                    <span>· 남음 {lectureBatch.total - doneCount - errorCount}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 마지막 일괄 결과 패널 — 사용자 닫을 때까지 유지 */}
+            {!lectureBatch?.running && lastBatchResult && (
+              <div className="mx-2 mt-1 px-3 py-2 rounded-lg bg-bg-secondary text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-text-primary">
+                    최근 일괄 생성 — 성공 <b className="text-success">{lastBatchResult.succeeded.length}</b>
+                    {lastBatchResult.failed.length > 0 && (
+                      <> · 실패 <b className="text-danger">{lastBatchResult.failed.length}</b></>
+                    )}
+                  </span>
+                  {lastBatchResult.failed.length > 0 && (
+                    <button
+                      onClick={() => runLectureBatch(lastBatchResult.failed.map((f) => f.chapter))}
+                      className="px-2 py-0.5 rounded text-[11px] font-medium text-white bg-primary
+                        hover:bg-primary/90 transition-colors"
+                    >
+                      실패만 재시도
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setLastBatchResult(null); setChapterBatchStatus({}); }}
+                    className="text-text-tertiary hover:text-text-primary transition-colors"
+                    aria-label="결과 닫기"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {lastBatchResult.failed.length > 0 && (
+                  <ul className="mt-1.5 ml-1 space-y-0.5 text-[11px] text-text-secondary">
+                    {lastBatchResult.failed.map((f) => (
+                      <li key={f.chapter} className="truncate">
+                        <span className="text-danger mr-1">⚠️</span>
+                        <span className="font-medium">{f.chapter}</span>
+                        <span className="text-text-tertiary ml-1">— {f.error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {/* 진행 상태 배너 */}
             {isAnyRunning && (
@@ -373,6 +624,22 @@ export default function AutoMindmapTab({ onOpenMap }) {
                           <span className="text-xs font-semibold text-text-secondary truncate flex-1">
                             {group.parent}
                           </span>
+                          {group.items.some((c) => c.status === 'completed') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openLectureConfirm('parent', group.parent, e.currentTarget);
+                              }}
+                              disabled={lectureBatch?.running}
+                              className="shrink-0 p-1 rounded text-text-tertiary
+                                hover:text-primary hover:bg-bg-tertiary transition-colors
+                                disabled:opacity-40 disabled:cursor-not-allowed"
+                              aria-label="이 과목 강의 일괄 생성"
+                              title="이 과목의 챕터 강의 대본 일괄 생성"
+                            >
+                              <Film size={13} />
+                            </button>
+                          )}
                           <span className="text-xs text-text-tertiary shrink-0">
                             {group.items.filter((c) => c.status === 'completed').length}/{group.items.length}
                           </span>
@@ -426,9 +693,65 @@ export default function AutoMindmapTab({ onOpenMap }) {
                           </div>
 
                           {isCompleted ? (
-                            <span className="text-xs text-text-tertiary shrink-0">
-                              {ch.nodeCount}개 노드
-                            </span>
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setLectureChapter(ch.chapter); }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed
+                                  aria-checked:text-primary"
+                                aria-label="강의 대본"
+                                aria-checked={lectureScripts.has(safeChapterName(ch.chapter))}
+                                title={lectureScripts.has(safeChapterName(ch.chapter))
+                                  ? '강의 대본 보기 (생성됨)' : '강의 대본 생성'}
+                              >
+                                <Film size={14} className={
+                                  lectureScripts.has(safeChapterName(ch.chapter))
+                                    ? 'text-primary' : ''
+                                } />
+                              </button>
+                              {/* 배치 상태 배지 — 배치 동안 또는 마지막 배치 결과 표시 */}
+                              {(() => {
+                                const st = chapterBatchStatus[ch.chapter];
+                                if (!st) return null;
+                                if (st.status === 'queued') {
+                                  return <span className="text-[10px] text-text-tertiary shrink-0" title="대기 중">🕒</span>;
+                                }
+                                if (st.status === 'running') {
+                                  const elapsed = formatElapsed(Date.now() - (st.startedAt || Date.now()));
+                                  return (
+                                    <span className="flex items-center gap-1 text-[10px] text-primary shrink-0"
+                                      title="생성 중">
+                                      <Loader2 size={10} className="animate-spin" />
+                                      {elapsed}
+                                    </span>
+                                  );
+                                }
+                                if (st.status === 'done') {
+                                  const elapsed = st.finishedAt && st.startedAt
+                                    ? formatElapsed(st.finishedAt - st.startedAt) : null;
+                                  return (
+                                    <span className="text-[10px] text-success shrink-0"
+                                      title={`완료${elapsed ? ` (${elapsed})` : ''}`}>
+                                      ✓{elapsed ? ` ${elapsed}` : ''}
+                                    </span>
+                                  );
+                                }
+                                if (st.status === 'error') {
+                                  return (
+                                    <span className="text-[10px] text-danger shrink-0 cursor-help"
+                                      title={st.error || '실패'}>
+                                      ⚠️
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <span className="text-xs text-text-tertiary shrink-0">
+                                {ch.nodeCount}개 노드
+                              </span>
+                            </>
                           ) : isGeneratingNow ? (
                             <span className="text-xs text-primary shrink-0">생성 중</span>
                           ) : isPending ? (
@@ -444,6 +767,62 @@ export default function AutoMindmapTab({ onOpenMap }) {
           </div>
         )}
       </div>
+
+      <LectureScriptDrawer
+        open={!!lectureChapter}
+        onClose={() => {
+          // 드로워 닫을 때 status 다시 동기화 (단일 생성 시 lectureScripts 갱신용)
+          if (selectedDoc?.id) {
+            fetchLectureStatus(selectedDoc.id).then(setLectureScripts).catch(() => {});
+          }
+          setLectureChapter(null);
+        }}
+        docId={selectedDoc?.id}
+        chapter={lectureChapter}
+      />
+
+      {/* 강의 대본 일괄 생성 확인 팝오버 */}
+      {lectureConfirm && (
+        <div
+          ref={lectureConfirmRef}
+          className="fixed z-[999] bg-bg-primary border border-border-light rounded-lg shadow-lg p-3
+            animate-popover-in"
+          style={{
+            top: lectureConfirm.anchor.top,
+            left: Math.max(8, lectureConfirm.anchor.left),
+            width: lectureConfirm.anchor.width,
+          }}
+        >
+          <div className="text-xs font-medium text-text-primary mb-2">
+            {lectureConfirm.type === 'book' ? '책 전체 강의 대본 생성' : `과목 강의 대본 생성`}
+          </div>
+          <div className="text-xs text-text-secondary mb-3 leading-relaxed">
+            대상 챕터 {lectureConfirm.all.length}개 중{' '}
+            <b className="text-text-primary">{lectureConfirm.pending.length}개 새로 생성</b>,{' '}
+            {lectureConfirm.all.length - lectureConfirm.pending.length}개는 이미 있어 건너뜁니다.
+            <br />
+            (모델: gpt-5.4-mini, 챕터당 약 1~3분)
+          </div>
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={() => setLectureConfirm(null)}
+              className="px-3 py-1.5 rounded text-xs text-text-secondary hover:bg-bg-secondary transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => runLectureBatch(lectureConfirm.pending)}
+              disabled={lectureConfirm.pending.length === 0}
+              className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
+                hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {lectureConfirm.pending.length > 0
+                ? `생성 시작 (${lectureConfirm.pending.length}개)`
+                : '생성할 챕터 없음'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
