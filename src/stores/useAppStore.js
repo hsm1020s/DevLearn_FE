@@ -31,8 +31,6 @@ const useAppStore = create(
       splitLeftPct: 50,
       // 학습 워크스페이스 좌우 분할 시 좌측(일반 채팅) 비율 (%) — 마인드맵 분할과 독립
       learningSplitLeftPct: 50,
-      // 학습 모드 내부 서브 탭 (chat | quiz | record)
-      studySubTab: 'chat',
       // 화면 선명도 (surface 알파값). 1.0=선명, 0.4=흐림.
       uiClarity: 1.0,
       // 선명도가 한 번이라도 최저값(CLARITY_MIN)에 닿으면 잠겨서, 임시 비밀번호 없이는 다시 올릴 수 없다.
@@ -40,7 +38,6 @@ const useAppStore = create(
       clarityLocked: false,
 
       setLLM: (llm) => set({ selectedLLM: llm }),
-      setStudySubTab: (tab) => set({ studySubTab: tab }),
       setMainMode: (mode) => {
         set({ mainMode: mode });
         // 모드 전환 시 채팅 공간을 모드별로 분리하고 마인드맵도 복원
@@ -94,7 +91,6 @@ const useAppStore = create(
         learningSplitLeftPct: state.learningSplitLeftPct,
         mainMode: state.mainMode,
         isMindmapOn: state.isMindmapOn,
-        studySubTab: state.studySubTab,
         uiClarity: state.uiClarity,
         // 잠금 상태도 보존해야 자리비움 → 새로고침 시나리오에서 보호 의미가 유지된다.
         clarityLocked: state.clarityLocked,
