@@ -67,7 +67,7 @@ export default function SplitLearningWorkspace({ mode }) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="shrink-0 w-1 bg-border-light hover:bg-border-medium active:bg-primary cursor-col-resize transition-colors"
+        className="shrink-0 w-1 bg-border-light/40 hover:bg-border-light active:bg-primary cursor-col-resize transition-colors"
       />
 
       {/* 우측 — 잔여 공간 차지 */}
