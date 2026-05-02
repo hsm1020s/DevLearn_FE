@@ -44,6 +44,130 @@ export async function fetchLectureScript(docId, chapter) {
   }
 }
 
+// ──────────────────────────────────────────────
+// Phase 2 — 강의 오디오(TTS)
+// ──────────────────────────────────────────────
+
+/** 문서별 오디오 생성 현황 — safe-name Set. */
+export async function fetchLectureAudioStatus(docId) {
+  const { data } = await api.get(`/lectures/${encodeURIComponent(docId)}/audio/status`);
+  const generated = data?.data?.generated || [];
+  return new Set(generated);
+}
+
+/**
+ * 챕터 mp3 의 직접 재생 가능 URL — `<audio src=...>` 에 바로 꽂아 쓸 수 있다.
+ * 미디어 태그는 커스텀 Authorization 헤더를 보낼 수 없으므로 ?access_token=... 쿼리 파라미터로 인증.
+ * BE JwtAuthFilter 가 헤더 → 쿼리 순으로 토큰을 추출한다.
+ *
+ * 토큰이 만료되면 401 응답 → onError 로 표시. UX 상 드물게 발생하면 페이지 새로고침으로 해결.
+ * (refresh token 자동 재시도까지는 v1 스코프 외)
+ */
+export function lectureAudioUrl(docId, chapter) {
+  const token = localStorage.getItem('accessToken') || '';
+  return `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/audio`
+    + `?access_token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * 오디오 파일 존재 여부만 확인. Spring MVC 가 HEAD 를 항상 자동 라우팅하지는 않으므로
+ * GET + Range: bytes=0-0 으로 1바이트만 받아 200/206 이면 true.
+ */
+export async function lectureAudioExists(docId, chapter) {
+  try {
+    const res = await fetch(lectureAudioUrl(docId, chapter), {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+    });
+    return res.ok || res.status === 206;
+  } catch {
+    return false;
+  }
+}
+
+/** 오디오 일괄 배치 시작 (kind=audio). */
+export async function startLectureAudioBatch(docId, scope, parent, targetCount) {
+  const { data } = await api.post(`/lectures/${encodeURIComponent(docId)}/audio/batches`,
+    { scope, parent, targetCount });
+  return data?.data?.batchId;
+}
+
+/** 오디오 일괄 배치 종료. */
+export async function finishLectureAudioBatch(batchId, payload) {
+  const { data } = await api.post(`/lectures/audio/batches/${encodeURIComponent(batchId)}/finish`,
+    payload);
+  return data?.data;
+}
+
+/**
+ * 챕터 오디오를 SSE 로 생성한다.
+ * @param {Object} params { docId, chapter, voice?, batchId?, onDone({audioUrl, durationSec, costUsd}), signal? }
+ */
+export async function streamLectureAudio(params) {
+  const { docId, chapter, voice, batchId, onDone, signal } = params;
+  const url = `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/audio/stream`;
+  const body = JSON.stringify({ voice, batchId });
+
+  const doFetch = (token) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { method: 'POST', headers, body, signal });
+  };
+
+  let accessToken = localStorage.getItem('accessToken');
+  let response = await doFetch(accessToken);
+  if (response.status === 401) {
+    try {
+      accessToken = await refreshAccessToken();
+    } catch {
+      const err = new Error('로그인이 필요합니다');
+      err.userMessage = '로그인이 필요합니다';
+      err.status = 401;
+      throw err;
+    }
+    response = await doFetch(accessToken);
+  }
+  if (!response.ok) {
+    let msg = `요청 실패 (${response.status})`;
+    try { const b = await response.json(); if (b?.message) msg = b.message; } catch { /* ignore */ }
+    const err = new Error(msg);
+    err.userMessage = msg;
+    err.status = response.status;
+    throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n');
+      buffer = parts.pop();
+      for (const line of parts) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(5));
+          if (parsed.type === 'done') {
+            // BE 가 content 에 JSON 문자열을 담아 보냄: {audioUrl, durationSec, costUsd}
+            let payload = {};
+            try { payload = JSON.parse(parsed.content || '{}'); } catch { /* ignore */ }
+            onDone?.(payload);
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ──────────────────────────────────────────────
+// Phase 1 — 강의 대본 (스크립트)
+// ──────────────────────────────────────────────
+
 /**
  * 일괄 배치 시작 — 서버에 batch 행을 INSERT(running) 하고 batchId 반환.
  * 이후 streamLectureScript 호출에 batchId 를 함께 넘기면 각 run 이 batch 와 묶임.
