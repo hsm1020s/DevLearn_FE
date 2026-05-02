@@ -29,8 +29,9 @@ import FeynmanChapterPicker from '../feynman/FeynmanChapterPicker';
  * @param {'study'|'worklearn'} props.mode
  */
 export default function FeynmanChatPane({ mode }) {
-  const feynmanDocId = useStudyStore((s) => s.feynmanDocId);
-  const feynmanChapter = useStudyStore((s) => s.feynmanChapter);
+  // 파인만 세션은 모드별로 분리 — 공부와 업무학습이 서로의 챕터 선택을 침범하지 않음
+  const feynmanDocId = useStudyStore((s) => s.feynmanByMode[mode]?.docId ?? null);
+  const feynmanChapter = useStudyStore((s) => s.feynmanByMode[mode]?.chapter ?? null);
   const setFeynmanSession = useStudyStore((s) => s.setFeynmanSession);
   const clearFeynmanSession = useStudyStore((s) => s.clearFeynmanSession);
   const setChatStyle = useStudyStore((s) => s.setChatStyle);
@@ -60,12 +61,12 @@ export default function FeynmanChatPane({ mode }) {
 
   const handleChapterSelect = useCallback(
     (docId, chapter) => {
-      setFeynmanSession(docId, chapter);
+      setFeynmanSession(mode, docId, chapter);
       setChatStyle('feynman');
       setChatStyleLocked(true);
       setShowChapterPicker(false);
     },
-    [setFeynmanSession, setChatStyle, setChatStyleLocked],
+    [mode, setFeynmanSession, setChatStyle, setChatStyleLocked],
   );
 
   const handleStart = useCallback(() => {
@@ -76,7 +77,7 @@ export default function FeynmanChatPane({ mode }) {
   const handleStopSession = useCallback(() => {
     // 스트리밍 중단도 같이 — 엔진 호출이 진행 중이면 깔끔히 끊는다
     if (isStreaming) handleStop();
-    clearFeynmanSession();
+    clearFeynmanSession(mode);
     clearSplitConversation(mode, 'right');
   }, [isStreaming, handleStop, clearFeynmanSession, clearSplitConversation, mode]);
 
