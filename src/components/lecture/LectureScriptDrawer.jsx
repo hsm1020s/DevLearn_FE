@@ -11,10 +11,11 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { X, Loader2, Sparkles, RefreshCw, Film, Music } from 'lucide-react';
+import { X, Loader2, Sparkles, RefreshCw, Film, Music, Presentation, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   fetchLectureScript, streamLectureScript,
   lectureAudioUrl, lectureAudioExists, streamLectureAudio,
+  fetchLectureSlides, fetchLectureSlideTimings, lectureSlideImageUrl, streamLectureSlides,
 } from '../../services/lectureApi';
 import { showError } from '../../utils/errorHandler';
 
@@ -31,10 +32,10 @@ function transformSlideMarkers(text) {
  * @param {Function} props.onClose
  * @param {string} props.docId
  * @param {string} props.chapter
- * @param {boolean} [props.audioExistsHint] - 부모(AutoMindmapTab)가 이미 알고 있는 오디오 존재 여부.
- *   true 면 드로워는 즉시 player 를 노출(존재 확인 fetch 스킵).
+ * @param {boolean} [props.audioExistsHint] - 부모가 알려준 오디오 존재 여부 (즉시 player 노출).
+ * @param {boolean} [props.slidesExistsHint] - 부모가 알려준 슬라이드 존재 여부.
  */
-export default function LectureScriptDrawer({ open, onClose, docId, chapter, audioExistsHint }) {
+export default function LectureScriptDrawer({ open, onClose, docId, chapter, audioExistsHint, slidesExistsHint }) {
   const [loading, setLoading] = useState(false);   // 초기 fetch 로딩
   const [generating, setGenerating] = useState(false);
   const [content, setContent] = useState('');
@@ -55,6 +56,24 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
     const id = setInterval(() => setAudioTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [audioGenerating]);
+
+  // 슬라이드 (Phase 3)
+  const [slidesData, setSlidesData] = useState(null);   // {totalChars, slides: [{index,title,bullets,...}]}
+  const [slideTimings, setSlideTimings] = useState(null); // {totalChars, slides: [{index,startCharRatio,endCharRatio}]}
+  const [slidesLoading, setSlidesLoading] = useState(false);
+  const [slidesGenerating, setSlidesGenerating] = useState(false);
+  const [slidesStartedAt, setSlidesStartedAt] = useState(0);
+  const [, setSlidesTick] = useState(0);
+  const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
+  const [autoSync, setAutoSync] = useState(true);
+  const audioRef = useRef(null);
+  const slidesAbortRef = useRef(null);
+
+  useEffect(() => {
+    if (!slidesGenerating) return undefined;
+    const id = setInterval(() => setSlidesTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [slidesGenerating]);
 
   // 드로워 열릴 때 저장된 대본 조회
   useEffect(() => {
@@ -150,6 +169,81 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
       setAudioGenerating(false);
     }
   };
+
+  // 슬라이드 데이터 로드
+  const loadSlides = async (cancelledRef) => {
+    setSlidesLoading(true);
+    try {
+      const [data, timings] = await Promise.all([
+        fetchLectureSlides(docId, chapter),
+        fetchLectureSlideTimings(docId, chapter),
+      ]);
+      if (cancelledRef.current) return;
+      setSlidesData(data);
+      setSlideTimings(timings);
+      setCurrentSlideIdx(0);
+    } catch { /* 비치명 */ }
+    finally { if (!cancelledRef.current) setSlidesLoading(false); }
+  };
+
+  useEffect(() => {
+    if (!open || !docId || !chapter) return undefined;
+    const cancelled = { current: false };
+    if (slidesExistsHint === false) {
+      // 부모가 명시적으로 없다고 알려준 경우만 fetch 스킵
+      setSlidesData(null); setSlideTimings(null); setSlidesLoading(false);
+      return () => { cancelled.current = true; };
+    }
+    loadSlides(cancelled);
+    return () => { cancelled.current = true; };
+  }, [open, docId, chapter, slidesExistsHint]);
+
+  const handleGenerateSlides = async () => {
+    if (slidesGenerating || !hasScript) return;
+    setSlidesGenerating(true);
+    setSlidesStartedAt(Date.now());
+    setSlidesData(null); setSlideTimings(null);
+    const controller = new AbortController();
+    slidesAbortRef.current = controller;
+    try {
+      await streamLectureSlides({
+        docId, chapter,
+        onDone: () => {
+          if (controller.signal.aborted) return;
+          loadSlides({ current: false });
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (!controller.signal.aborted) showError(err, '슬라이드 생성 실패');
+    } finally {
+      slidesAbortRef.current = null;
+      setSlidesGenerating(false);
+    }
+  };
+
+  const handleSlidesAbort = () => {
+    if (slidesAbortRef.current) {
+      slidesAbortRef.current.abort();
+      slidesAbortRef.current = null;
+      setSlidesGenerating(false);
+    }
+  };
+
+  // audio.currentTime → slide index 자동 sync
+  useEffect(() => {
+    if (!autoSync || !audioRef.current || !slideTimings?.slides?.length) return undefined;
+    const audio = audioRef.current;
+    const handler = () => {
+      const ratio = audio.duration > 0 ? audio.currentTime / audio.duration : 0;
+      const idx = slideTimings.slides.findIndex(
+        (s) => ratio >= s.startCharRatio && ratio < s.endCharRatio,
+      );
+      if (idx >= 0 && idx !== currentSlideIdx) setCurrentSlideIdx(idx);
+    };
+    audio.addEventListener('timeupdate', handler);
+    return () => audio.removeEventListener('timeupdate', handler);
+  }, [autoSync, slideTimings, currentSlideIdx]);
 
   const handleGenerate = async () => {
     if (generating) return;
@@ -267,6 +361,90 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
             </div>
           ) : (
             <>
+              {/* 슬라이드 섹션 — 스크립트가 있을 때만 노출 */}
+              <section className="mb-4 p-3 rounded-lg border border-border-light bg-bg-secondary/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Presentation size={14} className="text-primary shrink-0" />
+                  <div className="text-xs font-semibold text-text-primary flex-1">강의 슬라이드</div>
+                  {slidesData && !slidesGenerating && (
+                    <>
+                      <label className="text-[11px] text-text-tertiary flex items-center gap-1 cursor-pointer select-none">
+                        <input type="checkbox" checked={autoSync}
+                          onChange={(e) => setAutoSync(e.target.checked)}
+                          className="w-3 h-3 accent-primary" />
+                        재생 sync
+                      </label>
+                      <button
+                        onClick={handleGenerateSlides}
+                        className="text-[11px] text-text-tertiary hover:text-primary transition-colors flex items-center gap-1"
+                        title="슬라이드 다시 생성"
+                      >
+                        <RefreshCw size={11} />재생성
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {slidesLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                    <Loader2 size={12} className="animate-spin" />슬라이드 확인 중...
+                  </div>
+                ) : slidesGenerating ? (
+                  <div className="flex items-center gap-2 text-xs text-primary">
+                    <Loader2 size={12} className="animate-spin" />
+                    <span className="flex-1">
+                      슬라이드 생성 중... ({Math.floor((Date.now() - slidesStartedAt) / 1000)}초)
+                    </span>
+                    <button onClick={handleSlidesAbort}
+                      className="text-text-tertiary hover:text-text-primary transition-colors">중단</button>
+                  </div>
+                ) : slidesData && slidesData.slides?.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="relative w-full aspect-[16/9] rounded overflow-hidden bg-bg-tertiary border border-border-light">
+                      <img
+                        key={currentSlideIdx}
+                        src={lectureSlideImageUrl(docId, chapter, currentSlideIdx)}
+                        alt={`슬라이드 ${currentSlideIdx + 1}`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentSlideIdx((i) => Math.max(0, i - 1))}
+                        disabled={currentSlideIdx === 0}
+                        className="p-1 rounded hover:bg-bg-tertiary disabled:opacity-30 transition-colors"
+                      ><ChevronLeft size={16} /></button>
+                      <span className="flex-1 text-center text-xs text-text-secondary">
+                        {currentSlideIdx + 1} / {slidesData.slides.length}
+                        {slidesData.slides[currentSlideIdx]?.title && (
+                          <span className="ml-2 text-text-tertiary truncate">
+                            · {slidesData.slides[currentSlideIdx].title}
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        onClick={() => setCurrentSlideIdx((i) => Math.min(slidesData.slides.length - 1, i + 1))}
+                        disabled={currentSlideIdx >= slidesData.slides.length - 1}
+                        className="p-1 rounded hover:bg-bg-tertiary disabled:opacity-30 transition-colors"
+                      ><ChevronRight size={16} /></button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-text-tertiary">
+                      gpt-5.4-mini 로 bullet 추출 + Playwright 캡처 (~30~60초)
+                    </div>
+                    <button
+                      onClick={handleGenerateSlides}
+                      className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
+                        hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                    >
+                      <Presentation size={12} />슬라이드 생성
+                    </button>
+                  </div>
+                )}
+              </section>
+
               {/* 오디오 섹션 — 스크립트가 있을 때만 노출 */}
               <section className="mb-4 p-3 rounded-lg border border-border-light bg-bg-secondary/30">
                 <div className="flex items-center gap-2 mb-2">
@@ -304,6 +482,7 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter, aud
                   </div>
                 ) : audioUrl ? (
                   <audio
+                    ref={audioRef}
                     controls
                     preload="auto"
                     src={audioUrl}

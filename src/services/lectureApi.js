@@ -165,6 +165,117 @@ export async function streamLectureAudio(params) {
 }
 
 // ──────────────────────────────────────────────
+// Phase 3 — 강의 슬라이드 (PNG 시퀀스 + 자동 sync)
+// ──────────────────────────────────────────────
+
+/** 챕터의 slides.json 조회. 없으면 null. */
+export async function fetchLectureSlides(docId, chapter) {
+  try {
+    const { data } = await api.get(
+      `/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/slides`,
+    );
+    return data;
+  } catch (err) {
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+/** slide_timings.json 조회. 없으면 null. */
+export async function fetchLectureSlideTimings(docId, chapter) {
+  try {
+    const { data } = await api.get(
+      `/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/slide-timings`,
+    );
+    return data;
+  } catch (err) {
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+/** N번째 슬라이드 PNG 의 직접 URL — <img src=...> 에 바로 사용. ?access_token= 쿼리로 인증. */
+export function lectureSlideImageUrl(docId, chapter, index) {
+  const token = localStorage.getItem('accessToken') || '';
+  return `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/slides/${index}.png`
+    + `?access_token=${encodeURIComponent(token)}`;
+}
+
+/** 문서별 슬라이드 생성 챕터 safe-name Set. */
+export async function fetchLectureSlidesStatus(docId) {
+  const { data } = await api.get(`/lectures/${encodeURIComponent(docId)}/slides/status`);
+  return new Set(data?.data?.generated || []);
+}
+
+/** 슬라이드 일괄 배치 시작 (kind=slides). */
+export async function startLectureSlidesBatch(docId, scope, parent, targetCount) {
+  const { data } = await api.post(`/lectures/${encodeURIComponent(docId)}/slides/batches`,
+    { scope, parent, targetCount });
+  return data?.data?.batchId;
+}
+
+/** 슬라이드 일괄 배치 종료. */
+export async function finishLectureSlidesBatch(batchId, payload) {
+  const { data } = await api.post(`/lectures/slides/batches/${encodeURIComponent(batchId)}/finish`,
+    payload);
+  return data?.data;
+}
+
+/**
+ * 슬라이드 SSE 생성. done payload: {slideCount, costUsd, synthMs, captureMs}
+ */
+export async function streamLectureSlides(params) {
+  const { docId, chapter, batchId, onDone, signal } = params;
+  const url = `${api.defaults.baseURL}/lectures/${encodeURIComponent(docId)}/${encodeURIComponent(chapter)}/slides/stream`;
+  const body = JSON.stringify({ batchId });
+
+  const doFetch = (token) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { method: 'POST', headers, body, signal });
+  };
+
+  let accessToken = localStorage.getItem('accessToken');
+  let response = await doFetch(accessToken);
+  if (response.status === 401) {
+    try { accessToken = await refreshAccessToken(); }
+    catch { const err = new Error('로그인이 필요합니다'); err.userMessage = '로그인이 필요합니다'; err.status = 401; throw err; }
+    response = await doFetch(accessToken);
+  }
+  if (!response.ok) {
+    let msg = `요청 실패 (${response.status})`;
+    try { const b = await response.json(); if (b?.message) msg = b.message; } catch { /* ignore */ }
+    const err = new Error(msg); err.userMessage = msg; err.status = response.status; throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n');
+      buffer = parts.pop();
+      for (const line of parts) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(5));
+          if (parsed.type === 'done') {
+            let payload = {};
+            try { payload = JSON.parse(parsed.content || '{}'); } catch { /* ignore */ }
+            onDone?.(payload);
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ──────────────────────────────────────────────
 // Phase 1 — 강의 대본 (스크립트)
 // ──────────────────────────────────────────────
 
