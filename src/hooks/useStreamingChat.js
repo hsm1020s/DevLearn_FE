@@ -41,12 +41,14 @@ const NEAR_BOTTOM_THRESHOLD = 120;
  *   주어지면 splitConversationIds[mode][paneKey] 슬롯을 활성 대화로 사용한다.
  *   left=일반 라우트 강제, right=파인만 라우트 강제.
  * @param {boolean} [options.autoStartFeynman] - 파인만 세션 자동 첫 질문 트리거 여부.
- *   기본값: split right 패널은 false, 그 외에는 true.
+ *   기본값: split 환경(좌·우 모두)은 false, 단일 모드는 true.
+ *   split 좌측은 일반 채팅 전용이라 파인만 챕터 변경에 반응하면 안 되고,
+ *   우측은 명시적 [▶ 시작] 버튼이 startFeynmanSession()을 호출하므로 자동 트리거가 불필요.
  */
 export default function useStreamingChat(mode, options = {}) {
   const { paneKey } = options;
   const isSplit = paneKey === 'left' || paneKey === 'right';
-  const autoStartFeynman = options.autoStartFeynman ?? !(isSplit && paneKey === 'right');
+  const autoStartFeynman = options.autoStartFeynman ?? !isSplit;
 
   const currentConversationId = useChatStore((s) => s.currentConversationId);
   const splitConvId = useChatStore((s) =>
