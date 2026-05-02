@@ -386,7 +386,11 @@ const useMindmapStore = create(
 
       markSaved: () => set({ lastSavedAt: Date.now() }),
 
-      /** 현재 활성 맵의 모든 노드 삭제 (맵 자체는 유지) */
+      /**
+       * 현재 활성 맵의 모든 노드 삭제 (맵 자체는 유지).
+       * intentionallyEmpty=true 플래그를 셋해 BE 의 빈-nodes 가드를 통과시킨다.
+       * 다음 _performSave 가 플래그를 payload 에 포함해 보내고, 성공 후 자동 클리어된다.
+       */
       clearAll: () => {
         const { activeMapId } = get();
         if (!activeMapId) return;
@@ -396,7 +400,7 @@ const useMindmapStore = create(
           return {
             maps: {
               ...state.maps,
-              [activeMapId]: { ...map, nodes: [], updatedAt: Date.now() },
+              [activeMapId]: { ...map, nodes: [], intentionallyEmpty: true, updatedAt: Date.now() },
             },
             selectedNodeId: null,
             lastSavedAt: null,
@@ -536,11 +540,13 @@ const useMindmapStore = create(
         try {
           // isLocal=true 이면 id를 서버에 보내지 않아 새 id를 발급받는다.
           // collapsed는 FE 전용 상태 — payload에서 제거. description은 BE에 저장.
+          // intentionallyEmpty: clearAll 이 셋한 경우만 true 로 전달 → BE 의 빈-nodes 가드 통과.
           const payload = {
             id: map.isLocal ? undefined : mapId,
             title: map.title,
             mode: map.mode,
             nodes: map.nodes.map(({ collapsed: _c, ...rest }) => rest),
+            intentionallyEmpty: map.intentionallyEmpty === true ? true : undefined,
           };
           const res = await saveMindmap(payload);
           const serverId = res?.id;
@@ -560,6 +566,8 @@ const useMindmapStore = create(
                   ...oldEntry,
                   id: serverId,
                   isLocal: false,
+                  // intentionallyEmpty 는 1회용 — save 성공 후 클리어 (다음 save 가 의도치 않게 통과되지 않도록)
+                  intentionallyEmpty: false,
                   updatedAt: Date.now(),
                 },
               };
@@ -592,6 +600,8 @@ const useMindmapStore = create(
               [finalId]: {
                 ...state.maps[finalId],
                 isLocal: false,
+                // intentionallyEmpty 1회용 — save 성공 후 클리어
+                intentionallyEmpty: false,
                 updatedAt: Date.now(),
               },
             };
