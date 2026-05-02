@@ -47,3 +47,13 @@ export async function deleteMindmapsBatch(ids) {
   const { data } = await api.post('/mindmap/delete-batch', { ids });
   return data.data;
 }
+
+/**
+ * soft 삭제된 마인드맵을 복구한다 (deleted_at = NULL).
+ * "자동 생성" 탭에서 [보기] 클릭 시 항상 호출 (멱등 — 이미 살아있어도 안전).
+ * @param {string} id
+ */
+export async function restoreMindmap(id) {
+  if (API_CONFIG.useMock) return; // mock 은 hard delete 라 복구 개념 없음 — no-op
+  await api.post(`/mindmap/${id}/restore`);
+}

@@ -8,7 +8,7 @@ import {
   BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film, Music, Presentation, Video,
 } from 'lucide-react';
 import { fetchDocs, fetchChapterStatuses, generateMindmaps } from '../../services/feynmanApi';
-import { getMindmap } from '../../services/mindmapApi';
+import { getMindmap, restoreMindmap } from '../../services/mindmapApi';
 import {
   fetchLectureStatus, streamLectureScript, safeChapterName,
   startLectureBatch, finishLectureBatch,
@@ -434,10 +434,13 @@ export default function AutoMindmapTab({ onOpenMap }) {
     }
   };
 
-  // 완료된 마인드맵 열기
+  // 완료된 마인드맵 열기 — soft 삭제 상태였다면 자동 복구 (멱등 호출)
   const handleOpen = async (ch) => {
     if (!ch.mindmapId) return;
     try {
+      // restore 를 항상 먼저 호출. 살아있으면 0행 영향, soft 삭제됐으면 deleted_at = NULL.
+      // 복구 없이 getMindmap 호출 시 BE 의 deleted_at IS NULL 필터로 404 가 나기 때문에 필수.
+      await restoreMindmap(ch.mindmapId);
       const detail = await getMindmap(ch.mindmapId);
       const now = Date.now();
       useMindmapStore.setState((state) => ({
