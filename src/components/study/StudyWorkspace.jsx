@@ -7,7 +7,7 @@
 import { useEffect } from 'react';
 import useAppStore from '../../stores/useAppStore';
 import StudySubTabs from './StudySubTabs';
-import StudyChatTab from './StudyChatTab';
+import SplitLearningWorkspace from './SplitLearningWorkspace';
 import StudyQuizTab from './StudyQuizTab';
 import StudyRecordTab from './StudyRecordTab';
 
@@ -37,7 +37,7 @@ export default function StudyWorkspace() {
            useStudyStore로 끌어올렸다(quizPaused, currentQuiz, chatStyle 등).
       */}
       <div className="flex-1 flex flex-col min-h-0">
-        {studySubTab === 'chat' && <StudyChatTab />}
+        {studySubTab === 'chat' && <SplitLearningWorkspace mode="study" />}
         {studySubTab === 'quiz' && <StudyQuizTab />}
         {studySubTab === 'record' && <StudyRecordTab />}
       </div>
