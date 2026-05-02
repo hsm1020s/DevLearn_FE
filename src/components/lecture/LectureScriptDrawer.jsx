@@ -11,8 +11,11 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { X, Loader2, Sparkles, RefreshCw, Film } from 'lucide-react';
-import { fetchLectureScript, streamLectureScript } from '../../services/lectureApi';
+import { X, Loader2, Sparkles, RefreshCw, Film, Music } from 'lucide-react';
+import {
+  fetchLectureScript, streamLectureScript,
+  lectureAudioUrl, lectureAudioExists, streamLectureAudio,
+} from '../../services/lectureApi';
 import { showError } from '../../utils/errorHandler';
 
 /** [SLIDE: ...] 라인을 별도 배지 컴포넌트로 분리. */
@@ -28,13 +31,30 @@ function transformSlideMarkers(text) {
  * @param {Function} props.onClose
  * @param {string} props.docId
  * @param {string} props.chapter
+ * @param {boolean} [props.audioExistsHint] - 부모(AutoMindmapTab)가 이미 알고 있는 오디오 존재 여부.
+ *   true 면 드로워는 즉시 player 를 노출(존재 확인 fetch 스킵).
  */
-export default function LectureScriptDrawer({ open, onClose, docId, chapter }) {
+export default function LectureScriptDrawer({ open, onClose, docId, chapter, audioExistsHint }) {
   const [loading, setLoading] = useState(false);   // 초기 fetch 로딩
   const [generating, setGenerating] = useState(false);
   const [content, setContent] = useState('');
   const [hasScript, setHasScript] = useState(false);
   const abortRef = useRef(null);
+
+  // 오디오 (Phase 2)
+  const [audioUrl, setAudioUrl] = useState(null);   // Blob URL 또는 null
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioGenerating, setAudioGenerating] = useState(false);
+  const [audioStartedAt, setAudioStartedAt] = useState(0);
+  const [, setAudioTick] = useState(0);
+  const audioAbortRef = useRef(null);
+
+  // 생성 중 1초 tick (elapsed 표시)
+  useEffect(() => {
+    if (!audioGenerating) return undefined;
+    const id = setInterval(() => setAudioTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [audioGenerating]);
 
   // 드로워 열릴 때 저장된 대본 조회
   useEffect(() => {
@@ -66,6 +86,70 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter }) {
       setGenerating(false);
     }
   }, [open]);
+
+  // 드로워 열릴 때 audio.mp3 존재 여부 확인 → 있으면 직접 URL 셋.
+  // 부모가 audioExistsHint=true 로 알려주면 즉시 player 노출(존재 확인 fetch 스킵).
+  useEffect(() => {
+    if (!open || !docId || !chapter) return undefined;
+    let cancelled = false;
+    if (audioExistsHint === true) {
+      setAudioUrl(lectureAudioUrl(docId, chapter));
+      setAudioLoading(false);
+      return () => { cancelled = true; };
+    }
+    setAudioLoading(true);
+    setAudioUrl(null);
+    lectureAudioExists(docId, chapter)
+      .then((exists) => {
+        if (cancelled) return;
+        if (exists) setAudioUrl(lectureAudioUrl(docId, chapter));
+      })
+      .finally(() => { if (!cancelled) setAudioLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, docId, chapter, audioExistsHint]);
+
+  // 드로워 닫힐 때 audio 진행 중 abort
+  useEffect(() => {
+    if (!open && audioAbortRef.current) {
+      audioAbortRef.current.abort();
+      audioAbortRef.current = null;
+      setAudioGenerating(false);
+    }
+  }, [open]);
+
+  const handleGenerateAudio = async () => {
+    if (audioGenerating || !hasScript) return;
+    setAudioGenerating(true);
+    setAudioStartedAt(Date.now());
+    setAudioUrl(null);
+    const controller = new AbortController();
+    audioAbortRef.current = controller;
+    try {
+      await streamLectureAudio({
+        docId,
+        chapter,
+        onDone: () => {
+          if (controller.signal.aborted) return;
+          // 생성 완료 → 직접 URL 로 셋. 토큰 만료 가능성 작아 query param 형태로 충분.
+          setAudioUrl(lectureAudioUrl(docId, chapter));
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (!controller.signal.aborted) showError(err, '오디오 생성 실패');
+    } finally {
+      audioAbortRef.current = null;
+      setAudioGenerating(false);
+    }
+  };
+
+  const handleAudioAbort = () => {
+    if (audioAbortRef.current) {
+      audioAbortRef.current.abort();
+      audioAbortRef.current = null;
+      setAudioGenerating(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (generating) return;
@@ -182,11 +266,92 @@ export default function LectureScriptDrawer({ open, onClose, docId, chapter }) {
               </button>
             </div>
           ) : (
-            <article className="prose prose-sm max-w-none text-text-primary">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                {displayContent}
-              </ReactMarkdown>
-            </article>
+            <>
+              {/* 오디오 섹션 — 스크립트가 있을 때만 노출 */}
+              <section className="mb-4 p-3 rounded-lg border border-border-light bg-bg-secondary/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Music size={14} className="text-primary shrink-0" />
+                  <div className="text-xs font-semibold text-text-primary flex-1">강의 오디오 (TTS)</div>
+                  {audioUrl && !audioGenerating && (
+                    <button
+                      onClick={handleGenerateAudio}
+                      className="text-[11px] text-text-tertiary hover:text-primary transition-colors flex items-center gap-1"
+                      title="오디오 다시 생성"
+                    >
+                      <RefreshCw size={11} />
+                      재생성
+                    </button>
+                  )}
+                </div>
+
+                {audioLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                    <Loader2 size={12} className="animate-spin" />
+                    오디오 확인 중...
+                  </div>
+                ) : audioGenerating ? (
+                  <div className="flex items-center gap-2 text-xs text-primary">
+                    <Loader2 size={12} className="animate-spin" />
+                    <span className="flex-1">
+                      오디오 생성 중... ({Math.floor((Date.now() - audioStartedAt) / 1000)}초)
+                    </span>
+                    <button
+                      onClick={handleAudioAbort}
+                      className="text-text-tertiary hover:text-text-primary transition-colors"
+                    >
+                      중단
+                    </button>
+                  </div>
+                ) : audioUrl ? (
+                  <audio
+                    controls
+                    preload="auto"
+                    src={audioUrl}
+                    className="w-full"
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      const err = el.error;
+                      // eslint-disable-next-line no-console
+                      console.error('[Lecture Audio] error', {
+                        audioUrl,
+                        networkState: el.networkState,
+                        readyState: el.readyState,
+                        currentSrc: el.currentSrc,
+                        error: err ? { code: err.code, message: err.message } : null,
+                      });
+                      showError(new Error(`오디오 로드 실패 (network=${el.networkState}, ready=${el.readyState})`),
+                        '오디오 재생 오류 — DevTools 콘솔 확인');
+                    }}
+                    onLoadedMetadata={(e) => {
+                      // eslint-disable-next-line no-console
+                      console.log('[Lecture Audio] loadedmetadata', { duration: e.currentTarget.duration });
+                    }}
+                  >
+                    브라우저가 오디오 재생을 지원하지 않습니다.
+                  </audio>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-text-tertiary">
+                      OpenAI TTS (nova) · 챕터당 1~2분, ~$0.075
+                    </div>
+                    <button
+                      onClick={handleGenerateAudio}
+                      className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
+                        hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+                    >
+                      <Music size={12} />
+                      오디오 생성
+                    </button>
+                  </div>
+                )}
+              </section>
+
+              <article className="prose prose-sm max-w-none text-text-primary">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                  {displayContent}
+                </ReactMarkdown>
+              </article>
+            </>
           )}
         </div>
 

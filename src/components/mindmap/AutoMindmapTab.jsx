@@ -5,13 +5,15 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   FileText, ChevronLeft, ChevronRight, Loader2,
-  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film,
+  BrainCircuit, Sparkles, AlertCircle, Check, Square, CheckSquare, Film, Music,
 } from 'lucide-react';
 import { fetchDocs, fetchChapterStatuses, generateMindmaps } from '../../services/feynmanApi';
 import { getMindmap } from '../../services/mindmapApi';
 import {
   fetchLectureStatus, streamLectureScript, safeChapterName,
   startLectureBatch, finishLectureBatch,
+  fetchLectureAudioStatus, streamLectureAudio,
+  startLectureAudioBatch, finishLectureAudioBatch,
 } from '../../services/lectureApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useMindmapStore from '../../stores/useMindmapStore';
@@ -47,6 +49,9 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
   // 강의 대본 — 이미 생성된 챕터의 safe-name Set
   const [lectureScripts, setLectureScripts] = useState(new Set());
+
+  // 강의 오디오 (Phase 2) — 이미 생성된 챕터의 safe-name Set
+  const [lectureAudio, setLectureAudio] = useState(new Set());
 
   // 일괄 생성 진행 상태
   // { running, total, idx, currentChapter, batchStartedAt, abort }
@@ -100,17 +105,21 @@ export default function AutoMindmapTab({ onOpenMap }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  // 문서 선택 시 챕터 상태 로드 + 강의 대본 현황 동시 로드
+  // 문서 선택 시 챕터 상태 로드 + 강의 대본/오디오 현황 동시 로드
   const handleDocSelect = (doc) => {
     setSelectedDoc(doc);
     setChecked(new Set());
     setGenerating(false);
     setLectureScripts(new Set());
+    setLectureAudio(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     loadChapters(doc.id);
     fetchLectureStatus(doc.id)
       .then((set) => setLectureScripts(set))
       .catch(() => { /* 비치명 — 일괄 생성 시 모두 미생성으로 간주됨 */ });
+    fetchLectureAudioStatus(doc.id)
+      .then((set) => setLectureAudio(set))
+      .catch(() => { /* 비치명 */ });
   };
 
   const loadChapters = (docId) => {
@@ -130,6 +139,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setChecked(new Set());
     setGenerating(false);
     setLectureScripts(new Set());
+    setLectureAudio(new Set());
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
@@ -147,25 +157,33 @@ export default function AutoMindmapTab({ onOpenMap }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [lectureConfirm]);
 
-  /** 주어진 scope 의 대상 챕터 목록을 계산 (마인드맵 완료된 것만 + 이미 생성된 건 제외 후의 [pending, all]). */
-  const collectLectureChapters = (scope, parent) => {
+  /** 주어진 scope 의 대상 챕터 목록 + 이미 생성된 건 제외. kind='script' 또는 'audio' 별로 다른 Set 사용. */
+  const collectLectureChapters = (scope, parent, kind = 'script') => {
     const inScope = chapters.filter((ch) => {
       if (ch.status !== 'completed') return false;
       if (scope === 'parent') return (ch.parentChapter || null) === parent;
       return true; // book scope
     });
-    const pending = inScope.filter((ch) => !lectureScripts.has(safeChapterName(ch.chapter)));
-    return { all: inScope.map((c) => c.chapter), pending: pending.map((c) => c.chapter) };
+    const generatedSet = kind === 'audio' ? lectureAudio : lectureScripts;
+    // 오디오는 스크립트가 먼저 있어야 생성 가능하므로 lectureScripts 도 필터에 추가.
+    const eligible = kind === 'audio'
+      ? inScope.filter((ch) => lectureScripts.has(safeChapterName(ch.chapter)))
+      : inScope;
+    const pending = eligible.filter((ch) => !generatedSet.has(safeChapterName(ch.chapter)));
+    return {
+      all: eligible.map((c) => c.chapter),
+      pending: pending.map((c) => c.chapter),
+      noScriptSkipped: kind === 'audio' ? inScope.length - eligible.length : 0,
+    };
   };
 
-  const openLectureConfirm = (scope, parent, btnEl) => {
+  const openLectureConfirm = (scope, parent, btnEl, kind = 'script') => {
     if (lectureBatch?.running) return;
     const rect = btnEl.getBoundingClientRect();
-    const { all, pending } = collectLectureChapters(scope, parent);
-    if (all.length === 0) return;
-    // 팝오버 사이즈(추정) — 하단 공간 부족하면 버튼 위쪽으로 띄움 (flip)
-    const POPOVER_W = 280;
-    const POPOVER_H_EST = pending.length > 0 ? 180 : 140;
+    const { all, pending, noScriptSkipped } = collectLectureChapters(scope, parent, kind);
+    if (all.length === 0 && noScriptSkipped === 0) return;
+    const POPOVER_W = 300;
+    const POPOVER_H_EST = pending.length > 0 ? 200 : 160;
     const vh = window.innerHeight;
     const spaceBelow = vh - rect.bottom;
     const placeAbove = spaceBelow < POPOVER_H_EST + 8;
@@ -173,7 +191,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     const left = Math.min(window.innerWidth - POPOVER_W - 8,
                           Math.max(8, rect.right - POPOVER_W));
     setLectureConfirm({
-      type: scope, parent, all, pending,
+      type: scope, parent, kind, all, pending, noScriptSkipped,
       anchor: { top, left, width: POPOVER_W, placeAbove },
     });
   };
@@ -183,7 +201,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
     setLectureBatch(null);
   };
 
-  const runLectureBatch = async (chaptersToRun, scope = 'book', parent = null) => {
+  const runLectureBatch = async (chaptersToRun, scope = 'book', parent = null, kind = 'script') => {
     if (chaptersToRun.length === 0) {
       setLectureConfirm(null);
       return;
@@ -193,12 +211,16 @@ export default function AutoMindmapTab({ onOpenMap }) {
     const abort = new AbortController();
     const batchStartedAt = Date.now();
 
+    const startBatchFn = kind === 'audio' ? startLectureAudioBatch : startLectureBatch;
+    const finishBatchFn = kind === 'audio' ? finishLectureAudioBatch : finishLectureBatch;
+    const streamFn = kind === 'audio' ? streamLectureAudio : streamLectureScript;
+    const updateGeneratedSet = kind === 'audio' ? setLectureAudio : setLectureScripts;
+
     // 서버에 batch 행 INSERT — 실패해도 일괄 자체는 진행 (영속화는 best-effort)
     let batchId = null;
     try {
-      batchId = await startLectureBatch(selectedDoc.id, scope, parent, chaptersToRun.length);
+      batchId = await startBatchFn(selectedDoc.id, scope, parent, chaptersToRun.length);
     } catch (err) {
-      // 영속화 실패 — 사용자에게 알리되 진행
       showError(err, '배치 이력 저장 시작 실패 (생성은 계속 진행)');
     }
 
@@ -210,7 +232,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
     setLectureBatch({
       running: true, total: chaptersToRun.length, idx: 0,
-      currentChapter: chaptersToRun[0], batchStartedAt, abort, batchId,
+      currentChapter: chaptersToRun[0], batchStartedAt, abort, batchId, kind,
     });
 
     const succeeded = [];
@@ -225,12 +247,12 @@ export default function AutoMindmapTab({ onOpenMap }) {
         [chapter]: { status: 'running', startedAt },
       }));
       try {
-        await streamLectureScript({
+        await streamFn({
           docId: selectedDoc.id,
           chapter,
           batchId,
           onDone: () => {
-            setLectureScripts((prev) => {
+            updateGeneratedSet((prev) => {
               const next = new Set(prev);
               next.add(safeChapterName(chapter));
               return next;
@@ -256,24 +278,23 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
     setLectureBatch(null);
 
-    // 배치 종료 영속화 — 중단/완료 모두 보고
     if (batchId) {
       const finalStatus = abort.signal.aborted ? 'aborted' : 'completed';
       const skipped = chaptersToRun.length - succeeded.length - failed.length;
       try {
-        await finishLectureBatch(batchId, {
+        await finishBatchFn(batchId, {
           status: finalStatus, succeeded: succeeded.length, failed: failed.length, skipped,
         });
       } catch (err) {
-        // 종료 보고 실패는 로그만 (UI 흐름 끊지 않음)
         console.warn('[Lecture] batch finish 보고 실패', err);
       }
     }
 
     if (!abort.signal.aborted) {
-      setLastBatchResult({ succeeded, failed, finishedAt: Date.now() });
+      setLastBatchResult({ kind, succeeded, failed, finishedAt: Date.now() });
       const skipped = chaptersToRun.length - succeeded.length - failed.length;
-      const msg = `강의 대본 ${succeeded.length}개 생성 완료`
+      const label = kind === 'audio' ? '강의 오디오' : '강의 대본';
+      const msg = `${label} ${succeeded.length}개 생성 완료`
         + (failed.length > 0 ? `, ${failed.length}개 실패` : '')
         + (skipped > 0 ? `, ${skipped}개 미실행` : '');
       if (failed.length === 0) showSuccess(msg);
@@ -500,7 +521,7 @@ export default function AutoMindmapTab({ onOpenMap }) {
 
               {/* 책 단위 강의 대본 일괄 생성 */}
               <button
-                onClick={(e) => openLectureConfirm('book', null, e.currentTarget)}
+                onClick={(e) => openLectureConfirm('book', null, e.currentTarget, 'script')}
                 disabled={lectureBatch?.running
                   || chapters.filter((c) => c.status === 'completed').length === 0}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
@@ -510,6 +531,20 @@ export default function AutoMindmapTab({ onOpenMap }) {
               >
                 <Film size={12} />
                 전체 강의
+              </button>
+
+              {/* 책 단위 강의 오디오 일괄 생성 (Phase 2) */}
+              <button
+                onClick={(e) => openLectureConfirm('book', null, e.currentTarget, 'audio')}
+                disabled={lectureBatch?.running
+                  || chapters.filter((c) => c.status === 'completed').length === 0}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                  border border-border-light text-text-secondary hover:border-primary hover:text-primary
+                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="강의 대본이 있는 챕터의 오디오 일괄 생성"
+              >
+                <Music size={12} />
+                전체 오디오
               </button>
 
               {generating ? (
@@ -570,14 +605,16 @@ export default function AutoMindmapTab({ onOpenMap }) {
               <div className="mx-2 mt-1 px-3 py-2 rounded-lg bg-bg-secondary text-xs">
                 <div className="flex items-center gap-2">
                   <span className="flex-1 text-text-primary">
-                    최근 일괄 생성 — 성공 <b className="text-success">{lastBatchResult.succeeded.length}</b>
+                    최근 일괄 {lastBatchResult.kind === 'audio' ? '오디오' : '대본'} 생성 — 성공 <b className="text-success">{lastBatchResult.succeeded.length}</b>
                     {lastBatchResult.failed.length > 0 && (
                       <> · 실패 <b className="text-danger">{lastBatchResult.failed.length}</b></>
                     )}
                   </span>
                   {lastBatchResult.failed.length > 0 && (
                     <button
-                      onClick={() => runLectureBatch(lastBatchResult.failed.map((f) => f.chapter))}
+                      onClick={() => runLectureBatch(
+                        lastBatchResult.failed.map((f) => f.chapter),
+                        'book', null, lastBatchResult.kind || 'script')}
                       className="px-2 py-0.5 rounded text-[11px] font-medium text-white bg-primary
                         hover:bg-primary/90 transition-colors"
                     >
@@ -659,20 +696,36 @@ export default function AutoMindmapTab({ onOpenMap }) {
                             {group.parent}
                           </span>
                           {group.items.some((c) => c.status === 'completed') && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openLectureConfirm('parent', group.parent, e.currentTarget);
-                              }}
-                              disabled={lectureBatch?.running}
-                              className="shrink-0 p-1 rounded text-text-tertiary
-                                hover:text-primary hover:bg-bg-tertiary transition-colors
-                                disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label="이 과목 강의 일괄 생성"
-                              title="이 과목의 챕터 강의 대본 일괄 생성"
-                            >
-                              <Film size={13} />
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openLectureConfirm('parent', group.parent, e.currentTarget, 'script');
+                                }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="이 과목 강의 일괄 생성"
+                                title="이 과목의 챕터 강의 대본 일괄 생성"
+                              >
+                                <Film size={13} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openLectureConfirm('parent', group.parent, e.currentTarget, 'audio');
+                                }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="이 과목 오디오 일괄 생성"
+                                title="이 과목의 챕터 오디오(TTS) 일괄 생성"
+                              >
+                                <Music size={13} />
+                              </button>
+                            </>
                           )}
                           <span className="text-xs text-text-tertiary shrink-0">
                             {group.items.filter((c) => c.status === 'completed').length}/{group.items.length}
@@ -745,6 +798,22 @@ export default function AutoMindmapTab({ onOpenMap }) {
                                     ? 'text-primary' : ''
                                 } />
                               </button>
+                              {/* 오디오 상태 인디케이터 — 클릭하면 드로워 열어서 오디오 섹션에서 재생/생성 */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setLectureChapter(ch.chapter); }}
+                                disabled={lectureBatch?.running}
+                                className="shrink-0 p-1 rounded text-text-tertiary
+                                  hover:text-primary hover:bg-bg-tertiary transition-colors
+                                  disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="강의 오디오"
+                                title={lectureAudio.has(safeChapterName(ch.chapter))
+                                  ? '오디오 재생 (드로워 열기)' : '오디오 생성 (드로워 열기)'}
+                              >
+                                <Music size={13} className={
+                                  lectureAudio.has(safeChapterName(ch.chapter))
+                                    ? 'text-primary' : ''
+                                } />
+                              </button>
                               {/* 배치 상태 배지 — 배치 동안 또는 마지막 배치 결과 표시 */}
                               {(() => {
                                 const st = chapterBatchStatus[ch.chapter];
@@ -805,14 +874,18 @@ export default function AutoMindmapTab({ onOpenMap }) {
       <LectureScriptDrawer
         open={!!lectureChapter}
         onClose={() => {
-          // 드로워 닫을 때 status 다시 동기화 (단일 생성 시 lectureScripts 갱신용)
+          // 드로워 닫을 때 status 다시 동기화 (단일 생성 시 set 갱신)
           if (selectedDoc?.id) {
             fetchLectureStatus(selectedDoc.id).then(setLectureScripts).catch(() => {});
+            fetchLectureAudioStatus(selectedDoc.id).then(setLectureAudio).catch(() => {});
           }
           setLectureChapter(null);
         }}
         docId={selectedDoc?.id}
         chapter={lectureChapter}
+        audioExistsHint={lectureChapter
+          ? lectureAudio.has(safeChapterName(lectureChapter))
+          : undefined}
       />
 
       {/* 강의 대본 일괄 생성 확인 팝오버 */}
@@ -827,34 +900,52 @@ export default function AutoMindmapTab({ onOpenMap }) {
             width: lectureConfirm.anchor.width,
           }}
         >
-          <div className="text-xs font-medium text-text-primary mb-2">
-            {lectureConfirm.type === 'book' ? '책 전체 강의 대본 생성' : `과목 강의 대본 생성`}
-          </div>
-          <div className="text-xs text-text-secondary mb-3 leading-relaxed">
-            대상 챕터 {lectureConfirm.all.length}개 중{' '}
-            <b className="text-text-primary">{lectureConfirm.pending.length}개 새로 생성</b>,{' '}
-            {lectureConfirm.all.length - lectureConfirm.pending.length}개는 이미 있어 건너뜁니다.
-            <br />
-            (모델: gpt-5.4-mini, 챕터당 약 1~3분)
-          </div>
-          <div className="flex justify-end gap-1">
-            <button
-              onClick={() => setLectureConfirm(null)}
-              className="px-3 py-1.5 rounded text-xs text-text-secondary hover:bg-bg-secondary transition-colors"
-            >
-              취소
-            </button>
-            <button
-              onClick={() => runLectureBatch(lectureConfirm.pending, lectureConfirm.type, lectureConfirm.parent)}
-              disabled={lectureConfirm.pending.length === 0}
-              className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
-                hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {lectureConfirm.pending.length > 0
-                ? `생성 시작 (${lectureConfirm.pending.length}개)`
-                : '생성할 챕터 없음'}
-            </button>
-          </div>
+          {(() => {
+            const isAudio = lectureConfirm.kind === 'audio';
+            const label = isAudio ? '오디오' : '강의 대본';
+            const modelHint = isAudio ? 'OpenAI TTS (nova), 챕터당 1~2분, ~$0.075' : 'gpt-5.4-mini, 챕터당 1~3분';
+            const scopeLabel = lectureConfirm.type === 'book' ? '책 전체' : '과목';
+            return (
+              <>
+                <div className="text-xs font-medium text-text-primary mb-2">
+                  {scopeLabel} {label} 생성
+                </div>
+                <div className="text-xs text-text-secondary mb-3 leading-relaxed">
+                  대상 챕터 {lectureConfirm.all.length}개 중{' '}
+                  <b className="text-text-primary">{lectureConfirm.pending.length}개 새로 생성</b>,{' '}
+                  {lectureConfirm.all.length - lectureConfirm.pending.length}개는 이미 있어 건너뜁니다.
+                  {lectureConfirm.noScriptSkipped > 0 && (
+                    <>
+                      <br />
+                      <span className="text-warning">
+                        ⚠️ 강의 대본이 없어 {lectureConfirm.noScriptSkipped}개 챕터는 제외됩니다 (먼저 대본 생성 필요).
+                      </span>
+                    </>
+                  )}
+                  <br />
+                  ({modelHint})
+                </div>
+                <div className="flex justify-end gap-1">
+                  <button
+                    onClick={() => setLectureConfirm(null)}
+                    className="px-3 py-1.5 rounded text-xs text-text-secondary hover:bg-bg-secondary transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => runLectureBatch(lectureConfirm.pending, lectureConfirm.type, lectureConfirm.parent, lectureConfirm.kind)}
+                    disabled={lectureConfirm.pending.length === 0}
+                    className="px-3 py-1.5 rounded text-xs font-medium text-white bg-primary
+                      hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {lectureConfirm.pending.length > 0
+                      ? `생성 시작 (${lectureConfirm.pending.length}개)`
+                      : '생성할 챕터 없음'}
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
