@@ -1,0 +1,116 @@
+%%{init: {'theme':'base', 'themeVariables': {
+  'primaryColor':'#FFF8EE',
+  'primaryTextColor':'#1F1B16',
+  'primaryBorderColor':'#C9A574',
+  'lineColor':'#8B6F47',
+  'secondaryColor':'#FAEFD9',
+  'tertiaryColor':'#F5E6C8',
+  'fontFamily':'-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif'
+}}}%%
+flowchart LR
+    User(["👤 사용자"])
+
+    %% ============ Client Tier ============
+    subgraph Client["🌐 Client · React 19 + Vite"]
+        direction TB
+        Pages["**Pages**<br/>Main · Admin<br/>LlmActivity"]
+        Stores["**Zustand Stores**<br/>Auth · App · Chat<br/>Mindmap · Study"]
+        Modes["**Mode Registry**<br/>general · study · worklearn"]
+        APIs["**API Layer**<br/>Axios + SSE Streaming<br/>401 single-flight refresh<br/>Mock / Real Switch"]
+        Pages --> Modes
+        Modes --> Stores
+        Stores --> APIs
+    end
+
+    %% ============ Backend Tier ============
+    subgraph Backend["⚙️ Backend · Spring Boot 4 · Java 21"]
+        direction TB
+
+        Filters["🛡️ **Filter Chain**<br/>XSS Filter · Bucket4j RateLimit<br/>(60 req/min · LLM 10 req/min)<br/>JWT AuthFilter"]
+
+        subgraph Controllers["📡 Controllers · 13개 · 84 endpoints"]
+            direction LR
+            CtrlChat["Chat"]
+            CtrlStudy["Study"]
+            CtrlFey["Feynman"]
+            CtrlLec["Lecture"]
+            CtrlMind["Mindmap"]
+            CtrlPipe["Pipeline"]
+            CtrlAuth["Auth"]
+            CtrlAdmin["Admin"]
+            CtrlMon["LlmActivity"]
+        end
+
+        subgraph Services["🧩 Services"]
+            direction TB
+            SvcChat["**ChatService**<br/>대화 + SSE 스트리밍"]
+            SvcFey["**FeynmanService**<br/>PDF→Embed→Quiz<br/>RAG 채점·누락 개념"]
+            SvcLec["**Lecture 4-Phase**<br/>Script→TTS→Slides→Video"]
+            SvcMind["**MindmapService**<br/>+ Synthesis (LLM 자동 생성)"]
+            SvcPipe["**Pipeline Queue**<br/>@Async · Checkpoint Resume"]
+            LlmClient["🧠 **LlmClient**<br/>Provider Router"]
+            EmbedClient["🔢 EmbeddingClient<br/>768-dim"]
+        end
+
+        Mappers[("MyBatis Mappers<br/>21 tables")]
+
+        Filters --> Controllers
+        Controllers --> Services
+        Services --> Mappers
+    end
+
+    %% ============ External Systems ============
+    subgraph LLMs["🤖 LLM Providers"]
+        direction TB
+        OpenAI["OpenAI<br/>GPT-4o · TTS-1"]
+        Claude["Anthropic<br/>Claude 3.5 Sonnet"]
+        Gemini["Google Gemini"]
+        Ollama["Ollama 로컬<br/>nomic-embed-text<br/>llama · exaone · gpt-oss"]
+    end
+
+    subgraph Media["🎬 Media Toolchain"]
+        direction TB
+        PDFBox["PDFBox<br/>PDF 텍스트 추출"]
+        Playwright["Playwright<br/>HTML→PNG 슬라이드"]
+        FFmpeg["FFmpeg + FFprobe<br/>오디오+슬라이드 합성<br/>VTT 자막 생성"]
+    end
+
+    DB[("🐘 **PostgreSQL 17**<br/>+ pgvector<br/>21 tables · cosine search")]
+    Files[("📁 **File Cache**<br/>uploads/ · lectures/<br/>script · audio · slides · video")]
+
+    %% ============ Edges ============
+    User <--> Client
+    Client <==>|"HTTPS + JWT<br/>SSE 토큰 스트리밍"| Filters
+
+    LlmClient --> OpenAI
+    LlmClient --> Claude
+    LlmClient --> Gemini
+    LlmClient --> Ollama
+    EmbedClient --> Ollama
+
+    SvcChat --> LlmClient
+    SvcFey --> LlmClient
+    SvcFey --> EmbedClient
+    SvcFey --> PDFBox
+    SvcLec --> LlmClient
+    SvcLec --> OpenAI
+    SvcLec --> Playwright
+    SvcLec --> FFmpeg
+    SvcMind --> LlmClient
+
+    Mappers --> DB
+    SvcFey -.->|"임베딩 벡터 저장<br/>(pgvector)"| DB
+    SvcLec -.->|"미디어 산출물"| Files
+    SvcFey -.->|"PDF 원본"| Files
+
+    %% ============ Styling ============
+    classDef client fill:#FFF8EE,stroke:#C9A574,stroke-width:2px,color:#1F1B16
+    classDef backend fill:#FAEFD9,stroke:#8B6F47,stroke-width:2px,color:#1F1B16
+    classDef ext fill:#F5E6C8,stroke:#A37C2C,stroke-width:1.5px,color:#1F1B16
+    classDef storage fill:#E8D9B8,stroke:#6B5530,stroke-width:2px,color:#1F1B16
+
+    class Pages,Stores,Modes,APIs client
+    class Filters,Services,Mappers,LlmClient,EmbedClient,SvcChat,SvcFey,SvcLec,SvcMind,SvcPipe backend
+    class CtrlChat,CtrlStudy,CtrlFey,CtrlLec,CtrlMind,CtrlPipe,CtrlAuth,CtrlAdmin,CtrlMon backend
+    class OpenAI,Claude,Gemini,Ollama,PDFBox,Playwright,FFmpeg ext
+    class DB,Files storage

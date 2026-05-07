@@ -1,0 +1,51 @@
+%%{init: {'theme':'base', 'themeVariables': {
+  'primaryColor':'#FFF8EE',
+  'primaryTextColor':'#1F1B16',
+  'primaryBorderColor':'#C9A574',
+  'lineColor':'#8B6F47',
+  'fontFamily':'-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif'
+}}}%%
+flowchart LR
+    Trigger["🎬 **챕터 선택**<br/>LectureController<br/>batch_id 발급"]
+
+    subgraph P1["Phase 1 · Script"]
+        Script["**LLM 강의 대본**<br/>슬라이드별 스크립트<br/>+ 화자 노트"]
+    end
+
+    subgraph P2["Phase 2 · Audio"]
+        TTS["**OpenAI TTS-1**<br/>슬라이드별 MP3<br/>+ 길이 측정"]
+    end
+
+    subgraph P3["Phase 3 · Slides"]
+        Html["**LLM HTML 슬라이드**<br/>Tailwind 템플릿"]
+        Shot["**Playwright 스크린샷**<br/>1920×1080 PNG"]
+        Html --> Shot
+    end
+
+    subgraph P4["Phase 4 · Video"]
+        Concat["**FFmpeg 합성**<br/>오디오 길이 → 슬라이드 duration<br/>+ VTT 자막 생성"]
+    end
+
+    Out[("📁 **lectures/<docId>/**<br/>script.json · audio.mp3<br/>slides/*.png · final.mp4 · subs.vtt")]
+
+    DB[("🐘 lecture_*_runs<br/>batch · script · audio<br/>slides · video")]
+
+    Trigger --> P1 --> P2
+    Trigger --> P1
+    P1 --> P3
+    P2 --> P4
+    P3 --> P4
+    P4 --> Out
+
+    P1 -.-> DB
+    P2 -.-> DB
+    P3 -.-> DB
+    P4 -.-> DB
+
+    classDef phase fill:#FAEFD9,stroke:#8B6F47,stroke-width:2px,color:#1F1B16
+    classDef storage fill:#E8D9B8,stroke:#6B5530,stroke-width:2px,color:#1F1B16
+    classDef io fill:#FFF8EE,stroke:#C9A574,stroke-width:2px,color:#1F1B16
+
+    class Script,TTS,Html,Shot,Concat phase
+    class DB,Out storage
+    class Trigger io

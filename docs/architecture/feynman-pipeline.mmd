@@ -1,0 +1,50 @@
+%%{init: {'theme':'base', 'themeVariables': {
+  'primaryColor':'#FFF8EE',
+  'primaryTextColor':'#1F1B16',
+  'primaryBorderColor':'#C9A574',
+  'lineColor':'#8B6F47',
+  'fontFamily':'-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif'
+}}}%%
+flowchart TB
+    Upload["📄 **PDF 업로드**<br/>FeynmanController"]
+
+    subgraph Ingest["1️⃣ Ingestion · @Async"]
+        direction TB
+        Parse["**PDFBox 텍스트 추출**<br/>페이지별 분리"]
+        Toc["**목차 인식**<br/>LLM 기반 Chapter 분류"]
+        Chunk["**청크 분할**<br/>의미 단위 슬라이딩"]
+        Embed["**Ollama 임베딩**<br/>nomic-embed-text · 768-dim"]
+        Parse --> Toc --> Chunk --> Embed
+    end
+
+    Store[("🐘 pgvector<br/>document_chunks<br/>(cosine index)")]
+
+    subgraph Synth["2️⃣ Synthesis · LLM 2-pass"]
+        direction TB
+        QGen["**ChapterQuestion 생성**<br/>핵심 개념 질문 ~10개<br/>+ 모범답안 + linked_chunks"]
+        MMSynth["**Mindmap 자동 합성**<br/>label · description · depth · seq"]
+    end
+
+    subgraph Quiz["3️⃣ 학습 · 파인만 채점 (RAG)"]
+        direction LR
+        UserAns["💬 사용자 설명"]
+        Retrieve["🔎 **Top-K 검색**<br/>pgvector 코사인"]
+        Grade["**AnswerGraderService**<br/>점수 + 누락 개념 + 피드백"]
+        Source["📌 출처 패널<br/>RAG 청크 + 마인드맵 노드"]
+        UserAns --> Retrieve --> Grade --> Source
+    end
+
+    Upload --> Ingest
+    Embed --> Store
+    Ingest --> Synth
+    Synth --> Store
+    Store -.-> Retrieve
+    Synth -.->|"질문 풀"| UserAns
+
+    classDef step fill:#FAEFD9,stroke:#8B6F47,stroke-width:2px,color:#1F1B16
+    classDef storage fill:#E8D9B8,stroke:#6B5530,stroke-width:2px,color:#1F1B16
+    classDef io fill:#FFF8EE,stroke:#C9A574,stroke-width:2px,color:#1F1B16
+
+    class Parse,Toc,Chunk,Embed,QGen,MMSynth,Retrieve,Grade step
+    class Store storage
+    class Upload,UserAns,Source io
