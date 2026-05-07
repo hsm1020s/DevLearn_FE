@@ -26,6 +26,28 @@ import LectureScriptDrawer from '../lecture/LectureScriptDrawer';
 /** 소단원의 고유 키를 생성한다. 같은 이름의 소단원이 다른 대단원에 있어도 구별된다. */
 const chKey = (ch) => `${ch.parentChapter || ''}::${ch.chapter}`;
 
+/** 문서 목록 페이지당 표시 개수. */
+const DOCS_PAGE_SIZE = 10;
+
+/**
+ * 페이지 번호 표시 윈도우를 계산한다. 현재 ±2 + 양 끝, 사이엔 `…`.
+ * 총 페이지가 7 이하면 모두 노출.
+ * @returns {(number|'…')[]}
+ */
+function buildPageWindow(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const out = [1];
+  const left = Math.max(2, current - 2);
+  const right = Math.min(total - 1, current + 2);
+  if (left > 2) out.push('…');
+  for (let i = left; i <= right; i++) out.push(i);
+  if (right < total - 1) out.push('…');
+  out.push(total);
+  return out;
+}
+
 /**
  * 자동 생성 마인드맵 탭.
  * @param {object} props
@@ -35,6 +57,8 @@ export default function AutoMindmapTab({ onOpenMap }) {
   // 1단계: 문서 목록
   const [docs, setDocs] = useState([]);
   const [docsLoading, setDocsLoading] = useState(true);
+  // 문서 목록 페이지 (1-indexed). 책 수가 많을 때 번호형 페이지네이션으로 끊어 보여준다.
+  const [docsPage, setDocsPage] = useState(1);
 
   // 2단계: 선택된 문서 + 챕터 상태 목록
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -98,6 +122,12 @@ export default function AutoMindmapTab({ onOpenMap }) {
       .finally(() => { if (!cancelled) setDocsLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // 문서 수가 줄어 현재 페이지가 빈 페이지가 되면 1페이지로 보정
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(docs.length / DOCS_PAGE_SIZE));
+    if (docsPage > totalPages) setDocsPage(1);
+  }, [docs.length, docsPage]);
 
   // 문서를 보고 있는 동안 10초마다 상태 자동 갱신 (백그라운드 생성 감지용)
   useEffect(() => {
@@ -514,32 +544,95 @@ export default function AutoMindmapTab({ onOpenMap }) {
               <p>학습 가능한 문서가 없습니다</p>
               <p className="text-xs">PDF를 업로드하고 파이프라인을 완료해주세요</p>
             </div>
-          ) : (
-            <div className="p-2 space-y-1">
-              {docs.map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => handleDocSelect(doc)}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg
-                    text-left hover:bg-bg-secondary transition-colors group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <FileText size={16} className="text-primary" />
+          ) : (() => {
+            const totalPages = Math.max(1, Math.ceil(docs.length / DOCS_PAGE_SIZE));
+            const safePage = Math.min(docsPage, totalPages);
+            const start = (safePage - 1) * DOCS_PAGE_SIZE;
+            const pagedDocs = docs.slice(start, start + DOCS_PAGE_SIZE);
+            const showPager = docs.length > DOCS_PAGE_SIZE;
+            const pageWindow = showPager ? buildPageWindow(safePage, totalPages) : [];
+            return (
+              // min-h-full + flex-col 로 만들어, 항목이 적은 페이지에서도 페이저가 mt-auto 로 바닥에 붙도록 한다.
+              <div className="p-2 flex flex-col min-h-full">
+                <div className="space-y-1">
+                  {pagedDocs.map((doc) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => handleDocSelect(doc)}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg
+                        text-left hover:bg-bg-secondary transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <FileText size={16} className="text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-text-primary group-hover:text-primary
+                          transition-colors truncate">
+                          {doc.fileName}
+                        </div>
+                        <div className="text-xs text-text-tertiary">
+                          {doc.pages}p · {doc.chunks}개 청크
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-text-tertiary shrink-0" />
+                    </button>
+                  ))}
+                </div>
+
+                {showPager && (
+                  <div className="mt-auto flex items-center justify-center gap-1 pt-3 pb-1 select-none">
+                    <button
+                      type="button"
+                      onClick={() => setDocsPage((p) => Math.max(1, p - 1))}
+                      disabled={safePage === 1}
+                      className="px-2 py-1 rounded text-xs text-text-secondary
+                        hover:bg-bg-secondary disabled:opacity-40 disabled:hover:bg-transparent
+                        disabled:cursor-not-allowed transition-colors"
+                      aria-label="이전 페이지"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    {pageWindow.map((p, idx) => (
+                      p === '…' ? (
+                        <span
+                          key={`gap-${idx}`}
+                          className="px-1 text-xs text-text-tertiary"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setDocsPage(p)}
+                          className={`min-w-[26px] h-7 px-2 rounded text-xs font-medium transition-colors ${
+                            p === safePage
+                              ? 'bg-primary text-white'
+                              : 'text-text-secondary hover:bg-bg-secondary'
+                          }`}
+                          aria-label={`${p}페이지`}
+                          aria-current={p === safePage ? 'page' : undefined}
+                        >
+                          {p}
+                        </button>
+                      )
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setDocsPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safePage === totalPages}
+                      className="px-2 py-1 rounded text-xs text-text-secondary
+                        hover:bg-bg-secondary disabled:opacity-40 disabled:hover:bg-transparent
+                        disabled:cursor-not-allowed transition-colors"
+                      aria-label="다음 페이지"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-text-primary group-hover:text-primary
-                      transition-colors truncate">
-                      {doc.fileName}
-                    </div>
-                    <div className="text-xs text-text-tertiary">
-                      {doc.pages}p · {doc.chunks}개 청크
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-text-tertiary shrink-0" />
-                </button>
-              ))}
-            </div>
-          )
+                )}
+              </div>
+            );
+          })()
         ) : chaptersLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 size={20} className="animate-spin text-primary" />
