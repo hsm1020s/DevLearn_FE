@@ -1,4 +1,5 @@
 # DevLearn
+<img width="2485" height="1137" alt="스크린샷 2026-05-07 오후 2 57 27" src="https://github.com/user-attachments/assets/c7dff3d0-58ce-4a99-a69d-a9130965f5c5" />
 
 AI 기반 능동 학습 플랫폼. PDF 문서를 업로드하면 파인만 학습법으로 개념을 검증하고, 퀴즈를 자동 생성하며, 마인드맵으로 지식을 구조화하고, AI 강의 영상까지 자동 생성할 수 있다.
 
