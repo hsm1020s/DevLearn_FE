@@ -17,8 +17,8 @@ const TEMP_UNLOCK_PASSWORD = '12345';
 const useAppStore = create(
   persist(
     (set) => ({
-      // 현재 선택된 LLM 모델 (초기값은 가성비 티어의 Claude Haiku 4.5)
-      selectedLLM: 'claude-haiku-4-5',
+      // 현재 선택된 LLM 모델 (초기값은 가성비 티어의 Claude Sonnet 4.6)
+      selectedLLM: 'claude-sonnet-4-6',
       // 현재 앱 모드 (general, study)
       mainMode: 'general',
       // 마인드맵 패널 표시 여부
