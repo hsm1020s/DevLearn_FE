@@ -12,7 +12,7 @@ export { MODE_LIST as MAIN_MODES } from '../registry/modes';
 export const LLM_OPTIONS = [
   { value: 'gpt-5.4-mini', label: 'GPT-5.4 mini' },
   { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
   { value: 'llama-8b', label: 'Llama 3.1 8B (로컬)' },
   { value: 'exaone-32b', label: 'EXAONE 3.5 32B (로컬)' },
   { value: 'gpt-oss-20b', label: 'GPT-OSS 20B (로컬)' },
