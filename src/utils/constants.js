@@ -9,13 +9,14 @@ export { MODE_LIST as MAIN_MODES } from '../registry/modes';
 // 클라우드 3종은 각 벤더의 가성비 티어(2026-05 기준)로 정렬.
 // 로컬 3종은 value(ID)를 기존과 동일하게 두어 이전 대화 메타데이터 호환을 유지하고,
 // 사용자가 로컬/클라우드를 한눈에 구분할 수 있도록 라벨 뒤에 " (로컬)"만 덧붙인다.
+// `local` 플래그는 클라우드 배포 환경에서 비활성화 분기에 사용된다.
 export const LLM_OPTIONS = [
-  { value: 'gpt-5.4-mini', label: 'GPT-5.4 mini' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
-  { value: 'llama-8b', label: 'Llama 3.1 8B (로컬)' },
-  { value: 'exaone-32b', label: 'EXAONE 3.5 32B (로컬)' },
-  { value: 'gpt-oss-20b', label: 'GPT-OSS 20B (로컬)' },
+  { value: 'gpt-5.4-mini', label: 'GPT-5.4 mini', local: false },
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', local: false },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', local: false },
+  { value: 'llama-8b', label: 'Llama 3.1 8B (로컬)', local: true },
+  { value: 'exaone-32b', label: 'EXAONE 3.5 32B (로컬)', local: true },
+  { value: 'gpt-oss-20b', label: 'GPT-OSS 20B (로컬)', local: true },
 ];
 
 // 학습 채팅 스타일 (이해도 점검용 프롬프트 프리셋)

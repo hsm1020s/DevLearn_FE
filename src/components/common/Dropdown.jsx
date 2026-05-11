@@ -6,7 +6,8 @@
 /**
  * 드롭다운 셀렉트
  * @param {string} label - 셀렉트 상단 라벨
- * @param {Array<{value: string, label: string}>} options - 선택 옵션 목록
+ * @param {Array<{value: string, label: string, disabled?: boolean, title?: string}>} options
+ *   - 선택 옵션 목록. 항목별 `disabled`/`title`을 지정하면 해당 옵션을 비활성화하고 호버 안내를 노출한다.
  * @param {string} value - 현재 선택된 값
  * @param {Function} onChange - 선택 변경 시 value를 전달하는 콜백
  * @param {boolean} [disabled] - 비활성 상태
@@ -40,7 +41,12 @@ export default function Dropdown({
         `}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option
+            key={opt.value}
+            value={opt.value}
+            disabled={opt.disabled}
+            title={opt.title}
+          >
             {opt.label}
           </option>
         ))}
