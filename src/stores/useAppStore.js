@@ -3,6 +3,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import useMindmapStore from './useMindmapStore';
 import useChatStore from './useChatStore';
+import {
+  isLocalLlmDisabled,
+  isLocalLlmValue,
+  firstCloudLlmValue,
+} from '../utils/llmEnvironment';
 
 const SPLIT_MIN = 20;
 const SPLIT_MAX = 80;
@@ -37,7 +42,18 @@ const useAppStore = create(
       // 자리비움 시 옆 사람이 슬라이더만 올려서 화면을 훔쳐보는 것을 막는 잠금.
       clarityLocked: false,
 
-      setLLM: (llm) => set({ selectedLLM: llm }),
+      // 클라우드 배포 환경(VITE_DISABLE_LOCAL_LLM=true)에서는 로컬 모델 선택을 차단하고
+      // 첫 클라우드 모델로 폴백한다. 반환값 `{ ok, fallback }`로 호출자가 Toast를 띄울 수 있도록 한다.
+      // Toast를 store에서 직접 띄우지 않는 이유: 스토어가 UI 의존성을 갖지 않도록 분리.
+      setLLM: (llm) => {
+        if (isLocalLlmDisabled() && isLocalLlmValue(llm)) {
+          const fallback = firstCloudLlmValue();
+          set({ selectedLLM: fallback });
+          return { ok: false, fallback, reason: 'local-llm-disabled' };
+        }
+        set({ selectedLLM: llm });
+        return { ok: true };
+      },
       setMainMode: (mode) => {
         set({ mainMode: mode });
         // 모드 전환 시 채팅 공간을 모드별로 분리하고 마인드맵도 복원

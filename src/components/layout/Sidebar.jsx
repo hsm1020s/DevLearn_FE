@@ -31,6 +31,7 @@ import DocumentUploadModal from '../common/DocumentUploadModal';
 import FeynmanPipelineModal from '../common/FeynmanPipelineModal';
 import LoginModal from '../common/LoginModal';
 import ClarityPasswordPopover from './ClarityPasswordPopover';
+import { useToastStore } from '../common/Toast';
 import useAuthStore from '../../stores/useAuthStore';
 import useAppStore from '../../stores/useAppStore';
 import useChatStore from '../../stores/useChatStore';
@@ -38,6 +39,10 @@ import Dropdown from '../common/Dropdown';
 import Toggle from '../common/Toggle';
 import Button from '../common/Button';
 import { LLM_OPTIONS } from '../../utils/constants';
+import {
+  isLocalLlmDisabled,
+  LOCAL_LLM_DISABLED_MESSAGE,
+} from '../../utils/llmEnvironment';
 import { MODE_LIST, getModeConfig } from '../../registry/modes';
 
 export default function Sidebar() {
@@ -70,6 +75,21 @@ export default function Sidebar() {
   const renameConversation = useChatStore((s) => s.renameConversation);
   const toggleFavorite = useChatStore((s) => s.toggleFavorite);
   const fetchConversations = useChatStore((s) => s.fetchConversations);
+
+  const addToast = useToastStore((s) => s.addToast);
+
+  // LLM 선택 헬퍼 — 클라우드 배포 환경에서 로컬 모델이 들어오면 store가 자동 폴백하므로,
+  // 여기서는 폴백 발생 시 Toast 안내만 책임진다.
+  // 선언 위치는 useEffect(currentConversationId 동기화)보다 위에 있어야 한다.
+  const selectLLM = useCallback(
+    (llm) => {
+      const result = setLLM(llm);
+      if (result && result.ok === false && result.reason === 'local-llm-disabled') {
+        addToast(LOCAL_LLM_DISABLED_MESSAGE, 'info');
+      }
+    },
+    [setLLM, addToast],
+  );
 
   // 현재 모드에 속한 대화만 사이드바에 노출 — 모드별 채팅 공간 분리
   const visibleConversations = useMemo(
@@ -183,9 +203,10 @@ export default function Sidebar() {
     const conv = convs.find((c) => c.id === currentConversationId);
     if (!conv) return;
     const { selectedLLM: curLLM, mainMode: curMode } = useAppStore.getState();
-    if (conv.llm && conv.llm !== curLLM) setLLM(conv.llm);
+    // selectLLM 래퍼를 거쳐야 disable 모드에서 폴백 Toast가 함께 노출된다.
+    if (conv.llm && conv.llm !== curLLM) selectLLM(conv.llm);
     if (conv.mode && conv.mode !== curMode) setMainMode(conv.mode);
-  }, [currentConversationId, setLLM, setMainMode]);
+  }, [currentConversationId, selectLLM, setMainMode]);
 
   const handleStartRename = useCallback((conv) => {
     setEditingId(conv.id);
@@ -266,12 +287,25 @@ export default function Sidebar() {
   const handleSelectConversation = (id) => {
     setCurrentConversation(id);
     const conv = conversations.find((c) => c.id === id);
-    if (conv?.llm) setLLM(conv.llm);
+    if (conv?.llm) selectLLM(conv.llm);
     if (conv?.mode) setMainMode(conv.mode);
     setMobileSidebarOpen(false);
   };
 
   const modeOptions = MODE_LIST.map(({ value, label }) => ({ value, label }));
+
+  // 클라우드 배포 환경에서는 로컬 LLM 옵션을 disabled로 렌더하고 호버 안내를 노출한다.
+  // 라벨 자체는 그대로 두어 사용자가 어떤 모델이 막혔는지 인지할 수 있도록 한다.
+  const localLlmDisabled = isLocalLlmDisabled();
+  const llmDropdownOptions = useMemo(
+    () =>
+      LLM_OPTIONS.map((opt) =>
+        localLlmDisabled && opt.local
+          ? { ...opt, disabled: true, title: LOCAL_LLM_DISABLED_MESSAGE }
+          : opt,
+      ),
+    [localLlmDisabled],
+  );
 
   // LLM value → label 매핑 (대화 목록에서 모델명 표시용)
   const llmLabelMap = Object.fromEntries(LLM_OPTIONS.map(({ value, label }) => [value, label]));
@@ -325,9 +359,9 @@ export default function Sidebar() {
         <div className="flex flex-col gap-3 px-3 py-3 border-b border-border-light">
           <Dropdown
             label="LLM 선택"
-            options={LLM_OPTIONS}
+            options={llmDropdownOptions}
             value={selectedLLM}
-            onChange={setLLM}
+            onChange={selectLLM}
           />
           <Dropdown
             label="메인 모드"
