@@ -46,12 +46,14 @@ export default function AdminPage() {
   );
   const maps = useMindmapStore((s) => s.maps);
 
-  // 진입 가드: 비로그인 시 메인으로 리다이렉트 (Phase A — role 가드 미포함)
+  const userRole = useAuthStore((s) => s.user?.role);
+
+  // 진입 가드: 비로그인 또는 ADMIN이 아니면 메인으로 리다이렉트
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || userRole !== 'ADMIN') {
       navigate('/', { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, userRole, navigate]);
 
   // 로컬 스토어 기반 폴백 집계 — 서버 데이터가 없을 때만 소비한다.
   // useDocStore가 제거된 이후 문서 수는 서버 응답이 있을 때만 의미를 가지므로 폴백은 0.

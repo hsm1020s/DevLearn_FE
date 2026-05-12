@@ -12,9 +12,10 @@ import { useToastStore } from './Toast';
  * 로그인 모달 컴포넌트
  * @param {boolean} isOpen - 모달 열림 여부
  * @param {Function} onClose - 모달 닫기 핸들러
+ * @param {Function} onSwitchToRegister - 회원가입 모달로 전환 핸들러
  * @param {React.RefObject} [anchorRef] - 팝오버 앵커 위치 참조
  */
-export default function LoginModal({ isOpen, onClose, anchorRef }) {
+export default function LoginModal({ isOpen, onClose, onSwitchToRegister, anchorRef }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useAuthStore((s) => s.login);
@@ -79,13 +80,22 @@ export default function LoginModal({ isOpen, onClose, anchorRef }) {
             autoComplete="current-password"
           />
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" size="sm" type="button" onClick={handleClose}>
-            취소
-          </Button>
-          <Button variant="primary" size="sm" type="submit">
-            로그인
-          </Button>
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => { handleClose(); onSwitchToRegister?.(); }}
+            className="text-xs text-primary hover:underline"
+          >
+            계정이 없으신가요?
+          </button>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" type="button" onClick={handleClose}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              로그인
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

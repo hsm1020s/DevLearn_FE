@@ -1,7 +1,7 @@
 /**
  * @fileoverview 로컬 LLM 활동 모니터 본문 — 단독 페이지 / 드로어 양쪽에서 재사용한다.
  *
- * 백엔드 GET /api/public/llm-activity 를 2초 폴링하고 다음 3섹션을 그린다:
+ * 백엔드 GET /api/monitor/llm-activity 를 2초 폴링하고 다음 3섹션을 그린다:
  *  1) 진행 중 호출 카드 (source / model / action / target / 경과)
  *  2) 소스별 누적 통계 (호출 수, 실패율, 평균 지연)
  *  3) 최근 완료/실패 로그 표 (ring buffer 200건)

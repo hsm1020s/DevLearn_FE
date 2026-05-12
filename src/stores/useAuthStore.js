@@ -51,7 +51,7 @@ const useAuthStore = create(
           // 계정 전환 시 이전 사용자의 로컬 캐시가 남지 않도록 먼저 비운다
           // (이후 각 화면에서 서버 데이터를 새로 fetch)
           resetUserStores();
-          set({ user: { email: user.email, name: user.name }, isLoggedIn: true });
+          set({ user: { email: user.email, name: user.name, role: user.role }, isLoggedIn: true });
           return { success: true };
         } catch (error) {
           const message = error.response?.data?.message || '로그인에 실패했습니다';
@@ -95,10 +95,10 @@ const useAuthStore = create(
     }),
     {
       name: 'auth-storage',
-      // 로그인 상태와 사용자 이름만 persist (토큰은 localStorage에서 직접 관리)
+      // 로그인 상태와 사용자 기본 정보를 persist (토큰은 localStorage에서 직접 관리)
       partialize: (state) => ({
         isLoggedIn: state.isLoggedIn,
-        user: state.user ? { name: state.user.name } : null,
+        user: state.user ? { name: state.user.name, role: state.user.role } : null,
       }),
     },
   ),

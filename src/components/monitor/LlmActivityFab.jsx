@@ -1,7 +1,7 @@
 /**
  * @fileoverview 우하단 플로팅 버튼 + 우측 슬라이드 드로어 — 어떤 화면에 있든 모니터를 빠르게 열 수 있다.
  *
- * 권한 없이 접근 가능한 /api/public/llm-activity 만 사용하므로 비로그인 화면에서도 안전하게 마운트.
+ * 인증 필수 /api/monitor/llm-activity 를 사용한다. 비로그인 시 데이터가 로드되지 않는다.
  * 드로어가 닫힌 동안에는 폴링을 멈춰 백엔드 부하를 줄인다.
  */
 import { useEffect, useState } from 'react';

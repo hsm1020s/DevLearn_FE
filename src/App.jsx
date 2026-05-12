@@ -14,7 +14,7 @@ import LlmActivityFab from './components/monitor/LlmActivityFab';
 
 /** 관리자 페이지 지연 로드 */
 const AdminPage = lazy(() => import('./pages/AdminPage'));
-/** 로컬 LLM 활동 모니터 페이지 — 권한 없이 접근 가능, 페이지 진입 시에만 로드 */
+/** 로컬 LLM 활동 모니터 페이지 — 인증 필수, 페이지 진입 시에만 로드 */
 const LlmActivityPage = lazy(() => import('./pages/LlmActivityPage'));
 
 /** URL 파라미터에서 에러 코드를 추출하여 ErrorPage에 전달 */

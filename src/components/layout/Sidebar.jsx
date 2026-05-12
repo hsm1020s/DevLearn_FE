@@ -30,6 +30,7 @@ import SuggestionModal from '../common/SuggestionModal';
 import DocumentUploadModal from '../common/DocumentUploadModal';
 import FeynmanPipelineModal from '../common/FeynmanPipelineModal';
 import LoginModal from '../common/LoginModal';
+import RegisterModal from '../common/RegisterModal';
 import ClarityPasswordPopover from './ClarityPasswordPopover';
 import { useToastStore } from '../common/Toast';
 import useAuthStore from '../../stores/useAuthStore';
@@ -111,6 +112,7 @@ export default function Sidebar() {
   const [showDocUpload, setShowDocUpload] = useState(false);
   const [showPipeline, setShowPipeline] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   // 로그아웃 드롭다운 상태
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -751,7 +753,18 @@ export default function Sidebar() {
       <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
       <DocumentUploadModal isOpen={showDocUpload} onClose={() => setShowDocUpload(false)} anchorRef={docUploadBtnRef} />
       <FeynmanPipelineModal isOpen={showPipeline} onClose={() => setShowPipeline(false)} />
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} anchorRef={loginBtnRef} />
+      <LoginModal
+        isOpen={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSwitchToRegister={() => setShowRegister(true)}
+        anchorRef={loginBtnRef}
+      />
+      <RegisterModal
+        isOpen={showRegister}
+        onClose={() => setShowRegister(false)}
+        onSwitchToLogin={() => setShowLogin(true)}
+        anchorRef={loginBtnRef}
+      />
 
       {/* 삭제 확인 팝오버 — 삭제 버튼 바로 옆에 fixed로 표시 */}
       {deleteConfirm && (
