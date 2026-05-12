@@ -128,8 +128,9 @@ export default function AdminPage() {
   }
 
   // 서버 에러 + 폴백조차 유의미하지 않은 경우(= 아무 로컬 데이터도 없을 때)만 전체 에러 화면
+  // documents 는 서버 응답이 있을 때만 채워지므로(폴백 0) 사실상 conversations/maps/answerCount 만 의미 있음.
   const hasAnyFallback =
-    conversations.length > 0 || docs.length > 0 ||
+    conversations.length > 0 || documents.length > 0 ||
     Object.keys(maps).length > 0 || answerCount > 0;
 
   if (error && !data && !hasAnyFallback) {
