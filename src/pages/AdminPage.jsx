@@ -4,7 +4,7 @@
  * (useChatStore/useMindmapStore/useStudyStore) 데이터로 폴백 렌더한다.
  * 진입 가드: isLoggedIn=false면 메인으로 리다이렉트한다. role 기반 가드는 Phase B에서 추가.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ArrowLeft,
   MessageSquare,
@@ -13,6 +13,7 @@ import {
   BookOpen,
   RefreshCw,
   AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -21,8 +22,10 @@ import RecentConversations from '../components/admin/RecentConversations';
 import DocumentTable from '../components/admin/DocumentTable';
 import DashboardSkeleton from '../components/admin/DashboardSkeleton';
 import DashboardError from '../components/admin/DashboardError';
+import SuggestionsBoard from '../components/admin/SuggestionsBoard';
 import useAdminDashboard from '../hooks/useAdminDashboard';
 import useAuthStore from '../stores/useAuthStore';
+import { listAdminSuggestions } from '../services/suggestionApi';
 // 폴백용 — 서버 호출 실패 시 로컬 스토어 집계를 사용한다
 import useChatStore from '../stores/useChatStore';
 import useStudyStore from '../stores/useStudyStore';
@@ -54,6 +57,28 @@ export default function AdminPage() {
       navigate('/', { replace: true });
     }
   }, [isLoggedIn, userRole, navigate]);
+
+  // 기능개선 제안 — 관리자 전용 게시판. 대시보드와 별개로 비동기 로드.
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(null);
+
+  const refreshSuggestions = useCallback(async () => {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    try {
+      const list = await listAdminSuggestions();
+      setSuggestions(list);
+    } catch (err) {
+      setSuggestionsError(err?.response?.data?.message || err?.message || '알 수 없는 오류');
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn && userRole === 'ADMIN') refreshSuggestions();
+  }, [isLoggedIn, userRole, refreshSuggestions]);
 
   // 로컬 스토어 기반 폴백 집계 — 서버 데이터가 없을 때만 소비한다.
   // useDocStore가 제거된 이후 문서 수는 서버 응답이 있을 때만 의미를 가지므로 폴백은 0.
@@ -189,6 +214,33 @@ export default function AdminPage() {
             </h2>
             <div className="bg-bg-primary border border-border-light rounded-xl p-3">
               <DocumentTable documents={documents} />
+            </div>
+          </section>
+
+          {/* 기능개선 제안 — 관리자 전용 게시판 */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <Lightbulb size={14} />
+                기능개선 제안
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshSuggestions}
+                disabled={suggestionsLoading}
+                className="gap-1.5"
+              >
+                <RefreshCw size={13} className={suggestionsLoading ? 'animate-spin' : ''} />
+                새로고침
+              </Button>
+            </div>
+            <div className="bg-bg-secondary/40 border border-border-light rounded-xl p-3">
+              <SuggestionsBoard
+                suggestions={suggestions}
+                loading={suggestionsLoading}
+                error={suggestionsError}
+              />
             </div>
           </section>
         </div>

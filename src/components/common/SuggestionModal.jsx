@@ -1,11 +1,13 @@
-/** @fileoverview 기능개선 제안 모달 — 카테고리(멀티체크), 제목, 상세 내용을 입력받아 localStorage에 저장한다. */
+/** @fileoverview 기능개선 제안 모달 — 카테고리(멀티체크), 제목, 상세 내용을 입력받아 백엔드(/api/suggestions)에 등록한다. */
 import { useState, useCallback } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import { useToastStore } from './Toast';
-import { generateId } from '../../utils/helpers';
+import useAuthStore from '../../stores/useAuthStore';
+import { submitSuggestion } from '../../services/suggestionApi';
+import { showError } from '../../utils/errorHandler';
 
-/** 제안 카테고리 선택지 목록 */
+/** 제안 카테고리 선택지 목록 — 백엔드 SuggestionService.ALLOWED_CATEGORIES 와 동기화 필요 */
 const CATEGORIES = [
   { value: 'ui', label: 'UI/UX' },
   { value: 'feature', label: '새 기능' },
@@ -13,9 +15,6 @@ const CATEGORIES = [
   { value: 'performance', label: '성능 개선' },
   { value: 'etc', label: '기타' },
 ];
-
-/** localStorage 저장 키 — 추후 백엔드 연동 시 API 호출로 교체 */
-const STORAGE_KEY = 'suggestions';
 
 /** 폼 초기 상태 */
 const initialForm = {
@@ -25,14 +24,18 @@ const initialForm = {
 };
 
 /**
- * 기능개선 제안 모달 — 카테고리 복수 선택, 제목, 상세 내용 입력
+ * 기능개선 제안 모달 — 카테고리 복수 선택, 제목, 상세 내용 입력 → 백엔드 POST.
+ * 비로그인 상태에서는 등록을 차단하고 안내 Toast 를 띄운다(JWT 인증 필요).
+ *
  * @param {boolean} isOpen - 모달 열림 여부
  * @param {Function} onClose - 모달 닫기 핸들러
  * @param {React.RefObject} [anchorRef] - 팝오버 앵커 위치 참조
  */
 export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
   const [form, setForm] = useState(initialForm);
+  const [submitting, setSubmitting] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
   const updateField = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -47,37 +50,39 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
     }));
   }, []);
 
-  // 제출 — 유효성 검증 후 localStorage에 제안 데이터 추가 저장
-  const handleSubmit = useCallback(() => {
+  // 제출 — 유효성 검증 후 백엔드에 POST. 비로그인이면 안내 Toast 후 종료.
+  const handleSubmit = useCallback(async () => {
     if (form.categories.length === 0 || !form.title.trim() || !form.content.trim()) {
       addToast('카테고리, 제목, 상세 내용을 모두 입력해주세요.', 'error');
       return;
     }
-
-    const suggestion = {
-      ...form,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-    };
-
-    // 기존 제안 목록 앞에 새 제안 추가 (최신순 정렬, 최대 100건)
-    let existing = [];
-    try {
-      existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-      existing = [];
+    if (!isLoggedIn) {
+      addToast('제안 등록은 로그인 후 가능합니다.', 'info');
+      return;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([suggestion, ...existing].slice(0, 100)));
 
-    addToast('제안이 등록되었습니다.', 'success');
-    setForm(initialForm);
-    onClose();
-  }, [form, addToast, onClose]);
+    setSubmitting(true);
+    try {
+      await submitSuggestion({
+        categories: form.categories,
+        title: form.title.trim(),
+        content: form.content.trim(),
+      });
+      addToast('제안이 등록되었습니다. 감사합니다!', 'success');
+      setForm(initialForm);
+      onClose();
+    } catch (err) {
+      showError(err, '제안 등록에 실패했습니다');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [form, addToast, isLoggedIn, onClose]);
 
   const handleClose = useCallback(() => {
+    if (submitting) return; // 전송 중에는 닫히지 않게 가드
     setForm(initialForm);
     onClose();
-  }, [onClose]);
+  }, [onClose, submitting]);
 
   const isValid = form.categories.length > 0 && form.title.trim() && form.content.trim();
 
@@ -143,11 +148,11 @@ export default function SuggestionModal({ isOpen, onClose, anchorRef }) {
 
         {/* 버튼 */}
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" size="sm" onClick={handleClose}>
+          <Button variant="secondary" size="sm" onClick={handleClose} disabled={submitting}>
             취소
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={!isValid}>
-            제출
+          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={!isValid || submitting}>
+            {submitting ? '전송 중…' : '제출'}
           </Button>
         </div>
       </div>
