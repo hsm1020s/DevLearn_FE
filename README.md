@@ -1,6 +1,7 @@
 # DevLearn
 
 **🌐 서비스 도메인: [https://devlearnrag.com](https://devlearnrag.com)**
+**☁️ 사용 클라우드: 네이버클라우드** · **🏷️ 도메인: 가비아**
 
 <img width="2485" height="1137" alt="스크린샷 2026-05-07 오후 2 57 27" src="https://github.com/user-attachments/assets/c7dff3d0-58ce-4a99-a69d-a9130965f5c5" />
 
