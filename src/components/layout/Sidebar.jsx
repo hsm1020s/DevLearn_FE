@@ -2,6 +2,9 @@
  * @fileoverview 좌측 사이드바 레이아웃 컴포넌트
  * LLM/모드 선택, 대화 목록, 마인드맵 토글, 설정 링크를 제공한다.
  * 접힌 상태(collapsed)에서는 아이콘만 표시한다.
+ *
+ * LLM 드롭다운에서 사용자가 모델을 새로 고르면 자동으로 그 모델의 새 채팅이 열린다.
+ * (대화 전환 시 일어나는 프로그래밍적 LLM 동기화 경로와는 별도 핸들러로 분리.)
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -44,7 +47,7 @@ import {
   isLocalLlmDisabled,
   LOCAL_LLM_DISABLED_MESSAGE,
 } from '../../utils/llmEnvironment';
-import { MODE_LIST, getModeConfig } from '../../registry/modes';
+import { MODE_LIST, getModeConfig, isLearningMode } from '../../registry/modes';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -70,6 +73,7 @@ export default function Sidebar() {
   const conversations = useChatStore((s) => s.conversations);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
   const createConversation = useChatStore((s) => s.createConversation);
+  const createSplitConversation = useChatStore((s) => s.createSplitConversation);
   const setCurrentConversation = useChatStore((s) => s.setCurrentConversation);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const deleteConversations = useChatStore((s) => s.deleteConversations);
@@ -283,6 +287,38 @@ export default function Sidebar() {
     setMobileSidebarOpen(false);
   };
 
+  // LLM 드롭다운 onChange 전용 핸들러 — 사용자가 새 모델을 직접 고를 때만 새 채팅을 자동 생성한다.
+  // 대화 전환에 따른 동기화 경로(useEffect/handleSelectConversation의 selectLLM 호출)와 분리되어야
+  // 다른 대화를 클릭할 때마다 빈 대화가 끝없이 추가되는 부작용이 생기지 않는다.
+  //
+  // 모드별 분기:
+  // - 일반 모드: createConversation으로 currentConversationId를 새 conv로 갱신 → ChatContainer가 빈 화면 표시.
+  // - 학습 계열 모드(공부/업무학습): 화면의 채팅 패널은 좌측 일반 채팅(split 좌 슬롯)이므로
+  //   createSplitConversation('left')로 좌 슬롯을 새 conv로 갈아끼워야 화면이 비어 보인다. 우측 파인만 슬롯은 건드리지 않는다.
+  const handleLLMDropdownChange = useCallback(
+    (picked) => {
+      if (picked === selectedLLM) return;
+      const result = setLLM(picked);
+      let finalLLM = picked;
+      if (result && result.ok === false && result.reason === 'local-llm-disabled') {
+        addToast(LOCAL_LLM_DISABLED_MESSAGE, 'info');
+        // store가 폴백한 실제 모델로 새 채팅을 만든다.
+        finalLLM = useAppStore.getState().selectedLLM;
+      }
+      if (isLearningMode(mainMode)) {
+        // split 좌 슬롯에 새 conv 할당 → 좌측 일반 채팅 패널이 빈 화면으로 바뀜.
+        // 더불어 currentConversationId 도 새 conv로 맞춰야 사이드바의 활성 표시(파란 하이라이트)가
+        // 실제 노출 중인 좌 패널의 대화와 일치한다. 우측 파인만 슬롯은 건드리지 않아 보존됨.
+        const newId = createSplitConversation(mainMode, finalLLM, 'left');
+        setCurrentConversation(newId);
+      } else {
+        createConversation(mainMode, finalLLM);
+      }
+      setMobileSidebarOpen(false);
+    },
+    [selectedLLM, setLLM, addToast, createConversation, createSplitConversation, setCurrentConversation, mainMode, setMobileSidebarOpen],
+  );
+
   // 대화 선택 시 해당 대화로 전환 + 대화에 저장된 llm/mode를 UI에 복원.
   // 복원이 없으면 상단 셀렉터와 실제 대화의 모델/모드가 어긋나 다음 전송 시
   // 의도와 다른 모델로 요청되어 "스텁 모드" 같은 증상이 발생하던 문제를 차단.
@@ -363,7 +399,7 @@ export default function Sidebar() {
             label="LLM 선택"
             options={llmDropdownOptions}
             value={selectedLLM}
-            onChange={selectLLM}
+            onChange={handleLLMDropdownChange}
           />
           <Dropdown
             label="메인 모드"
