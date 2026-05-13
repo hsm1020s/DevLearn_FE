@@ -8,16 +8,23 @@
  * 3. 3초 간격 폴링으로 상태 갱신 (GET /api/feynman/docs/all)
  * 4. status='completed' 되면 학습 가능
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
   Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2, PlayCircle, X,
 } from 'lucide-react';
 import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
+import useAuthStore from '../../stores/useAuthStore';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
 const PAGE_SIZE = 10;
+
+// BE(FeynmanService) 기준과 동일 — DocumentUploadModal과 동일 상수
+/** ADMIN 업로드 상한 (1GB) */
+const ADMIN_MAX_BYTES = 1024 * 1024 * 1024;
+/** 일반 USER 업로드 상한 (50MB) */
+const USER_MAX_BYTES = 50 * 1024 * 1024;
 
 /** 상태별 UI 설정 */
 const STATUS_MAP = {
@@ -57,6 +64,16 @@ export default function FeynmanPipelineTab() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const fileInputRef = useRef(null);
+
+  // role 기반 업로드 한도 (BE FeynmanService와 동일 기준: ADMIN 1GB / USER 50MB)
+  const role = useAuthStore((s) => s.user?.role);
+  const { maxBytes, limitLabel } = useMemo(() => {
+    const isAdmin = role === 'ADMIN';
+    return {
+      maxBytes: isAdmin ? ADMIN_MAX_BYTES : USER_MAX_BYTES,
+      limitLabel: isAdmin ? '1GB' : '50MB',
+    };
+  }, [role]);
   const pollRef = useRef(null);
 
   // 위험 동작(삭제/임베딩 후 TOC 재추출) 확인 팝오버 — Sidebar의 deleteConfirm 패턴 차용.
@@ -129,10 +146,21 @@ export default function FeynmanPipelineTab() {
     if (all.length === 0) return;
 
     // PDF만 통과
-    const valid = all.filter((f) => f.name.toLowerCase().endsWith('.pdf'));
-    const skipped = all.length - valid.length;
-    if (valid.length === 0) {
+    const pdfs = all.filter((f) => f.name.toLowerCase().endsWith('.pdf'));
+    const skipped = all.length - pdfs.length;
+    if (pdfs.length === 0) {
       showError(null, 'PDF 파일만 업로드할 수 있습니다');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // role 기반 크기 한도 필터 — BE에서 거부되기 전 FE에서 명시적 안내
+    const valid = pdfs.filter((f) => f.size <= maxBytes);
+    const oversizedNames = pdfs.filter((f) => f.size > maxBytes).map((f) => f.name);
+    if (oversizedNames.length > 0) {
+      showError(null, `${limitLabel} 초과로 ${oversizedNames.length}개 제외: ${oversizedNames.join(', ')}`);
+    }
+    if (valid.length === 0) {
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -358,7 +386,7 @@ export default function FeynmanPipelineTab() {
               ? (uploadProgress && uploadProgress.total > 1
                 ? `업로드 중 (${uploadProgress.current}/${uploadProgress.total})...`
                 : '업로드 중...')
-              : 'PDF 업로드'}
+              : `PDF 업로드 (최대 ${limitLabel})`}
             <input
               ref={fileInputRef}
               type="file"
