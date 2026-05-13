@@ -11,7 +11,6 @@ import ChatInput from './ChatInput';
 import ChatLoadingBubble from './ChatLoadingBubble';
 import EmptyChatView from './EmptyChatView';
 import JumpToBottomButton from './JumpToBottomButton';
-import ChatUsageBar from '../common/ChatUsageBar';
 
 /** 일반 모드 채팅 화면 */
 export default function ChatContainer() {
@@ -74,7 +73,6 @@ export default function ChatContainer() {
         />
       </div>
       <div className="max-w-4xl mx-auto w-full">
-        <ChatUsageBar />
         <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
       </div>
     </div>
