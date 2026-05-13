@@ -20,7 +20,7 @@ import useAuthStore from '../../stores/useAuthStore';
 /** 페이지당 건수 — BE 기본값과 일치 */
 const PAGE_SIZE = 10;
 
-// BE(FeynmanService) 기준과 동일 — DocumentUploadModal과 동일 상수
+// BE(FeynmanService) 기준과 동일
 /** ADMIN 업로드 상한 (1GB) */
 const ADMIN_MAX_BYTES = 1024 * 1024 * 1024;
 /** 일반 USER 업로드 상한 (50MB) */

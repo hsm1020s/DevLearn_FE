@@ -24,14 +24,12 @@ import {
   User,
   LogOut,
   ChevronUp,
-  FileUp,
   Workflow,
   SunMedium,
   Lock,
   Shield,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
-import DocumentUploadModal from '../common/DocumentUploadModal';
 import FeynmanPipelineModal from '../common/FeynmanPipelineModal';
 import LoginModal from '../common/LoginModal';
 import RegisterModal from '../common/RegisterModal';
@@ -116,7 +114,6 @@ export default function Sidebar() {
 
   // 모달 상태
   const [showSuggestion, setShowSuggestion] = useState(false);
-  const [showDocUpload, setShowDocUpload] = useState(false);
   const [showPipeline, setShowPipeline] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
@@ -136,7 +133,6 @@ export default function Sidebar() {
 
   // 사이드바 하단 버튼 ref (팝오버 앵커용)
   const suggestionBtnRef = useRef(null);
-  const docUploadBtnRef = useRef(null);
   const loginBtnRef = useRef(null);
 
   // 새 채팅명 입력 상태
@@ -718,15 +714,6 @@ export default function Sidebar() {
             <span>문서 파이프라인</span>
           </button>
           <button
-            ref={docUploadBtnRef}
-            onClick={() => setShowDocUpload(true)}
-            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
-              text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
-          >
-            <FileUp size={18} />
-            <span>문서 업로드</span>
-          </button>
-          <button
             ref={suggestionBtnRef}
             onClick={() => setShowSuggestion(true)}
             className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md
@@ -809,7 +796,6 @@ export default function Sidebar() {
       )}
 
       <SuggestionModal isOpen={showSuggestion} onClose={() => setShowSuggestion(false)} anchorRef={suggestionBtnRef} />
-      <DocumentUploadModal isOpen={showDocUpload} onClose={() => setShowDocUpload(false)} anchorRef={docUploadBtnRef} />
       <FeynmanPipelineModal isOpen={showPipeline} onClose={() => setShowPipeline(false)} />
       <LoginModal
         isOpen={showLogin}
