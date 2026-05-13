@@ -45,6 +45,8 @@ function useVisitorCount() {
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 /** 로컬 LLM 활동 모니터 페이지 — 인증 필수, 페이지 진입 시에만 로드 */
 const LlmActivityPage = lazy(() => import('./pages/LlmActivityPage'));
+/** 일반 사용자 설정 페이지 — 진입 시에만 번들 로드 */
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 /** URL 파라미터에서 에러 코드를 추출하여 ErrorPage에 전달 */
 function ErrorRoute() {
@@ -72,6 +74,14 @@ export default function App() {
             element={
               <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
                 <AdminPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+                <SettingsPage />
               </Suspense>
             }
           />

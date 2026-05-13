@@ -44,10 +44,11 @@ export default function AdminPage() {
 
   // 폴백용 로컬 스토어 구독 (서버 실패 시에만 사용)
   const conversations = useChatStore((s) => s.conversations);
-  // 과목 축 도입 후: 모든 과목 버킷의 answers를 합산해 폴백 카운트에 사용
-  const allSubjects = useStudyStore((s) => s.subjects);
+  // 과목 축 도입 후: 모든 과목 버킷의 answers를 합산해 폴백 카운트에 사용.
+  // v8 마이그레이션에서 subjects 필드가 제거되어 초기 상태에서는 undefined 이므로 빈 객체로 폴백한다.
+  const allSubjects = useStudyStore((s) => s.subjects) ?? {};
   const answerCount = useMemo(
-    () => Object.values(allSubjects).reduce((n, b) => n + Object.keys(b.answers || {}).length, 0),
+    () => Object.values(allSubjects).reduce((n, b) => n + Object.keys(b?.answers || {}).length, 0),
     [allSubjects],
   );
   const maps = useMindmapStore((s) => s.maps);
