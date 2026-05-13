@@ -24,6 +24,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import useChatStore from '../stores/useChatStore';
 import useAppStore from '../stores/useAppStore';
 import useStudyStore from '../stores/useStudyStore';
+import useUsageStore from '../stores/useUsageStore';
 import { streamMessage } from '../services/chatApi';
 import { streamFeynmanChat } from '../services/feynmanApi';
 import { showError } from '../utils/errorHandler';
@@ -212,6 +213,8 @@ export default function useStreamingChat(mode, options = {}) {
           }
           setStreamingContent('');
           setStreaming(false);
+          // BE 가 응답 종료 시 llm_call_logs 에 사용량을 INSERT 했으므로 합계 갱신
+          useUsageStore.getState().refresh();
         },
       });
     },
@@ -250,6 +253,8 @@ export default function useStreamingChat(mode, options = {}) {
           }
           setStreamingContent('');
           setStreaming(false);
+          // BE 가 응답 종료 시 llm_call_logs 에 사용량을 INSERT 했으므로 합계 갱신
+          useUsageStore.getState().refresh();
         },
       });
     },
