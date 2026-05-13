@@ -4,13 +4,13 @@
  * 업로드된 문서의 파이프라인 실행(임베딩/청크)은 "파인만 → 파이프라인 관리" 탭에서 진행한다.
  * 모달 내부 상태로 현재 세션의 업로드 목록을 보여주고, 닫히면 목록은 사라진다.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 import FileDropZone from './FileDropZone';
 import { useToastStore } from './Toast';
-import { uploadPdf } from '../../services/feynmanApi';
+import { uploadPdf, getQuota } from '../../services/feynmanApi';
 import useAuthStore from '../../stores/useAuthStore';
 
 // BE(FeynmanService) 기준과 동일하게 유지 — 불일치 시 FE 통과 후 BE에서 거부되어 UX가 깨진다.
@@ -71,6 +71,23 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
     };
   }, [role]);
 
+  // 보유 슬롯 정보 — 모달 open 시 1회 fetch, 업로드 성공 시 로컬 +1 (BE refetch 보다 가볍게).
+  const [quota, setQuota] = useState(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = await getQuota();
+        if (!cancelled) setQuota(q);
+      } catch {
+        if (!cancelled) setQuota(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+  const slotFull = quota?.limit != null && quota.used >= quota.limit;
+
   const patchItem = useCallback((tempId, patch) => {
     setItems((prev) => prev.map((it) => (it.tempId === tempId ? { ...it, ...patch } : it)));
   }, []);
@@ -87,6 +104,8 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
         const result = await uploadPdf(file);
         patchItem(tempId, { status: 'completed', serverId: result?.id });
         addToast(`${file.name} 업로드 완료 · 파이프라인 관리 탭에서 실행하세요.`, 'success');
+        // 슬롯 카운트 로컬 갱신 (모달 open 직후 fetch 한 값에 +1)
+        setQuota((q) => (q ? { ...q, used: q.used + 1 } : q));
       } catch (err) {
         patchItem(tempId, { status: 'error' });
         addToast(`${file.name} 업로드 실패: ${err?.message ?? '알 수 없는 오류'}`, 'error');
@@ -99,7 +118,7 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
   // 병렬 대신 순차로 가는 이유: 대용량 PDF 여러 개 동시 업로드 시 서버/네트워크 부담을 회피하기 위함.
   const handleFiles = useCallback(
     async (files) => {
-      const valid = [];
+      const sized = [];
       for (const f of files) {
         const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
         if (!isPdf) {
@@ -110,24 +129,50 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
           addToast(`${f.name}: ${limitLabel} 이하 파일만 업로드할 수 있습니다.`, 'error');
           continue;
         }
-        valid.push(f);
+        sized.push(f);
       }
-      for (const f of valid) {
+
+      // 슬롯 한도 사전 차단 — ADMIN(limit=null) 은 skip. 업로드 중 누적으로 차오를 수 있어 매 파일마다 검사.
+      let usedSnapshot = quota?.used ?? 0;
+      const limit = quota?.limit ?? null;
+      for (const f of sized) {
+        if (limit != null && usedSnapshot >= limit) {
+          addToast(`최대 ${limit}개까지 보유할 수 있어 ${f.name} 은(는) 제외했습니다.`, 'error');
+          continue;
+        }
         // eslint-disable-next-line no-await-in-loop
         await uploadOne(f);
+        usedSnapshot += 1;
       }
     },
-    [uploadOne, addToast, maxBytes, limitLabel],
+    [uploadOne, addToast, maxBytes, limitLabel, quota],
   );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="문서 업로드" anchorRef={anchorRef} offsetVh={0.15}>
       <div className="flex flex-col gap-4">
+        {/* 보유 슬롯 안내 (USER 만 노출, ADMIN 은 limit=null 이라 표시 안 함) */}
+        {quota?.limit != null && (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-md border text-xs
+            ${slotFull
+              ? 'border-danger/40 bg-danger/10 text-danger'
+              : 'border-border-light bg-bg-secondary text-text-secondary'}`}>
+            <FileText size={14} className="shrink-0" />
+            <span>
+              보유 PDF <strong>{quota.used}/{quota.limit}</strong>
+              {slotFull && ' · 기존 문서를 삭제 후 다시 시도하세요.'}
+            </span>
+          </div>
+        )}
+
         <FileDropZone
           onFiles={handleFiles}
           accept=".pdf,application/pdf"
           multiple
-          label={`PDF 파일을 드래그하거나 클릭하여 업로드 (최대 ${limitLabel})`}
+          disabled={slotFull}
+          label={slotFull
+            ? `슬롯 가득 참 (${quota.used}/${quota.limit})`
+            : `PDF 파일을 드래그하거나 클릭하여 업로드 (최대 ${limitLabel})`}
         />
 
         <p className="text-[11px] text-text-tertiary">
