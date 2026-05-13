@@ -3,7 +3,8 @@
 **서비스 도메인: [https://devlearnrag.com](https://devlearnrag.com)**
 **사용 클라우드: 네이버클라우드** · **도메인: 가비아**
 
-<img width="2485" height="1137" alt="스크린샷 2026-05-07 오후 2 57 27" src="https://github.com/user-attachments/assets/c7dff3d0-58ce-4a99-a69d-a9130965f5c5" />
+<img width="1903" height="1204" alt="스크린샷 2026-05-13 오후 8 05 04" src="https://github.com/user-attachments/assets/295c61b9-605b-4922-bf25-7407642e38fc" />
+
 
 AI 기반 능동 학습 플랫폼. PDF 문서를 업로드하면 파인만 학습법으로 개념 이해도를 검증하고, 마인드맵으로 지식을 구조화하며, 챕터 단위 AI 강의 영상까지 자동 생성할 수 있다. 일반 / 공부 / 업무학습 3-모드 채팅을 클라우드·로컬 LLM 5종에서 자유롭게 전환해 사용한다.
 
