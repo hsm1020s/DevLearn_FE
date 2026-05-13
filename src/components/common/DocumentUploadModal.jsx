@@ -4,16 +4,20 @@
  * 업로드된 문서의 파이프라인 실행(임베딩/청크)은 "파인만 → 파이프라인 관리" 탭에서 진행한다.
  * 모달 내부 상태로 현재 세션의 업로드 목록을 보여주고, 닫히면 목록은 사라진다.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import Modal from './Modal';
 import Button from './Button';
 import FileDropZone from './FileDropZone';
 import { useToastStore } from './Toast';
 import { uploadPdf } from '../../services/feynmanApi';
+import useAuthStore from '../../stores/useAuthStore';
 
-/** PDF 파일 단일 최대 크기 (1GB) */
-const MAX_FILE_SIZE = 1024 * 1024 * 1024;
+// BE(FeynmanService) 기준과 동일하게 유지 — 불일치 시 FE 통과 후 BE에서 거부되어 UX가 깨진다.
+/** ADMIN 업로드 상한 (1GB) */
+const ADMIN_MAX_BYTES = 1024 * 1024 * 1024;
+/** 일반 USER 업로드 상한 (50MB) */
+const USER_MAX_BYTES = 50 * 1024 * 1024;
 
 /** 바이트를 사람이 읽기 쉬운 단위로 변환 */
 function formatSize(bytes) {
@@ -57,6 +61,16 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
   // 이번 세션에 올린 업로드만 보여주는 로컬 목록. 영속 상태는 파이프라인 관리 탭이 서버에서 직접 조회한다.
   const [items, setItems] = useState([]);
 
+  // role 기반 업로드 한도 (BE FeynmanService와 동일 기준: ADMIN 1GB / USER 50MB)
+  const role = useAuthStore((s) => s.user?.role);
+  const { maxBytes, limitLabel } = useMemo(() => {
+    const isAdmin = role === 'ADMIN';
+    return {
+      maxBytes: isAdmin ? ADMIN_MAX_BYTES : USER_MAX_BYTES,
+      limitLabel: isAdmin ? '1GB' : '50MB',
+    };
+  }, [role]);
+
   const patchItem = useCallback((tempId, patch) => {
     setItems((prev) => prev.map((it) => (it.tempId === tempId ? { ...it, ...patch } : it)));
   }, []);
@@ -82,7 +96,7 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
   );
 
   // 드롭존에서 받은 파일 배열을 필터링한 뒤 순차 업로드 (실패해도 나머지 계속).
-  // 병렬 대신 순차로 가는 이유: 1GB 한도 PDF 여러 개 동시 업로드 시 서버/네트워크 부담을 회피하기 위함.
+  // 병렬 대신 순차로 가는 이유: 대용량 PDF 여러 개 동시 업로드 시 서버/네트워크 부담을 회피하기 위함.
   const handleFiles = useCallback(
     async (files) => {
       const valid = [];
@@ -92,8 +106,8 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
           addToast(`${f.name}: PDF 파일만 업로드할 수 있습니다.`, 'error');
           continue;
         }
-        if (f.size > MAX_FILE_SIZE) {
-          addToast(`${f.name}: 1GB 이하 파일만 업로드할 수 있습니다.`, 'error');
+        if (f.size > maxBytes) {
+          addToast(`${f.name}: ${limitLabel} 이하 파일만 업로드할 수 있습니다.`, 'error');
           continue;
         }
         valid.push(f);
@@ -103,7 +117,7 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
         await uploadOne(f);
       }
     },
-    [uploadOne, addToast],
+    [uploadOne, addToast, maxBytes, limitLabel],
   );
 
   return (
@@ -113,7 +127,7 @@ export default function DocumentUploadModal({ isOpen, onClose, anchorRef }) {
           onFiles={handleFiles}
           accept=".pdf,application/pdf"
           multiple
-          label="PDF 파일을 드래그하거나 클릭하여 업로드 (최대 1GB)"
+          label={`PDF 파일을 드래그하거나 클릭하여 업로드 (최대 ${limitLabel})`}
         />
 
         <p className="text-[11px] text-text-tertiary">
