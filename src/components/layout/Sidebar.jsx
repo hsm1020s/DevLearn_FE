@@ -28,6 +28,7 @@ import {
   Workflow,
   SunMedium,
   Lock,
+  Shield,
 } from 'lucide-react';
 import SuggestionModal from '../common/SuggestionModal';
 import DocumentUploadModal from '../common/DocumentUploadModal';
@@ -760,14 +761,26 @@ export default function Sidebar() {
                       animate-popover-in"
                     style={{ bottom: window.innerHeight - rect.top, left: rect.left }}
                   >
+                    {/* "설정" 은 본인 계정 관리(/settings)로 통일. 역할과 무관. */}
                     <button
-                      onClick={() => { navigate('/admin'); setShowUserMenu(false); }}
+                      onClick={() => { navigate('/settings'); setShowUserMenu(false); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm
                         text-text-primary hover:bg-bg-secondary transition-colors"
                     >
                       <Settings size={16} />
                       설정
                     </button>
+                    {/* 관리자에게만 노출되는 관리자 대시보드 진입점 */}
+                    {authUser?.role === 'ADMIN' && (
+                      <button
+                        onClick={() => { navigate('/admin'); setShowUserMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm
+                          text-text-primary hover:bg-bg-secondary transition-colors"
+                      >
+                        <Shield size={16} />
+                        관리자 페이지
+                      </button>
+                    )}
                     <div className="border-t border-border-light my-1" />
                     <button
                       onClick={() => { logout(); setShowUserMenu(false); }}

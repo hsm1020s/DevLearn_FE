@@ -73,6 +73,16 @@ const useAuthStore = create(
       },
 
       /**
+       * 서버 PATCH 성공 후 로컬 store 의 user 정보를 갱신한다.
+       * 사이드바 상단 이름이 즉시 새 값으로 바뀌도록 하기 위한 액션이며,
+       * 서버 호출은 호출 측(SettingsPage)에서 처리하고 성공 후에만 부른다.
+       * @param {{ name?: string }} patch
+       */
+      updateProfileLocal: (patch) => set((state) => ({
+        user: state.user ? { ...state.user, ...patch } : state.user,
+      })),
+
+      /**
        * 회원가입 (실제 API 호출)
        * @param {string} email - 사용자 이메일
        * @param {string} password - 비밀번호

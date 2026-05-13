@@ -1,4 +1,5 @@
-# Dependencies
+# Dependencies — 디렉토리/심볼릭링크 모두 차단 (worktree 에서 메인 repo로 symlink 거는 경우 있음)
+node_modules
 node_modules/
 
 # Build output
