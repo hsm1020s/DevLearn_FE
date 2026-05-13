@@ -11,7 +11,6 @@ import ChatMessage from '../chat/ChatMessage';
 import ChatInput from '../chat/ChatInput';
 import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import JumpToBottomButton from '../chat/JumpToBottomButton';
-import ChatUsageBar from '../common/ChatUsageBar';
 
 /**
  * @param {object} props
@@ -83,7 +82,6 @@ export default function GeneralChatPane({ mode }) {
             />
           </div>
           <div className="max-w-3xl mx-auto w-full px-4 pb-4">
-            <ChatUsageBar />
             <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
           </div>
         </>
