@@ -25,6 +25,7 @@ import DashboardSkeleton from '../components/admin/DashboardSkeleton';
 import DashboardError from '../components/admin/DashboardError';
 import SuggestionsBoard from '../components/admin/SuggestionsBoard';
 import AdminUsageBoard from '../components/admin/AdminUsageBoard';
+import AdminConversationsBoard from '../components/admin/AdminConversationsBoard';
 import useAdminDashboard from '../hooks/useAdminDashboard';
 import useAuthStore from '../stores/useAuthStore';
 import { listAdminSuggestions } from '../services/suggestionApi';
@@ -228,6 +229,20 @@ export default function AdminPage() {
             </h2>
             <div className="bg-bg-secondary/40 border border-border-light rounded-xl p-3">
               <AdminUsageBoard />
+            </div>
+          </section>
+
+          {/* 사용자 채팅 — 전체 대화 검색·페이징 + 행 펼침으로 메시지 본문 */}
+          <section>
+            <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5 mb-3">
+              <MessageSquare size={14} />
+              사용자 채팅
+              <span className="ml-1 text-[10px] font-normal text-text-tertiary">
+                관리자 전용 · 사용자 채팅 본문이 표시됩니다
+              </span>
+            </h2>
+            <div className="bg-bg-secondary/40 border border-border-light rounded-xl p-3">
+              <AdminConversationsBoard />
             </div>
           </section>
 
