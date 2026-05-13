@@ -13,6 +13,7 @@ import { Upload } from 'lucide-react';
  * @param {boolean} [multiple=true] - 다중 파일 선택 허용 여부
  * @param {string} [label='PDF 파일을 드래그하거나 클릭하여 업로드'] - 안내 문구
  * @param {string} [className=''] - 추가 CSS 클래스
+ * @param {boolean} [disabled=false] - 드롭/클릭 모두 막고 안내만 표시 (예: 슬롯 한도 도달)
  */
 export default function FileDropZone({
   onFiles,
@@ -20,15 +21,17 @@ export default function FileDropZone({
   multiple = true,
   label = 'PDF 파일을 드래그하거나 클릭하여 업로드',
   className = '',
+  disabled = false,
 }) {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
 
   // 드래그 진입 시 시각적 피드백 활성화
   const onDragOver = useCallback((e) => {
+    if (disabled) return;
     e.preventDefault();
     setDragging(true);
-  }, []);
+  }, [disabled]);
 
   // 드래그 이탈 시 시각적 피드백 해제
   const onDragLeave = useCallback((e) => {
@@ -38,10 +41,11 @@ export default function FileDropZone({
 
   // 파일 드롭 시 콜백 호출
   const onDrop = useCallback((e) => {
+    if (disabled) return;
     e.preventDefault();
     setDragging(false);
     onFiles(Array.from(e.dataTransfer.files));
-  }, [onFiles]);
+  }, [onFiles, disabled]);
 
   // 파일 선택 변경 시 콜백 호출 후 input 초기화
   const onFileChange = useCallback((e) => {
@@ -56,11 +60,14 @@ export default function FileDropZone({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      onClick={() => fileInputRef.current?.click()}
+      onClick={() => { if (!disabled) fileInputRef.current?.click(); }}
       className={`
         flex flex-col items-center justify-center gap-3 p-8
-        border-2 border-dashed rounded-xl cursor-pointer transition-colors
-        ${dragging ? 'border-primary bg-primary/5' : 'border-border-light hover:border-primary/50'}
+        border-2 border-dashed rounded-xl transition-colors
+        ${disabled
+          ? 'border-border-light bg-bg-secondary/50 cursor-not-allowed opacity-60'
+          : 'cursor-pointer'}
+        ${!disabled && (dragging ? 'border-primary bg-primary/5' : 'border-border-light hover:border-primary/50')}
         ${className}
       `}
     >
@@ -73,6 +80,7 @@ export default function FileDropZone({
         multiple={multiple}
         className="hidden"
         onChange={onFileChange}
+        disabled={disabled}
       />
     </div>
   );

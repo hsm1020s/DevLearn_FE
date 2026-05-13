@@ -13,7 +13,7 @@ import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
   Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2, PlayCircle, X,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem, getQuota } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -74,6 +74,20 @@ export default function FeynmanPipelineTab() {
       limitLabel: isAdmin ? '1GB' : '50MB',
     };
   }, [role]);
+
+  // BE 가 부여하는 보유 슬롯 정보 (USER 3개 / ADMIN 무제한=limit null). 마운트 + 업로드/삭제 후 refetch.
+  const [quota, setQuota] = useState(null);
+  const refreshQuota = useCallback(async () => {
+    try {
+      const q = await getQuota();
+      setQuota(q);
+    } catch {
+      // 조회 실패 시 사전 차단을 풀어 BE 가드에 위임 (보조 안전망)
+      setQuota(null);
+    }
+  }, []);
+  const slotFull = quota?.limit != null && quota.used >= quota.limit;
+
   const pollRef = useRef(null);
 
   // 위험 동작(삭제/임베딩 후 TOC 재추출) 확인 팝오버 — Sidebar의 deleteConfirm 패턴 차용.
@@ -110,6 +124,11 @@ export default function FeynmanPipelineTab() {
     // loadDocs는 page/status에 의존하므로 deps에서 제외(무한 루프 방지)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
+
+  // 마운트 시 quota 1회 조회. 업로드/삭제 핸들러에서 직접 refreshQuota() 호출하므로 폴링은 불필요.
+  useEffect(() => {
+    refreshQuota();
+  }, [refreshQuota]);
 
   // 확인 팝오버 바깥 클릭 시 닫기
   useEffect(() => {
@@ -155,11 +174,28 @@ export default function FeynmanPipelineTab() {
     }
 
     // role 기반 크기 한도 필터 — BE에서 거부되기 전 FE에서 명시적 안내
-    const valid = pdfs.filter((f) => f.size <= maxBytes);
+    const sized = pdfs.filter((f) => f.size <= maxBytes);
     const oversizedNames = pdfs.filter((f) => f.size > maxBytes).map((f) => f.name);
     if (oversizedNames.length > 0) {
       showError(null, `${limitLabel} 초과로 ${oversizedNames.length}개 제외: ${oversizedNames.join(', ')}`);
     }
+
+    // 슬롯 한도 필터 — USER 는 보유 PDF 가 3개를 넘지 않도록 사전 차단 (ADMIN 은 limit=null 이라 skip)
+    let valid = sized;
+    if (quota?.limit != null) {
+      const remaining = Math.max(0, quota.limit - quota.used);
+      if (remaining === 0) {
+        showError(null, `최대 ${quota.limit}개까지만 보유할 수 있습니다. 기존 문서를 삭제 후 다시 시도하세요.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      if (sized.length > remaining) {
+        const dropped = sized.length - remaining;
+        showError(null, `슬롯 부족으로 ${dropped}개 제외 (잔여 ${remaining}개): ${sized.slice(remaining).map((f) => f.name).join(', ')}`);
+        valid = sized.slice(0, remaining);
+      }
+    }
+
     if (valid.length === 0) {
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -194,6 +230,7 @@ export default function FeynmanPipelineTab() {
     } else {
       setPage(0);
     }
+    refreshQuota();  // 슬롯 카운트 갱신
     setUploading(false);
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -272,6 +309,7 @@ export default function FeynmanPipelineTab() {
       await deleteDoc(docId);
       showSuccess('문서가 삭제되었습니다');
       await loadDocs(page, status);
+      refreshQuota();  // 슬롯 회복 반영
     } catch (err) {
       showError(err, '문서 삭제에 실패했습니다');
     }
@@ -330,7 +368,14 @@ export default function FeynmanPipelineTab() {
       {/* 헤더 */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
         <div>
-          <h2 className="text-base font-semibold text-text-primary">파이프라인 관리</h2>
+          <h2 className="text-base font-semibold text-text-primary">
+            파이프라인 관리
+            {quota?.limit != null && (
+              <span className={`ml-2 text-xs font-normal ${slotFull ? 'text-danger' : 'text-text-secondary'}`}>
+                보유 PDF {quota.used}/{quota.limit}
+              </span>
+            )}
+          </h2>
           <p className="text-xs text-text-secondary mt-0.5">
             PDF를 업로드하고 파이프라인을 실행하면 파인만 학습에 사용할 수 있습니다
           </p>
@@ -374,8 +419,9 @@ export default function FeynmanPipelineTab() {
               flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
               bg-primary text-white hover:bg-primary-hover
               transition-colors cursor-pointer
-              ${uploading ? 'opacity-50 pointer-events-none' : ''}
+              ${(uploading || slotFull) ? 'opacity-50 pointer-events-none' : ''}
             `}
+            title={slotFull ? `최대 ${quota?.limit}개까지 보유할 수 있습니다. 기존 문서를 삭제 후 시도하세요.` : undefined}
           >
             {uploading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -386,7 +432,9 @@ export default function FeynmanPipelineTab() {
               ? (uploadProgress && uploadProgress.total > 1
                 ? `업로드 중 (${uploadProgress.current}/${uploadProgress.total})...`
                 : '업로드 중...')
-              : `PDF 업로드 (최대 ${limitLabel})`}
+              : (slotFull
+                ? `슬롯 가득 (${quota.used}/${quota.limit})`
+                : `PDF 업로드 (최대 ${limitLabel})`)}
             <input
               ref={fileInputRef}
               type="file"
@@ -394,7 +442,7 @@ export default function FeynmanPipelineTab() {
               multiple
               onChange={handleUpload}
               className="hidden"
-              disabled={uploading}
+              disabled={uploading || slotFull}
             />
           </label>
         </div>

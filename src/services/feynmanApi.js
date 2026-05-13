@@ -51,6 +51,18 @@ export async function uploadPdf(file) {
 }
 
 /**
+ * 사용자의 PDF 보유 슬롯 조회. FE 가 업로드 전 잔여 슬롯을 안내·차단할 때 사용.
+ * BE 의 uploadPdf 가드가 최종 안전망이고 본 API 는 UX 보조용.
+ *
+ * @returns {Promise<{used: number, limit: number|null, role: 'USER'|'ADMIN'}>}
+ *   `limit` 이 null 이면 무제한(ADMIN).
+ */
+export async function getQuota() {
+  const { data } = await api.get('/feynman/quota');
+  return data.data;
+}
+
+/**
  * 문서의 파이프라인을 실행한다.
  * @param {string} docId - 문서 UUID
  * @param {{skipEmbed?: boolean}} [options] - skipEmbed=true 면 임베딩 단계 보류 (extract/toc/group/마인드맵 까지만)
