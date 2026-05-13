@@ -12,6 +12,10 @@
  * 가 % 단위로 좌측 폭을 보관(20~80 클램프, persist). 마인드맵-채팅 분할 비율
  * (`splitLeftPct`)과는 독립이라 서로 영향을 주지 않는다. 인터랙션 패턴(pointer
  * capture, body userSelect 차단)은 `SplitView`와 동일.
+ *
+ * 핸들은 시각 라인은 가늘게(1px) 유지하되, 포인터 히트 영역은 12px 넓게 잡아
+ * 채팅 영역(스크롤 가능) 근처에서도 쉽게 잡힌다. 중앙의 grip 노브가 호버 시 강조되어
+ * 드래그 가능 영역을 시각적으로 알린다.
  */
 import { useRef } from 'react';
 import useAppStore from '../../stores/useAppStore';
@@ -58,7 +62,7 @@ export default function SplitLearningWorkspace({ mode }) {
         <GeneralChatPane mode={mode} />
       </div>
 
-      {/* 가운데 리사이저 핸들 */}
+      {/* 가운데 리사이저 핸들 — 히트존(w-3)은 넓게, 시각 라인은 가늘게 */}
       <div
         role="separator"
         aria-orientation="vertical"
@@ -67,8 +71,13 @@ export default function SplitLearningWorkspace({ mode }) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="shrink-0 w-px bg-border-medium hover:w-1 hover:bg-primary/60 active:bg-primary cursor-col-resize transition-all"
-      />
+        className="group relative shrink-0 w-3 cursor-col-resize flex items-center justify-center select-none touch-none"
+      >
+        {/* 세로 라인 */}
+        <div className="w-px h-full bg-border-medium group-hover:w-0.5 group-hover:bg-primary/60 group-active:bg-primary transition-all" />
+        {/* 가운데 grip 노브 — 드래그 가능 영역 시각 단서 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-10 rounded-full bg-border-medium/70 group-hover:bg-primary/70 group-active:bg-primary transition-colors" />
+      </div>
 
       {/* 우측 — 잔여 공간 차지 */}
       <div className="h-full flex-1 min-w-0">
