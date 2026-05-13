@@ -97,6 +97,10 @@ const useAppStore = create(
       activeModal: null,
       setActiveModal: (modal) => set({ activeModal: modal }),
       closeModal: () => set({ activeModal: null }),
+
+      // 사이트 누적 방문자수. null = 아직 못 받음(표시 안 함). 숫자면 사이드바 로고 아래 캡션에 표시.
+      visitorCount: null,
+      setVisitorCount: (n) => set({ visitorCount: typeof n === 'number' ? n : null }),
     }),
     {
       name: 'app-store',

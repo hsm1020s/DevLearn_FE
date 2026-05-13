@@ -3,7 +3,7 @@
  * AdminPage는 lazy 로딩으로 초기 번들 크기를 최소화한다.
  * 존재하지 않는 경로 접근 시 404 에러 페이지를 표시한다.
  */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 import MainPage from './pages/MainPage';
 import ErrorPage from './pages/ErrorPage';
@@ -11,6 +11,35 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import ToastContainer from './components/common/Toast';
 import ClarityFilm from './components/layout/ClarityFilm';
 import LlmActivityFab from './components/monitor/LlmActivityFab';
+import useAppStore from './stores/useAppStore';
+import { hitVisit, getVisitCount } from './services/visitorApi';
+
+const VISIT_SESSION_KEY = 'dl_visited';
+
+/**
+ * 사이트 누적 방문자수 초기 페치.
+ * - sessionStorage 가드: 같은 브라우저 세션에서는 한 번만 hit, 이후는 count 조회만.
+ * - 서버측에서 IP 24h 가드 + 봇 필터로 한 번 더 방어.
+ * - 실패해도 앱은 정상 동작(visitorCount = null 이면 사이드바에서 숨김).
+ */
+function useVisitorCount() {
+  const setVisitorCount = useAppStore((s) => s.setVisitorCount);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const visited = sessionStorage.getItem(VISIT_SESSION_KEY) === '1';
+        const { totalCount } = visited ? await getVisitCount() : await hitVisit();
+        if (!visited) sessionStorage.setItem(VISIT_SESSION_KEY, '1');
+        if (!cancelled) setVisitorCount(totalCount);
+      } catch (err) {
+        // 사이드바 카운트는 보조 정보이므로 조용히 무시. 콘솔에만 남김.
+        console.warn('[visitor] count fetch failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [setVisitorCount]);
+}
 
 /** 관리자 페이지 지연 로드 */
 const AdminPage = lazy(() => import('./pages/AdminPage'));
@@ -25,6 +54,7 @@ function ErrorRoute() {
 
 /** 앱 루트 컴포넌트 */
 export default function App() {
+  useVisitorCount();
   return (
     <BrowserRouter>
       <ErrorBoundary>
