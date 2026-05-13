@@ -57,6 +57,8 @@ export default function Sidebar() {
   const isMindmapOn = useAppStore((s) => s.isMindmapOn);
   const isSidebarCollapsed = useAppStore((s) => s.isSidebarCollapsed);
   const isMobileSidebarOpen = useAppStore((s) => s.isMobileSidebarOpen);
+  // 사이트 누적 방문자수. null 이면 아직 못 받음 → 캡션 자체를 렌더하지 않음.
+  const visitorCount = useAppStore((s) => s.visitorCount);
   const uiClarity = useAppStore((s) => s.uiClarity);
   const clarityLocked = useAppStore((s) => s.clarityLocked);
   const setLLM = useAppStore((s) => s.setLLM);
@@ -378,9 +380,16 @@ export default function Sidebar() {
             title="새로고침"
           >
             <BookOpen size={20} className="text-primary shrink-0" />
-            <span className="text-sm font-bold text-text-primary whitespace-nowrap">
-              DevLearn
-            </span>
+            <div className="flex flex-col items-start leading-tight">
+              <span className="text-sm font-bold text-text-primary whitespace-nowrap">
+                DevLearn
+              </span>
+              {typeof visitorCount === 'number' && (
+                <span className="text-[10px] text-text-secondary whitespace-nowrap">
+                  누적 방문 {visitorCount.toLocaleString()}
+                </span>
+              )}
+            </div>
           </button>
         )}
         <button
