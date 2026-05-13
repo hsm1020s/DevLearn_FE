@@ -14,6 +14,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Lightbulb,
+  BarChart3,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -23,6 +24,7 @@ import DocumentTable from '../components/admin/DocumentTable';
 import DashboardSkeleton from '../components/admin/DashboardSkeleton';
 import DashboardError from '../components/admin/DashboardError';
 import SuggestionsBoard from '../components/admin/SuggestionsBoard';
+import AdminUsageBoard from '../components/admin/AdminUsageBoard';
 import useAdminDashboard from '../hooks/useAdminDashboard';
 import useAuthStore from '../stores/useAuthStore';
 import { listAdminSuggestions } from '../services/suggestionApi';
@@ -215,6 +217,17 @@ export default function AdminPage() {
             </h2>
             <div className="bg-bg-primary border border-border-light rounded-xl p-3">
               <DocumentTable documents={documents} />
+            </div>
+          </section>
+
+          {/* LLM 사용량 — 사용자별 합계 + 모델 펼침 */}
+          <section>
+            <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5 mb-3">
+              <BarChart3 size={14} />
+              LLM 사용량
+            </h2>
+            <div className="bg-bg-secondary/40 border border-border-light rounded-xl p-3">
+              <AdminUsageBoard />
             </div>
           </section>
 
