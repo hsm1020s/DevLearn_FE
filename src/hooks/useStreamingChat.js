@@ -34,6 +34,15 @@ import { STYLE_PROMPT } from '../registry/stylePrompts';
 // 하단 근접 판정 임계값(px). 이 거리 이내면 "맨 아래로 따라가기" 모드로 간주.
 const NEAR_BOTTOM_THRESHOLD = 120;
 
+// feynman.evaluator 결과 raw JSON 문자열을 객체로 파싱. 실패 시 null.
+// BE 가 펜스(```json …```) 를 붙여 보낼 가능성도 가볍게 방어한다.
+function parseEvalJson(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  let s = raw.trim();
+  if (s.startsWith('```')) s = s.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+  try { return JSON.parse(s); } catch { return null; }
+}
+
 /**
  * 스트리밍 채팅 훅
  * @param {string} mode - 채팅 모드 (general | study | worklearn)
@@ -198,12 +207,14 @@ export default function useStreamingChat(mode, options = {}) {
         },
         onDone: (result) => {
           if (!controller.signal.aborted) {
+            // feynman.evaluator 결과 raw JSON 을 메타에 보관 (후속 카드 UI 가 소비, 본 단계에선 미사용).
+            const parsedEval = parseEvalJson(result.evalJson);
             pushMessage(
               {
                 role: 'assistant',
                 content: result.content,
                 sources: result.sources,
-                meta: { style: 'feynman' },
+                meta: { style: 'feynman', eval: parsedEval },
               },
               convId,
             );
