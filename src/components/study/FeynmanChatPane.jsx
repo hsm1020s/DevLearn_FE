@@ -13,9 +13,10 @@
  *   - 우측 split 슬롯의 conv id도 비워(clearSplitConversation) 시작 전 화면으로 복귀
  *   - 좌측 일반 채팅에는 영향 없음
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Brain, Play, X, FileText } from 'lucide-react';
 import useStreamingChat from '../../hooks/useStreamingChat';
+import useFeynmanProgress from '../../hooks/useFeynmanProgress';
 import useStudyStore from '../../stores/useStudyStore';
 import useChatStore from '../../stores/useChatStore';
 import ChatMessage from '../chat/ChatMessage';
@@ -23,6 +24,8 @@ import ChatInput from '../chat/ChatInput';
 import ChatLoadingBubble from '../chat/ChatLoadingBubble';
 import JumpToBottomButton from '../chat/JumpToBottomButton';
 import FeynmanChapterPicker from '../feynman/FeynmanChapterPicker';
+import MasteryProgressBar from '../feynman/MasteryProgressBar';
+import MasteryCompleteCard from '../feynman/MasteryCompleteCard';
 
 /**
  * @param {object} props
@@ -58,6 +61,20 @@ export default function FeynmanChatPane({ mode }) {
   } = useStreamingChat(mode, { paneKey: 'right', autoStartFeynman: false });
 
   const [showChapterPicker, setShowChapterPicker] = useState(false);
+
+  // 챕터 마스터리 진행도 — messages 의 마지막 assistant 메시지 meta.progress 에서 derive.
+  // 폴백 챕터(total=0) 면 null 반환 → 진행 바·완료 카드 모두 비표시.
+  const progress = useFeynmanProgress(messages);
+  // 마스터 완료 카드 dismiss 상태. 챕터 바뀌면 자동 리셋.
+  const [masteryCardDismissed, setMasteryCardDismissed] = useState(false);
+  useEffect(() => { setMasteryCardDismissed(false); }, [feynmanChapter]);
+
+  const handleResetToChapterPicker = useCallback(() => {
+    if (isStreaming) handleStop();
+    clearFeynmanSession(mode);
+    clearSplitConversation(mode, 'right');
+    setMasteryCardDismissed(false);
+  }, [isStreaming, handleStop, clearFeynmanSession, clearSplitConversation, mode]);
 
   const handleChapterSelect = useCallback(
     (docId, chapter) => {
@@ -112,6 +129,8 @@ export default function FeynmanChatPane({ mode }) {
       {sessionActive ? (
         // ── 진행 중 상태 ──
         <>
+          {/* 헤더 아래 챕터 마스터리 진행 바 — progress=null(폴백 챕터) 이면 자동 비표시 */}
+          <MasteryProgressBar progress={progress} />
           <div className="flex-1 relative min-h-0">
             <div
               ref={scrollRef}
@@ -136,6 +155,14 @@ export default function FeynmanChatPane({ mode }) {
               hasNew={hasNewBelow}
               onClick={scrollToBottomNow}
             />
+            {/* 마스터 완료 카드 — complete=true 이고 사용자가 아직 dismiss 하지 않은 경우 */}
+            {!masteryCardDismissed && (
+              <MasteryCompleteCard
+                progress={progress}
+                onReset={handleResetToChapterPicker}
+                onDismiss={() => setMasteryCardDismissed(true)}
+              />
+            )}
           </div>
           <div className="max-w-3xl mx-auto w-full px-4 pb-4">
             <ChatInput onSend={handleSend} isStreaming={isStreaming} onStop={handleStop} />
