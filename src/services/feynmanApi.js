@@ -266,12 +266,20 @@ export async function streamFeynmanChat(params) {
             accumulated = parsed.content;
             onToken?.(accumulated);
           } else if (parsed.type === 'done') {
+            // progressJson 은 BE 가 raw JSON 문자열로 동봉(파인만 pre-gen 경로에서만).
+            // 안전 파싱 — 깨져있거나 없으면 null. UI/후속 단계에서 null 가드.
+            let progress = null;
+            if (parsed.progressJson) {
+              try { progress = JSON.parse(parsed.progressJson); } catch { progress = null; }
+            }
             onDone?.({
               conversationId: parsed.conversationId,
               content: parsed.content || accumulated,
               sources: parsed.sources,
               // 평가기(feynman.evaluator) 결과 raw JSON. 메시지 meta 에 보관해 후속 카드 UI 가 사용.
               evalJson: parsed.evalJson ?? null,
+              // 챕터 마스터리 진행도 {total, mastered, complete, currentNodeId, currentNodeLabel}
+              progress,
             });
           }
         } catch { /* skip unparseable lines */ }

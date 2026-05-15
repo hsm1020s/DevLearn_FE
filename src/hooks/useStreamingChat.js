@@ -209,12 +209,14 @@ export default function useStreamingChat(mode, options = {}) {
           if (!controller.signal.aborted) {
             // feynman.evaluator 결과 raw JSON 을 메타에 보관 (후속 카드 UI 가 소비, 본 단계에선 미사용).
             const parsedEval = parseEvalJson(result.evalJson);
+            // 챕터 마스터리 진행도 (총/통과/완료/현재 노드) — 후속 UI 단계가 진행 바·노드 하이라이트에 사용.
+            const progress = result.progress ?? null;
             pushMessage(
               {
                 role: 'assistant',
                 content: result.content,
                 sources: result.sources,
-                meta: { style: 'feynman', eval: parsedEval },
+                meta: { style: 'feynman', eval: parsedEval, progress },
               },
               convId,
             );
