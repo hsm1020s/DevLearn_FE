@@ -270,6 +270,8 @@ export async function streamFeynmanChat(params) {
               conversationId: parsed.conversationId,
               content: parsed.content || accumulated,
               sources: parsed.sources,
+              // 평가기(feynman.evaluator) 결과 raw JSON. 메시지 meta 에 보관해 후속 카드 UI 가 사용.
+              evalJson: parsed.evalJson ?? null,
             });
           }
         } catch { /* skip unparseable lines */ }
