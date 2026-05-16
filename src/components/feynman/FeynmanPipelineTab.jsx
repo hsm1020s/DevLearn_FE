@@ -13,7 +13,7 @@ import {
   Upload, Play, RefreshCw, CheckCircle2, AlertCircle,
   Loader2, FileText, Clock, ChevronLeft, ChevronRight, Trash2, PlayCircle, X,
 } from 'lucide-react';
-import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem, getQuota } from '../../services/feynmanApi';
+import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem, getQuota, rebuildKnowledge } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -322,6 +322,33 @@ export default function FeynmanPipelineTab() {
     setConfirmAction({ type: 'delete', docId: doc.id, fileName: doc.fileName, rect });
   };
 
+  // 지식 재구축 — 실제 API 호출부. wipe + 마인드맵 재합성 비동기 시작.
+  const runRebuildKnowledge = async (docId) => {
+    setRunningIds((prev) => new Set(prev).add(docId));
+    try {
+      const res = await rebuildKnowledge(docId);
+      showSuccess(res?.message || '마인드맵 재합성이 시작되었습니다');
+      // 폴링이 3초 주기로 돌고 있으므로 별도 강제 갱신은 불필요.
+      // 단, 사용자가 즉시 확인할 수 있도록 한 번 새로고침.
+      await loadDocs(page, status);
+    } catch (err) {
+      showError(err, '지식 재구축에 실패했습니다');
+    } finally {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  };
+
+  // 지식 재구축 트리거: 학습 이력이 사라지는 위험 동작 → 팝오버 confirm.
+  const handleRebuildKnowledge = (doc, e) => {
+    if (doc.status !== 'completed') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setConfirmAction({ type: 'rebuild', docId: doc.id, fileName: doc.fileName, rect });
+  };
+
   // 팝오버에서 확인 시 분기 실행.
   const handleConfirmAction = () => {
     if (!confirmAction) return;
@@ -330,6 +357,8 @@ export default function FeynmanPipelineTab() {
       runDeleteDoc(docId);
     } else if (type === 'toc') {
       runRetryToc({ id: docId });
+    } else if (type === 'rebuild') {
+      runRebuildKnowledge(docId);
     } else if (type === 'enqueue-all') {
       runEnqueueAll(mode);
     }
@@ -591,6 +620,21 @@ export default function FeynmanPipelineTab() {
                         TOC 재추출
                       </button>
                     )}
+                    {/* 지식 재구축 — 마인드맵 + 챕터 질문 + 답변 이력 wipe 후 마인드맵 재합성.
+                        chapter_questions 가 비어 파인만 채팅이 레거시 폴백을 타는 옛 문서 자가 복구용. */}
+                    {doc.status === 'completed' && (
+                      <button
+                        onClick={(e) => handleRebuildKnowledge(doc, e)}
+                        disabled={runningIds.has(doc.id)}
+                        title="마인드맵 + 챕터 질문 + 답변 이력을 지우고 마인드맵을 다시 합성합니다"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                          bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
+                          disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <RefreshCw size={13} />
+                        지식 재구축
+                      </button>
+                    )}
                     {/* 삭제 버튼 — 파이프라인 실행 중이 아닐 때만 활성화 */}
                     {!isProcessing(doc.status) && (
                       <button
@@ -696,6 +740,17 @@ export default function FeynmanPipelineTab() {
                 TOC가 바뀌면 기존 청크의 챕터명이 어긋날 수 있어요. 재추출 후 [임베딩 실행]으로 다시 인덱싱하는 것을 권장합니다.
               </span>
             </p>
+          ) : confirmAction.type === 'rebuild' ? (
+            <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
+              <span className="font-semibold">"{confirmAction.fileName}"</span> 의 학습 데이터를 재구축할까요?
+              <br />
+              <span className="text-text-secondary">
+                마인드맵·챕터 질문·답변 이력이 삭제되고 마인드맵부터 다시 합성됩니다.
+                <br />· <span className="text-danger">학습 이력(점수·통과 기록)이 사라집니다</span>
+                <br />· 완료까지 수십 초~몇 분 걸립니다
+                <br />· 청크·임베딩·원문 PDF 는 보존됩니다
+              </span>
+            </p>
           ) : (
             <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
               <span className="font-semibold">{confirmAction.count}개 문서</span>를 일괄 실행할까요?
@@ -724,6 +779,8 @@ export default function FeynmanPipelineTab() {
             >
               {confirmAction.type === 'delete'
                 ? '삭제'
+                : confirmAction.type === 'rebuild'
+                ? '재구축'
                 : confirmAction.type === 'enqueue-all'
                 ? '실행'
                 : '계속'}
