@@ -18,6 +18,7 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 import useAuthStore from '../../stores/useAuthStore';
 import useRebuildProgress from '../../hooks/useRebuildProgress';
 import RebuildProgressInline from './RebuildProgressInline';
+import RebuildOptionsModal from './RebuildOptionsModal';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
 const PAGE_SIZE = 10;
@@ -346,14 +347,16 @@ export default function FeynmanPipelineTab() {
     setConfirmAction({ type: 'delete', docId: doc.id, fileName: doc.fileName, rect });
   };
 
-  // 지식 재구축 — 실제 API 호출부. wipe + 마인드맵 재합성 비동기 시작.
-  // 호출 직후 useRebuildProgress 의 startRebuild 로 행 인디케이터 가동.
-  const runRebuildKnowledge = async (docId) => {
+  // 지식 재구축 — 실제 API 호출부. wipe + 합성 비동기 시작.
+  // chapters/targets 옵션은 모달에서 받아온다 (없으면 전체).
+  const runRebuildKnowledge = async (docId, opts = {}) => {
     setRunningIds((prev) => new Set(prev).add(docId));
     try {
-      const res = await rebuildKnowledge(docId);
-      showSuccess(res?.message || '마인드맵 재합성이 시작되었습니다');
-      startRebuild(docId);  // 폴링 가동 — 챕터 상태 추적은 별도 useEffect 가 담당.
+      const res = await rebuildKnowledge(docId, opts);
+      showSuccess(res?.message || '재합성이 시작되었습니다');
+      // 부분 재구축이면 expectedTotal 로 선택 챕터 수 전달.
+      const expectedTotal = Array.isArray(opts.chapters) ? opts.chapters.length : undefined;
+      startRebuild(docId, expectedTotal);
       await loadDocs(page, status);
     } catch (err) {
       showError(err, '지식 재구축에 실패했습니다');
@@ -366,11 +369,11 @@ export default function FeynmanPipelineTab() {
     }
   };
 
-  // 지식 재구축 트리거: 학습 이력이 사라지는 위험 동작 → 팝오버 confirm.
-  const handleRebuildKnowledge = (doc, e) => {
+  // 지식 재구축 트리거: 챕터/타겟/비용 모달 띄움. 위험 confirm 은 모달 내부 [재구축] 버튼이 담당.
+  const [rebuildModalDoc, setRebuildModalDoc] = useState(null);
+  const handleRebuildKnowledge = (doc) => {
     if (doc.status !== 'completed') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    setConfirmAction({ type: 'rebuild', docId: doc.id, fileName: doc.fileName, rect });
+    setRebuildModalDoc(doc);
   };
 
   // RebuildProgressInline 의 X 버튼 클릭 → cancel 확인 팝오버.
@@ -773,6 +776,17 @@ export default function FeynmanPipelineTab() {
           <div className="shrink-0 min-w-[120px]" aria-hidden />
         </div>
       )}
+
+      {/* 지식 재구축 옵션 모달 — 챕터 선택 + 타겟 + 비용 미리보기 */}
+      <RebuildOptionsModal
+        isOpen={!!rebuildModalDoc}
+        onClose={() => setRebuildModalDoc(null)}
+        docId={rebuildModalDoc?.id}
+        fileName={rebuildModalDoc?.fileName}
+        onConfirm={(opts) => {
+          if (rebuildModalDoc) runRebuildKnowledge(rebuildModalDoc.id, opts);
+        }}
+      />
 
       {/* 위험 액션 확인 팝오버 — 트리거 버튼 우측에 fixed 로 표시 (Sidebar 패턴 차용) */}
       {confirmAction && (
