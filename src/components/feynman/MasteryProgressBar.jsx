@@ -15,6 +15,7 @@ export default function MasteryProgressBar({ progress }) {
   if (!progress) return null;
   const { total, mastered, complete, currentNodeLabel } = progress;
   const pct = total > 0 ? Math.min(100, Math.round((mastered / total) * 100)) : 0;
+  const remaining = Math.max(0, total - mastered);
   const barClass = complete ? 'bg-success' : 'bg-primary';
 
   return (
@@ -29,15 +30,19 @@ export default function MasteryProgressBar({ progress }) {
           </>
         ) : (
           <>
-            <span className="font-medium text-text-primary">
+            <span className="font-medium text-text-primary whitespace-nowrap">
               {mastered}/{total} 노드 통과
+            </span>
+            {/* 잔여 면접질문 개수 — 사용자가 직접 빼지 않아도 한눈에 보이게 */}
+            <span className="text-text-secondary whitespace-nowrap">
+              · 남은 질문 {remaining}개
             </span>
             {currentNodeLabel && (
               <span className="text-text-tertiary truncate" title={currentNodeLabel}>
                 · 현재: {currentNodeLabel}
               </span>
             )}
-            <span className="ml-auto text-text-tertiary">{pct}%</span>
+            <span className="ml-auto text-text-tertiary whitespace-nowrap">{pct}%</span>
           </>
         )}
       </div>
