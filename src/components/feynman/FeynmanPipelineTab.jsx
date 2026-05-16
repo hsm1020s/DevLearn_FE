@@ -97,7 +97,7 @@ export default function FeynmanPipelineTab() {
   const [confirmAction, setConfirmAction] = useState(null);
   const confirmRef = useRef(null);
 
-  // 재구축 진행 추적 — onComplete 콜백에서 토스트.
+  // 재구축 진행 추적 — onComplete 토스트 + onFailed (30분 stale) 실패 토스트.
   // 콜백이 docs state 최신값을 참조하도록 ref 로 보관.
   const docsRef = useRef(docs);
   useEffect(() => { docsRef.current = docs; }, [docs]);
@@ -106,7 +106,18 @@ export default function FeynmanPipelineTab() {
     const name = doc?.fileName || '문서';
     showSuccess(`[재구축 완료] "${name}" 의 학습 데이터가 새로 준비되었어요. 파인만 채팅에서 진행 바가 다시 보입니다.`);
   }, []);
-  const { startRebuild, getProgress, isActive: isRebuildActive } = useRebuildProgress({ onComplete: onRebuildComplete });
+  const onRebuildFailed = useCallback((docId) => {
+    const doc = docsRef.current.find((d) => d.id === docId);
+    const name = doc?.fileName || '문서';
+    showError(
+      new Error('재구축 미완료'),
+      `[재구축 미완료] "${name}" 의 일부 챕터 합성이 30분 안에 끝나지 않았습니다. OpenAI rate-limit 가능성. 잠시 후 [지식 재구축] 을 다시 눌러주세요.`,
+    );
+  }, []);
+  const { startRebuild, getProgress, isActive: isRebuildActive } = useRebuildProgress({
+    onComplete: onRebuildComplete,
+    onFailed: onRebuildFailed,
+  });
 
   /**
    * 지정한 페이지/필터로 문서 목록을 다시 가져온다.
@@ -645,10 +656,11 @@ export default function FeynmanPipelineTab() {
                       const active = Boolean(progress);
                       let label = '지식 재구축';
                       if (active) {
-                        if (progress.phase === 'finalizing') {
-                          label = '정리 중...';
-                        } else if (progress.phase === 'wiping' || progress.totalChapters === 0) {
+                        if (progress.phase === 'wiping' || progress.totalChapters === 0) {
                           label = '재구축 중...';
+                        } else if (progress.phase === 'finalizing') {
+                          // 마인드맵 100%, 챕터 질문 합성 단계 — 거짓말 없이 명시.
+                          label = `면접 질문 합성 중... (${progress.questionsReady}/${progress.totalChapters})`;
                         } else {
                           label = `재구축 중... (${progress.mindmapsReady}/${progress.totalChapters})`;
                         }
