@@ -10,8 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../common/Modal';
-import { fetchTopics } from '../../services/feynmanApi';
-import { fetchRebuildCostPreview } from '../../services/feynmanApi';
+import { fetchChapterStatuses, fetchRebuildCostPreview } from '../../services/feynmanApi';
 
 /**
  * @param {object} props
@@ -22,7 +21,8 @@ import { fetchRebuildCostPreview } from '../../services/feynmanApi';
  * @param {(opts: {chapters: string[], targets: 'all'|'mindmap'|'questions'}) => void} props.onConfirm
  */
 export default function RebuildOptionsModal({ isOpen, onClose, docId, fileName, onConfirm }) {
-  const [topics, setTopics] = useState([]); // {chapter, chunkCount}
+  // 챕터 row: {chapter, nodeCount, questionCount, status}
+  const [topics, setTopics] = useState([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [selected, setSelected] = useState(/** @type {Set<string>} */(new Set()));
   const [targets, setTargets] = useState(/** @type {'all'|'mindmap'|'questions'} */('all'));
@@ -31,14 +31,15 @@ export default function RebuildOptionsModal({ isOpen, onClose, docId, fileName, 
   const debounceRef = useRef(null);
 
   // 모달 열림 시 챕터 목록 로드 + 전체 선택 디폴트
+  // fetchChapterStatuses → 마인드맵 status + nodeCount + questionCount 포함 (toc 기반)
   useEffect(() => {
     if (!isOpen || !docId) return;
     setLoadingTopics(true);
-    fetchTopics(docId)
+    fetchChapterStatuses(docId)
       .then((list) => {
-        setTopics(list);
-        // 기본: 전체 선택
-        setSelected(new Set(list.map((t) => t.chapter)));
+        // toc 기준 전체 챕터 — 마인드맵 미생성 챕터도 포함 (사용자가 비어있는 챕터를 재구축 후보로 선택 가능)
+        setTopics(list || []);
+        setSelected(new Set((list || []).map((t) => t.chapter)));
       })
       .catch(() => {
         setTopics([]);
@@ -175,6 +176,15 @@ export default function RebuildOptionsModal({ isOpen, onClose, docId, fileName, 
                   onChange={() => toggle(t.chapter)}
                 />
                 <span className="flex-1 truncate text-text-primary" title={t.chapter}>{t.chapter}</span>
+                <span className="shrink-0 whitespace-nowrap text-text-tertiary">
+                  노드 {t.nodeCount ?? 0}
+                  {' · '}
+                  {(t.questionCount ?? 0) > 0 ? (
+                    <span className="text-primary">면접 {t.questionCount}</span>
+                  ) : (
+                    <span className="text-danger/70">면접 없음</span>
+                  )}
+                </span>
               </label>
             ))}
           </div>

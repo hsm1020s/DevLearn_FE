@@ -187,8 +187,14 @@ export default function FeynmanChapterPicker({ onClose, onSelect }) {
                         <span className="text-text-primary group-hover:text-primary transition-colors truncate">
                           {t.chapter}
                         </span>
-                        <span className="text-xs text-text-tertiary shrink-0 ml-2">
-                          {t.nodeCount}개 노드
+                        <span className="text-xs shrink-0 ml-2 whitespace-nowrap">
+                          <span className="text-text-tertiary">노드 {t.nodeCount}</span>
+                          <span className="text-text-tertiary"> · </span>
+                          {t.questionCount > 0 ? (
+                            <span className="text-primary">면접 {t.questionCount}</span>
+                          ) : (
+                            <span className="text-danger/70">면접 없음</span>
+                          )}
                         </span>
                       </button>
                     ))}
