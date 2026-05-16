@@ -11,7 +11,7 @@
  *  - finalizing : 진행 바(width=questionsReady/total*100%) + "면접 질문 합성 중 — m/N 챕터"
  *  - done       : 부모가 곧 unmount — 거의 보이지 않음. 안전을 위해 안 그림.
  */
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 
 /**
  * @param {object} props
@@ -22,8 +22,10 @@ import { RefreshCw } from 'lucide-react';
  *   questionsReady: number,
  *   phase: 'wiping' | 'generating' | 'finalizing' | 'done',
  * } | null} props.progress
+ * @param {(e: import('react').MouseEvent<HTMLButtonElement>) => void} [props.onCancelClick]
+ *   진행 인디케이터 X 버튼 클릭 콜백. 부모가 확인 팝오버를 띄울 위치 계산용 event 를 받는다.
  */
-export default function RebuildProgressInline({ progress }) {
+export default function RebuildProgressInline({ progress, onCancelClick }) {
   if (!progress || progress.phase === 'done') return null;
 
   const { phase, totalChapters, mindmapsReady, questionsReady } = progress;
@@ -63,6 +65,16 @@ export default function RebuildProgressInline({ progress }) {
           />
         </div>
       </div>
+      {onCancelClick && (
+        <button
+          onClick={onCancelClick}
+          className="shrink-0 p-1 rounded text-text-tertiary hover:text-danger hover:bg-danger/5 transition-colors"
+          title="합성 취소"
+          aria-label="진행 중 합성 취소"
+        >
+          <X size={12} />
+        </button>
+      )}
     </div>
   );
 }
