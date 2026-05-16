@@ -114,7 +114,7 @@ export default function FeynmanPipelineTab() {
       `[재구축 미완료] "${name}" 의 일부 챕터 합성이 30분 안에 끝나지 않았습니다. OpenAI rate-limit 가능성. 잠시 후 [지식 재구축] 을 다시 눌러주세요.`,
     );
   }, []);
-  const { startRebuild, getProgress, isActive: isRebuildActive } = useRebuildProgress({
+  const { startRebuild, getProgress, isActive: isRebuildActive, cancel: cancelRebuildEntry } = useRebuildProgress({
     onComplete: onRebuildComplete,
     onFailed: onRebuildFailed,
   });
@@ -373,6 +373,12 @@ export default function FeynmanPipelineTab() {
     setConfirmAction({ type: 'rebuild', docId: doc.id, fileName: doc.fileName, rect });
   };
 
+  // RebuildProgressInline 의 X 버튼 클릭 → cancel 확인 팝오버.
+  const handleCancelRebuildClick = (doc, e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setConfirmAction({ type: 'cancel-rebuild', docId: doc.id, fileName: doc.fileName, rect });
+  };
+
   // 팝오버에서 확인 시 분기 실행.
   const handleConfirmAction = () => {
     if (!confirmAction) return;
@@ -385,6 +391,10 @@ export default function FeynmanPipelineTab() {
       runRebuildKnowledge(docId);
     } else if (type === 'enqueue-all') {
       runEnqueueAll(mode);
+    } else if (type === 'cancel-rebuild') {
+      // 진행 중 합성 취소 — 표시 즉시 제거 + BE 에 cancel 알림.
+      cancelRebuildEntry(docId);
+      showSuccess('합성 취소를 요청했습니다');
     }
     setConfirmAction(null);
   };
@@ -573,8 +583,12 @@ export default function FeynmanPipelineTab() {
                     )}
 
                     {/* 지식 재구축 진행 인디케이터 — useRebuildProgress 가 채워준다.
-                        getProgress 가 null 이면 컴포넌트가 자체적으로 안 그림. */}
-                    <RebuildProgressInline progress={getProgress(doc.id)} />
+                        getProgress 가 null 이면 컴포넌트가 자체적으로 안 그림.
+                        X 버튼 클릭 시 부모 콜백으로 확인 팝오버 띄움 → handleConfirmAction 에서 cancel 실행. */}
+                    <RebuildProgressInline
+                      progress={getProgress(doc.id)}
+                      onCancelClick={(e) => handleCancelRebuildClick(doc, e)}
+                    />
                   </div>
 
                   {/* 우측: 상태 뱃지 + 액션 버튼 */}
@@ -797,6 +811,16 @@ export default function FeynmanPipelineTab() {
                 <br />· 청크·임베딩·원문 PDF 는 보존됩니다
               </span>
             </p>
+          ) : confirmAction.type === 'cancel-rebuild' ? (
+            <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
+              <span className="font-semibold">"{confirmAction.fileName}"</span> 의 진행 중인 합성을 취소할까요?
+              <br />
+              <span className="text-text-secondary">
+                · 진행 인디케이터가 즉시 사라집니다
+                <br />· 이미 만들어진 마인드맵/질문은 보존됩니다
+                <br />· 다음 [지식 재구축] 클릭 시 wipe 후 새로 시작
+              </span>
+            </p>
           ) : (
             <p className="text-xs text-text-primary mb-2.5 leading-relaxed">
               <span className="font-semibold">{confirmAction.count}개 문서</span>를 일괄 실행할까요?
@@ -827,6 +851,8 @@ export default function FeynmanPipelineTab() {
                 ? '삭제'
                 : confirmAction.type === 'rebuild'
                 ? '재구축'
+                : confirmAction.type === 'cancel-rebuild'
+                ? '취소'
                 : confirmAction.type === 'enqueue-all'
                 ? '실행'
                 : '계속'}

@@ -10,7 +10,7 @@
  *  - 30분 stale 도달 시 done 대신 **실패 토스트** 발화 → 사용자가 다시 시도 가능.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchRebuildProgress } from '../services/feynmanApi';
+import { fetchRebuildProgress, cancelRebuild as cancelRebuildApi } from '../services/feynmanApi';
 
 /** localStorage 키 — 활성 재구축 엔트리 영속화 */
 const LS_KEY = 'feynman.rebuild.active.v1';
@@ -94,6 +94,27 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
   const getProgress = useCallback((docId) => entries[docId] || null, [entries]);
   const isActive = useCallback((docId) => Boolean(entries[docId]), [entries]);
 
+  /**
+   * 진행 중 재구축 취소.
+   * - localStorage entry 를 **즉시** 제거해 UI 표시를 바로 끈다 (BE 응답 대기 안 함).
+   * - BE 에 cancel API 호출 (실패해도 사용자 표시는 이미 사라진 상태 — 다음 rebuild 시 wipe 로 자연 정리).
+   */
+  const cancel = useCallback(async (docId) => {
+    if (!docId) return;
+    updateEntries((prev) => {
+      if (!prev[docId]) return prev;
+      const next = { ...prev };
+      delete next[docId];
+      return next;
+    });
+    try {
+      await cancelRebuildApi(docId);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn(`[rebuild-progress] cancel API 실패 (표시는 이미 제거됨): docId=${docId}`, e);
+    }
+  }, [updateEntries]);
+
   // 단일 폴링 사이클.
   const pollOnce = useCallback(async () => {
     const snapshot = await new Promise((resolve) => {
@@ -174,5 +195,5 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
     return () => clearInterval(iv);
   }, [entries, pollOnce]);
 
-  return { startRebuild, getProgress, isActive };
+  return { startRebuild, getProgress, isActive, cancel };
 }

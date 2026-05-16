@@ -129,6 +129,18 @@ export async function fetchRebuildProgress(docId) {
 }
 
 /**
+ * 진행 중 지식 재구축을 취소한다.
+ * 현재 LLM 호출은 끝내고 다음 노드부터 BE 가 자발적으로 중단.
+ * 이미 INSERT 된 row 는 보존 (다음 [지식 재구축] 클릭 시 wipe).
+ * @param {string} docId
+ * @returns {Promise<{ok: boolean}>}
+ */
+export async function cancelRebuild(docId) {
+  const { data } = await api.post(`/feynman/${docId}/rebuild-cancel`);
+  return data.data;
+}
+
+/**
  * 여러 문서를 파이프라인 큐에 일괄 등록한다.
  * @param {string[]} docIds - 문서 UUID 배열
  * @param {Object} options
