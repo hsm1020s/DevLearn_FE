@@ -118,6 +118,17 @@ export async function rebuildKnowledge(docId) {
 }
 
 /**
+ * 지식 재구축 진행률 조회. 마인드맵 + 챕터 질문 두 단계를 통합.
+ * useRebuildProgress 훅이 3초마다 폴링한다.
+ * @param {string} docId
+ * @returns {Promise<{totalChapters: number, mindmapsReady: number, questionsReady: number, complete: boolean}>}
+ */
+export async function fetchRebuildProgress(docId) {
+  const { data } = await api.get(`/feynman/${docId}/rebuild-progress`);
+  return data.data;
+}
+
+/**
  * 여러 문서를 파이프라인 큐에 일괄 등록한다.
  * @param {string[]} docIds - 문서 UUID 배열
  * @param {Object} options
