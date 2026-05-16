@@ -16,6 +16,8 @@ import {
 import { fetchDocsPage, uploadPdf, runPipeline, runEmbedOnly, retryToc, deleteDoc, enqueueBatch, fetchQueueStatus, cancelQueueItem, getQuota, rebuildKnowledge } from '../../services/feynmanApi';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import useAuthStore from '../../stores/useAuthStore';
+import useRebuildProgress from '../../hooks/useRebuildProgress';
+import RebuildProgressInline from './RebuildProgressInline';
 
 /** 페이지당 건수 — BE 기본값과 일치 */
 const PAGE_SIZE = 10;
@@ -94,6 +96,17 @@ export default function FeynmanPipelineTab() {
   // shape: { type: 'delete'|'toc', docId, fileName, rect: DOMRect }
   const [confirmAction, setConfirmAction] = useState(null);
   const confirmRef = useRef(null);
+
+  // 재구축 진행 추적 — onComplete 콜백에서 토스트.
+  // 콜백이 docs state 최신값을 참조하도록 ref 로 보관.
+  const docsRef = useRef(docs);
+  useEffect(() => { docsRef.current = docs; }, [docs]);
+  const onRebuildComplete = useCallback((docId) => {
+    const doc = docsRef.current.find((d) => d.id === docId);
+    const name = doc?.fileName || '문서';
+    showSuccess(`[재구축 완료] "${name}" 의 학습 데이터가 새로 준비되었어요. 파인만 채팅에서 진행 바가 다시 보입니다.`);
+  }, []);
+  const { startRebuild, getProgress, isActive: isRebuildActive } = useRebuildProgress({ onComplete: onRebuildComplete });
 
   /**
    * 지정한 페이지/필터로 문서 목록을 다시 가져온다.
@@ -323,13 +336,13 @@ export default function FeynmanPipelineTab() {
   };
 
   // 지식 재구축 — 실제 API 호출부. wipe + 마인드맵 재합성 비동기 시작.
+  // 호출 직후 useRebuildProgress 의 startRebuild 로 행 인디케이터 가동.
   const runRebuildKnowledge = async (docId) => {
     setRunningIds((prev) => new Set(prev).add(docId));
     try {
       const res = await rebuildKnowledge(docId);
       showSuccess(res?.message || '마인드맵 재합성이 시작되었습니다');
-      // 폴링이 3초 주기로 돌고 있으므로 별도 강제 갱신은 불필요.
-      // 단, 사용자가 즉시 확인할 수 있도록 한 번 새로고침.
+      startRebuild(docId);  // 폴링 가동 — 챕터 상태 추적은 별도 useEffect 가 담당.
       await loadDocs(page, status);
     } catch (err) {
       showError(err, '지식 재구축에 실패했습니다');
@@ -547,6 +560,10 @@ export default function FeynmanPipelineTab() {
                         />
                       </div>
                     )}
+
+                    {/* 지식 재구축 진행 인디케이터 — useRebuildProgress 가 채워준다.
+                        getProgress 가 null 이면 컴포넌트가 자체적으로 안 그림. */}
+                    <RebuildProgressInline progress={getProgress(doc.id)} />
                   </div>
 
                   {/* 우측: 상태 뱃지 + 액션 버튼 */}
@@ -564,7 +581,7 @@ export default function FeynmanPipelineTab() {
                       <>
                         <button
                           onClick={() => handleRunPipeline(doc.id)}
-                          disabled={runningIds.has(doc.id)}
+                          disabled={runningIds.has(doc.id) || isRebuildActive(doc.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
                             bg-primary text-white hover:bg-primary-hover
                             disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -578,7 +595,7 @@ export default function FeynmanPipelineTab() {
                         </button>
                         <button
                           onClick={() => handleRunPipeline(doc.id, { skipEmbed: true })}
-                          disabled={runningIds.has(doc.id)}
+                          disabled={runningIds.has(doc.id) || isRebuildActive(doc.id)}
                           title="extract/toc/group/마인드맵 까지만. 임베딩(RAG)은 나중에 별도 실행."
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
                             bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
@@ -592,7 +609,7 @@ export default function FeynmanPipelineTab() {
                     {doc.status === 'completed' && doc.ragIndexed === false && (
                       <button
                         onClick={() => handleRunEmbedOnly(doc.id)}
-                        disabled={runningIds.has(doc.id)}
+                        disabled={runningIds.has(doc.id) || isRebuildActive(doc.id)}
                         title="이미 추출된 챕터로 RAG 임베딩만 실행 (rag_chunks 적재)"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
                           bg-amber-600 text-white hover:bg-amber-700
@@ -611,7 +628,7 @@ export default function FeynmanPipelineTab() {
                     {doc.status === 'completed' && (
                       <button
                         onClick={(e) => handleRetryToc(doc, e)}
-                        disabled={runningIds.has(doc.id)}
+                        disabled={runningIds.has(doc.id) || isRebuildActive(doc.id)}
                         title="목차(TOC) 만 다시 LLM 으로 추출하고 챕터 그룹핑 재실행"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
                           bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
@@ -621,25 +638,42 @@ export default function FeynmanPipelineTab() {
                       </button>
                     )}
                     {/* 지식 재구축 — 마인드맵 + 챕터 질문 + 답변 이력 wipe 후 마인드맵 재합성.
-                        chapter_questions 가 비어 파인만 채팅이 레거시 폴백을 타는 옛 문서 자가 복구용. */}
-                    {doc.status === 'completed' && (
-                      <button
-                        onClick={(e) => handleRebuildKnowledge(doc, e)}
-                        disabled={runningIds.has(doc.id)}
-                        title="마인드맵 + 챕터 질문 + 답변 이력을 지우고 마인드맵을 다시 합성합니다"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                          bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
-                          disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <RefreshCw size={13} />
-                        지식 재구축
-                      </button>
-                    )}
+                        chapter_questions 가 비어 파인만 채팅이 레거시 폴백을 타는 옛 문서 자가 복구용.
+                        진행 중일 때는 버튼 라벨이 phase 별로 변형되어 m/N 진행률을 보여준다. */}
+                    {doc.status === 'completed' && (() => {
+                      const progress = getProgress(doc.id);
+                      const active = Boolean(progress);
+                      let label = '지식 재구축';
+                      if (active) {
+                        if (progress.phase === 'finalizing') {
+                          label = '정리 중...';
+                        } else if (progress.phase === 'wiping' || progress.totalChapters === 0) {
+                          label = '재구축 중...';
+                        } else {
+                          label = `재구축 중... (${progress.mindmapsReady}/${progress.totalChapters})`;
+                        }
+                      }
+                      return (
+                        <button
+                          onClick={(e) => handleRebuildKnowledge(doc, e)}
+                          disabled={runningIds.has(doc.id) || active}
+                          title={active
+                            ? '재구축이 진행 중입니다. 완료될 때까지 잠시 기다려주세요.'
+                            : '마인드맵 + 챕터 질문 + 답변 이력을 지우고 마인드맵을 다시 합성합니다'}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                            bg-bg-secondary text-text-primary hover:bg-bg-tertiary border border-border-light
+                            disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <RefreshCw size={13} className={active ? 'animate-spin' : ''} />
+                          {label}
+                        </button>
+                      );
+                    })()}
                     {/* 삭제 버튼 — 파이프라인 실행 중이 아닐 때만 활성화 */}
                     {!isProcessing(doc.status) && (
                       <button
                         onClick={(e) => handleDeleteDoc(doc, e)}
-                        disabled={runningIds.has(doc.id)}
+                        disabled={runningIds.has(doc.id) || isRebuildActive(doc.id)}
                         title="문서와 연관 데이터 전체 삭제"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
                           text-danger hover:bg-danger/10 border border-border-light
