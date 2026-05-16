@@ -41,17 +41,30 @@ function saveToStorage(map) {
 }
 
 /**
- * BE 응답으로 phase 산정.
- * - totalChapters 0  → wiping (첫 응답 아직 또는 toc 미감지)
- * - mindmaps < total → generating (마인드맵 합성 중)
- * - mindmaps === total && questions < total → finalizing (질문 합성 중)
- * - complete === true → done
+ * BE 응답으로 phase 산정 — 전체 모드 (expectedTotal 없음).
  */
 function derivePhase({ totalChapters, mindmapsReady, questionsReady, complete }) {
   if (complete) return 'done';
   if (!totalChapters || totalChapters === 0) return 'wiping';
   if (mindmapsReady < totalChapters) return 'generating';
   if (questionsReady < totalChapters) return 'finalizing';
+  return 'finalizing';
+}
+
+/**
+ * 부분 재구축 phase 산정 — baseline + expectedTotal 기준 delta 계산.
+ *
+ * <p>BE 의 mindmapsReady / questionsReady 는 문서 전체 카운트라 부분 재구축에서
+ * 의미 없음. rebuild 시작 시점의 baseline 을 빼서 "이번 재구축에서 새로 생성된 챕터 수"
+ * 를 derived 한다. delta >= expectedTotal 이면 done.</p>
+ */
+function derivePartialPhase({ mindmapsReady, questionsReady,
+                              baselineMindmaps, baselineQuestions, expectedTotal }) {
+  // wipe 직후 baseline 보다 작아질 수 있으니 음수 보호.
+  const mindmapDelta = Math.max(0, mindmapsReady - baselineMindmaps);
+  const questionDelta = Math.max(0, questionsReady - baselineQuestions);
+  if (mindmapDelta >= expectedTotal && questionDelta >= expectedTotal) return 'done';
+  if (mindmapDelta < expectedTotal) return 'generating';
   return 'finalizing';
 }
 
@@ -83,16 +96,20 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
    */
   const startRebuild = useCallback((docId, expectedTotal) => {
     if (!docId) return;
+    const isPartial = expectedTotal && expectedTotal > 0;
     updateEntries((prev) => ({
       ...prev,
       [docId]: {
         docId,
         startedAt: Date.now(),
-        totalChapters: expectedTotal && expectedTotal > 0 ? expectedTotal : 0,
+        totalChapters: isPartial ? expectedTotal : 0,
         mindmapsReady: 0,
         questionsReady: 0,
         phase: 'wiping',
-        expectedTotal: expectedTotal && expectedTotal > 0 ? expectedTotal : null,
+        expectedTotal: isPartial ? expectedTotal : null,
+        // 부분 재구축이면 첫 폴링 응답에서 baseline 캡처. null=아직 미캡처.
+        baselineMindmaps: null,
+        baselineQuestions: null,
       },
     }));
   }, [updateEntries]);
@@ -160,8 +177,43 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
         const mindmaps = Math.min(data.mindmapsReady || 0, total || 0);
         const questions = Math.min(data.questionsReady || 0, total || 0);
         const complete = Boolean(data.complete);
+        const isPartial = entry.expectedTotal && entry.expectedTotal > 0;
 
-        const phase = derivePhase({ totalChapters: total, mindmapsReady: mindmaps, questionsReady: questions, complete });
+        // 부분 재구축: 첫 응답에서 baseline 캡처. baseline 잡힌 후엔 delta 기반 진행.
+        if (isPartial && entry.baselineMindmaps == null) {
+          next[docId] = {
+            ...entry,
+            mindmapsReady: 0,
+            questionsReady: 0,
+            baselineMindmaps: mindmaps,
+            baselineQuestions: questions,
+            phase: 'generating',
+          };
+          return;
+        }
+
+        let phase;
+        let displayMindmaps = mindmaps;
+        let displayQuestions = questions;
+        if (isPartial) {
+          // delta = current - baseline (음수면 wipe 직후 — 0 으로 클램프).
+          displayMindmaps = Math.max(0, mindmaps - entry.baselineMindmaps);
+          displayQuestions = Math.max(0, questions - entry.baselineQuestions);
+          phase = derivePartialPhase({
+            mindmapsReady: mindmaps,
+            questionsReady: questions,
+            baselineMindmaps: entry.baselineMindmaps,
+            baselineQuestions: entry.baselineQuestions,
+            expectedTotal: entry.expectedTotal,
+          });
+        } else {
+          phase = derivePhase({
+            totalChapters: total,
+            mindmapsReady: mindmaps,
+            questionsReady: questions,
+            complete,
+          });
+        }
 
         if (phase === 'done') {
           completedIds.push(docId);
@@ -171,9 +223,9 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
 
         next[docId] = {
           ...entry,
-          totalChapters: total,
-          mindmapsReady: mindmaps,
-          questionsReady: questions,
+          totalChapters: isPartial ? entry.expectedTotal : total,
+          mindmapsReady: displayMindmaps,
+          questionsReady: displayQuestions,
           phase,
         };
       });
