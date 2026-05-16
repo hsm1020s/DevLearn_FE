@@ -105,6 +105,19 @@ export async function deleteDoc(docId) {
 }
 
 /**
+ * 문서의 파인만 학습 레이어(마인드맵 + 챕터 질문 + 답변 이력)를 wipe 한 뒤
+ * 마인드맵 자동 합성을 비동기로 재시작한다. 청크/임베딩/원문은 보존.
+ *
+ * 옛 문서(chapter_questions 가 비어있어 파인만 채팅이 레거시 폴백을 타는 경우) 의 자가 복구용.
+ * @param {string} docId 문서 UUID
+ * @returns {Promise<{docId: string, stats: {chapters: number}, message: string}>}
+ */
+export async function rebuildKnowledge(docId) {
+  const { data } = await api.post(`/feynman/${docId}/rebuild-knowledge`);
+  return data.data;
+}
+
+/**
  * 여러 문서를 파이프라인 큐에 일괄 등록한다.
  * @param {string[]} docIds - 문서 UUID 배열
  * @param {Object} options
