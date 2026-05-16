@@ -75,18 +75,24 @@ export default function useRebuildProgress({ onComplete, onFailed } = {}) {
     });
   }, []);
 
-  /** 새 재구축 엔트리 추가 — Pipeline 탭의 runRebuildKnowledge 가 호출. */
-  const startRebuild = useCallback((docId) => {
+  /**
+   * 새 재구축 엔트리 추가 — Pipeline 탭의 runRebuildKnowledge 가 호출.
+   * @param {string} docId
+   * @param {number} [expectedTotal] 부분 재구축에서 선택한 챕터 수. 진행률 기준 분모로 사용.
+   *   생략하면 BE 응답의 totalChapters 를 기준 (= 전체 챕터).
+   */
+  const startRebuild = useCallback((docId, expectedTotal) => {
     if (!docId) return;
     updateEntries((prev) => ({
       ...prev,
       [docId]: {
         docId,
         startedAt: Date.now(),
-        totalChapters: 0,
+        totalChapters: expectedTotal && expectedTotal > 0 ? expectedTotal : 0,
         mindmapsReady: 0,
         questionsReady: 0,
         phase: 'wiping',
+        expectedTotal: expectedTotal && expectedTotal > 0 ? expectedTotal : null,
       },
     }));
   }, [updateEntries]);

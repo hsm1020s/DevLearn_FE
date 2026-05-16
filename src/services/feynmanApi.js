@@ -112,8 +112,38 @@ export async function deleteDoc(docId) {
  * @param {string} docId 문서 UUID
  * @returns {Promise<{docId: string, stats: {chapters: number}, message: string}>}
  */
-export async function rebuildKnowledge(docId) {
-  const { data } = await api.post(`/feynman/${docId}/rebuild-knowledge`);
+/**
+ * @param {string} docId
+ * @param {{ chapters?: string[], targets?: 'all'|'mindmap'|'questions' }} [opts]
+ *   chapters: 선택한 챕터 (null/empty → 전체)
+ *   targets: 합성 타겟 (기본 'all')
+ */
+export async function rebuildKnowledge(docId, opts = {}) {
+  const body = {};
+  if (Array.isArray(opts.chapters) && opts.chapters.length > 0) body.chapters = opts.chapters;
+  if (opts.targets) body.targets = opts.targets;
+  const { data } = await api.post(`/feynman/${docId}/rebuild-knowledge`, body);
+  return data.data;
+}
+
+/**
+ * 선택한 챕터·타겟 조합의 예상 LLM 비용 미리보기.
+ * @param {string} docId
+ * @param {{ chapters?: string[], targets?: 'all'|'mindmap'|'questions' }} [opts]
+ * @returns {Promise<{
+ *   items: {chapter:string, mindmapTokens:number, questionTokens:number, questionNodes:number, usd:number}[],
+ *   totalUsd: number, totalKrw: number, totalLlmCalls: number
+ * }>}
+ */
+export async function fetchRebuildCostPreview(docId, opts = {}) {
+  const params = {};
+  if (Array.isArray(opts.chapters) && opts.chapters.length > 0) params.chapters = opts.chapters;
+  if (opts.targets) params.targets = opts.targets;
+  const { data } = await api.get(`/feynman/${docId}/rebuild-cost-preview`, {
+    params,
+    // axios 가 chapters=A&chapters=B 형태로 직렬화하도록.
+    paramsSerializer: { indexes: null },
+  });
   return data.data;
 }
 
